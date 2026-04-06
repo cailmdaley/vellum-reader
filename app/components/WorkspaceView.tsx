@@ -1,0 +1,152 @@
+/**
+ * WorkspaceView — fiber cards scoped to the current fiber's subtree.
+ *
+ * Shows the current fiber as a summary, then its children grouped by status.
+ * If no current fiber or no children, shows all open/active fibers.
+ */
+
+import { useMemo } from 'react';
+import { Link } from '@remix-run/react';
+import { useMode } from '~/contexts/ModeContext';
+import type { GraphNode, GraphLink } from '~/utils/content-server';
+
+const STATUS_ORDER = ['active', 'suspicious', 'blocked', 'open', 'closed', 'suspended'];
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Active', open: 'Open', closed: 'Closed', suspended: 'Suspended',
+  resolved: 'Closed', suspicious: 'Needs attention', blocked: 'Blocked',
+};
+const STATUS_GLYPHS: Record<string, string> = {
+  active: '◐', open: '○', closed: '●', suspended: '·',
+  resolved: '●', suspicious: '◈', blocked: '✕',
+};
+
+function normalizeStatus(status: string): string {
+  if (status === 'resolved') return 'closed';
+  return status;
+}
+
+/** Strip leading markdown blockquote prefix and trim. */
+function cleanVerdict(v?: string): string | undefined {
+  if (!v) return v;
+  return v.replace(/^>\s*/, '').trim() || undefined;
+}
+
+interface WorkspaceViewProps {
+  nodes: GraphNode[];
+  links: GraphLink[];
+  currentSlug: string;
+  changedIds?: Set<string>;
+}
+
+export function WorkspaceView({ nodes, links, currentSlug, changedIds }: WorkspaceViewProps) {
+  const { setMode } = useMode();
+  const { currentNode, children } = useMemo(() => {
+    const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
+    const current = nodeBySlug.get(currentSlug);
+
+    // Find direct children via containment links
+    const childSlugs = new Set(
+      links
+        .filter((l) => l.kind === 'contains' && l.source === currentSlug)
+        .map((l) => l.target)
+    );
+    const kids = nodes.filter((n) => childSlugs.has(n.slug));
+
+    return { currentNode: current, children: kids };
+  }, [nodes, links, currentSlug]);
+
+  // Group children by normalized status
+  const sections = useMemo(() => {
+    const byStatus = new Map<string, GraphNode[]>();
+    for (const node of children) {
+      const s = normalizeStatus(node.status);
+      if (!byStatus.has(s)) byStatus.set(s, []);
+      byStatus.get(s)!.push(node);
+    }
+    return STATUS_ORDER.filter((s) => byStatus.has(s)).map((s) => ({
+      status: s,
+      nodes: byStatus.get(s)!,
+    }));
+  }, [children]);
+
+  // Count summary
+  const counts = useMemo(() => {
+    const c = { total: children.length, open: 0, active: 0, closed: 0, attention: 0 };
+    for (const n of children) {
+      const s = normalizeStatus(n.status);
+      if (s === 'open') c.open++;
+      else if (s === 'active') c.active++;
+      else if (s === 'closed') c.closed++;
+      else if (s === 'suspicious' || s === 'blocked') c.attention++;
+    }
+    return c;
+  }, [children]);
+
+  if (!currentNode) {
+    return (
+      <div className="vellum-error">
+        Fiber <em>{currentSlug}</em> not found.
+      </div>
+    );
+  }
+
+  return (
+    <div className="vellum-workspace">
+      {/* Parent summary */}
+      <div className="workspace-parent">
+        <h1 className="workspace-parent__title">{currentNode.label}</h1>
+        {cleanVerdict(currentNode.verdict) && (
+          <p className="workspace-parent__verdict">{cleanVerdict(currentNode.verdict)}</p>
+        )}
+        {children.length > 0 && (
+          <div className="workspace-parent__counts">
+            <span>{counts.total} sub-fibers</span>
+            {counts.active > 0 && <span className="workspace-count--active">◐ {counts.active} active</span>}
+            {counts.attention > 0 && <span className="workspace-count--open">◈ {counts.attention} attention</span>}
+            {counts.open > 0 && <span className="workspace-count--open">○ {counts.open} open</span>}
+            {counts.closed > 0 && <span className="workspace-count--closed">● {counts.closed} closed</span>}
+          </div>
+        )}
+      </div>
+
+      {children.length === 0 && (
+        <p className="workspace-empty">No sub-fibers. This fiber is a leaf.</p>
+      )}
+
+      {/* Children grouped by status */}
+      {sections.map(({ status, nodes: sectionNodes }) => (
+        <section key={status} className="workspace-section">
+          <h2 className="workspace-section__heading">
+            {STATUS_GLYPHS[status]} {STATUS_LABELS[status]} ({sectionNodes.length})
+          </h2>
+          {sectionNodes.map((node) => (
+            <FiberCard key={node.id} node={node} changed={changedIds?.has(node.slug)} onNavigate={() => setMode('narrative')} />
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function FiberCard({ node, changed, onNavigate }: { node: GraphNode; changed?: boolean; onNavigate?: () => void }) {
+  const status = normalizeStatus(node.status);
+  return (
+    <Link to={`/${node.slug}`} className={`fiber-card${changed ? ' fiber-card--changed' : ''}`} onClick={onNavigate}>
+      <div className="fiber-card__header">
+        <span className={`fiber-card__dot fiber-card__dot--${status}`}>
+          {STATUS_GLYPHS[node.status] ?? '○'}
+        </span>
+        <span className="fiber-card__title">{node.label}</span>
+      </div>
+      <div className="fiber-card__meta">
+        <span>{node.slug.split('/').pop()}</span>
+        {node.tags.length > 0 && <span>{node.tags.slice(0, 3).join(', ')}</span>}
+        {node.decisionCount ? <span>{node.decisionCount}d</span> : null}
+        {node.findingCount ? <span>{node.findingCount}f</span> : null}
+      </div>
+      {cleanVerdict(node.verdict) && (
+        <p className="fiber-card__outcome">{cleanVerdict(node.verdict)}</p>
+      )}
+    </Link>
+  );
+}
