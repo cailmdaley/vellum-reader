@@ -22,6 +22,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: 'narrative', label: 'Narrative' },
   { id: 'workspace', label: 'Workspace' },
   { id: 'map', label: 'Map' },
+  { id: 'delta', label: 'Delta' },
 ];
 
 const STATUS_GLYPHS: Record<string, string> = {
@@ -29,7 +30,7 @@ const STATUS_GLYPHS: Record<string, string> = {
   resolved: '●', suspicious: '◈', blocked: '✕',
 };
 
-export function ColumnHeader() {
+export function ColumnHeader({ deltaCount = 0 }: { deltaCount?: number }) {
   const { mode, setMode } = useMode();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -130,6 +131,9 @@ export function ColumnHeader() {
               aria-current={mode === id ? 'true' : undefined}
             >
               {label}
+              {id === 'delta' && deltaCount > 0 && (
+                <span className="vellum-mode-tab__badge">{deltaCount}</span>
+              )}
             </button>
           ))}
         </nav>

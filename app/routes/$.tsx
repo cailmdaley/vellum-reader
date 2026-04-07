@@ -16,7 +16,7 @@ import { ColumnHeader } from '~/components/ColumnHeader';
 import { NarrativeView } from '~/components/NarrativeView';
 import { WorkspaceView } from '~/components/WorkspaceView';
 import { MapView } from '~/components/MapView';
-import { DeltaBanner } from '~/components/DeltaBanner';
+import { DeltaView } from '~/components/DeltaView';
 import { OutlinePalette } from '~/components/OutlinePalette';
 import { useMode } from '~/contexts/ModeContext';
 import type { Mode } from '~/contexts/ModeContext';
@@ -48,7 +48,7 @@ export const loader: LoaderFunction = async ({ params }) => {
   return json<LoaderData>({ slug, content, graph });
 };
 
-const MODE_KEYS: Record<string, Mode> = { '1': 'narrative', '2': 'workspace', '3': 'map' };
+const MODE_KEYS: Record<string, Mode> = { '1': 'narrative', '2': 'workspace', '3': 'map', '4': 'delta' };
 
 export default function ContentPage() {
   const { slug, content, graph } = useLoaderData<LoaderData>();
@@ -121,15 +121,12 @@ export default function ContentPage() {
       }))
     : [];
 
-  const showDelta = deltaEvents.length > 0 && !dismissed && since;
+  // Unique changed fiber count for the Delta tab badge
+  const deltaCount = new Set(deltaEvents.map((e) => e.fiberId)).size;
 
   return (
     <div className="vellum-page">
-      <ColumnHeader />
-
-      {showDelta && (
-        <DeltaBanner events={deltaEvents} since={since!} onDismiss={acknowledge} />
-      )}
+      <ColumnHeader deltaCount={dismissed ? 0 : deltaCount} />
 
       {mode === 'narrative' && content && (
         <NarrativeView
@@ -162,6 +159,14 @@ export default function ContentPage() {
           links={graph.links}
           currentSlug={slug}
           changedIds={changedIds}
+        />
+      )}
+
+      {mode === 'delta' && (
+        <DeltaView
+          events={dismissed ? [] : deltaEvents}
+          since={since}
+          onAcknowledge={acknowledge}
         />
       )}
 

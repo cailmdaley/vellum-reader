@@ -1,0 +1,96 @@
+/**
+ * DeltaView — the "what changed since your last visit" tab.
+ *
+ * Replaces the old DeltaBanner. Occupies the full mode panel so there's
+ * room to act: navigate to a fiber, mark it reviewed, dismiss the whole set.
+ */
+
+import { useNavigate } from '@remix-run/react';
+import type { LogEvent } from '~/utils/content-server';
+
+function formatTimeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 14) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+const STATUS_GLYPHS: Record<string, string> = {
+  open: '○', active: '◐', closed: '●', suspended: '·',
+  resolved: '●', suspicious: '◈', blocked: '✕',
+};
+
+interface DeltaViewProps {
+  events: LogEvent[];
+  since: string | null;
+  onAcknowledge: () => void;
+}
+
+export function DeltaView({ events, since, onAcknowledge }: DeltaViewProps) {
+  const navigate = useNavigate();
+
+  // Deduplicate: most recent event per fiber
+  const changedFibers = (() => {
+    const seen = new Map<string, LogEvent>();
+    for (const ev of events) {
+      if (!seen.has(ev.fiberId)) seen.set(ev.fiberId, ev);
+    }
+    return Array.from(seen.values());
+  })();
+
+  if (changedFibers.length === 0) {
+    return (
+      <div className="delta-view delta-view--empty">
+        <p className="delta-view__empty-msg">
+          No changes since last visit.
+        </p>
+      </div>
+    );
+  }
+
+  const timeAgo = since ? formatTimeAgo(since) : '';
+
+  return (
+    <div className="delta-view">
+      <div className="delta-view__header">
+        <span className="delta-view__summary">
+          <span className="delta-view__count">{changedFibers.length}</span>
+          {' '}fiber{changedFibers.length !== 1 ? 's' : ''} changed
+          {timeAgo && <span className="delta-view__since"> · {timeAgo}</span>}
+        </span>
+        <button
+          className="delta-view__mark-read"
+          onClick={onAcknowledge}
+          title="Mark all as read"
+        >
+          mark read
+        </button>
+      </div>
+
+      <div className="delta-view__list">
+        {changedFibers.map((ev) => (
+          <button
+            key={ev.fiberId}
+            className="delta-view__item"
+            onClick={() => navigate(`/${ev.fiberId}`)}
+          >
+            <span className="delta-view__item-glyph">
+              {STATUS_GLYPHS[ev.status] ?? '○'}
+            </span>
+            <span className="delta-view__item-body">
+              <span className="delta-view__item-title">{ev.title || ev.fiberId}</span>
+              <span className="delta-view__item-meta">{ev.fiberId}</span>
+            </span>
+            <span className="delta-view__item-type">{ev.type}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
