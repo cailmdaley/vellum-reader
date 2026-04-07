@@ -163,13 +163,6 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
         }
       }
 
-      // Auto-show when near the top of the page (all entries stacked)
-      const isTop = allAboveViewport || scrollY < 200;
-      if (navRef.current) {
-        const hasTop = navRef.current.classList.contains('ghost-toc--top');
-        if (hasTop !== isTop) navRef.current.classList.toggle('ghost-toc--top', isTop);
-      }
-
       // Batch DOM writes — read nothing after this point
       for (let i = 0; i < items.length; i++) {
         const el = items[i].el;

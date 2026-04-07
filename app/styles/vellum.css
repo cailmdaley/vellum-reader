@@ -507,6 +507,41 @@ body {
 .vellum-breadcrumb a:hover { text-decoration: underline; }
 .vellum-breadcrumb__sep { color: var(--border); }
 
+/* ── Backlink Nodes: inbound-reference cluster beside fiber title ── */
+.backlink-nodes {
+  position: absolute;
+  left: calc(var(--prose-width) + 10px);
+  top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: var(--margin-width);
+  pointer-events: auto;
+}
+
+.backlink-node {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s, transform 0.15s;
+  border-radius: 50%;
+}
+
+.backlink-node:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+/* Hide on narrow viewports where right margin collapses */
+@media (max-width: 1100px) {
+  .backlink-nodes { display: none; }
+}
+
 /* ── Right Margin: Citation Glyphs ── */
 .vellum-margin-right {
   position: relative;
@@ -659,7 +694,7 @@ body {
   text-overflow: ellipsis;
   max-width: 160px;
   text-align: right;
-  opacity: 0.3;
+  opacity: 0.45;
   padding: 2px 0;
   line-height: 1.3;
   transition: opacity 0.3s, color 0.25s;
@@ -674,37 +709,28 @@ body {
 /* Off-screen entries — compressed, slightly dimmer */
 .ghost-toc__entry--offscreen {
   font-size: 0.68rem;
-  opacity: 0.2;
-}
-
-/* Active section — always visible */
-.ghost-toc__entry--active {
-  opacity: 0.6;
-  color: var(--gold);
-}
-
-/* At page top — auto-show all entries */
-.ghost-toc--top .ghost-toc__entry {
-  opacity: 0.5;
-}
-.ghost-toc--top .ghost-toc__entry--active {
-  opacity: 0.75;
-}
-
-/* Hover over gutter — reveal all entries */
-.ghost-toc--hover .ghost-toc__entry {
-  opacity: 0.5;
-}
-.ghost-toc--hover .ghost-toc__entry--offscreen {
   opacity: 0.3;
 }
-.ghost-toc--hover .ghost-toc__entry:hover {
-  opacity: 0.9;
+
+/* Active section */
+.ghost-toc__entry--active {
+  opacity: 0.75;
   color: var(--gold);
 }
-.ghost-toc--hover .ghost-toc__entry--active,
-.ghost-toc--top .ghost-toc__entry:hover {
-  opacity: 0.9;
+
+/* Hover over gutter — full reveal */
+.ghost-toc--hover .ghost-toc__entry {
+  opacity: 0.6;
+}
+.ghost-toc--hover .ghost-toc__entry--offscreen {
+  opacity: 0.4;
+}
+.ghost-toc--hover .ghost-toc__entry:hover {
+  opacity: 0.95;
+  color: var(--gold);
+}
+.ghost-toc--hover .ghost-toc__entry--active {
+  opacity: 0.95;
   color: var(--gold);
 }
 

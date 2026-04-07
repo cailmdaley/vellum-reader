@@ -18,6 +18,7 @@ import { MarginCitations } from './MarginCitations';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { Lightbox } from './Lightbox';
 import { GhostToc } from './GhostToc';
+import { BacklinkNodes } from './BacklinkNodes';
 import type { LightboxImage } from './Lightbox';
 import type { FiberContent, GraphNode, GraphLink, Annotation } from '~/utils/content-server';
 
@@ -125,6 +126,16 @@ export function NarrativeView({ content, graphNodes, graphLinks, breadcrumb, cha
 
   // Find the graph node for this fiber (for status glyph in header)
   const currentNode = graphNodes.find((n) => n.slug === content.slug);
+
+  // Fibers that link TO this fiber (inbound references)
+  const backlinkNodes = useMemo(() => {
+    if (!currentNode || !graphLinks) return [];
+    const nodeById = new Map(graphNodes.map((n) => [n.id, n]));
+    return graphLinks
+      .filter((l) => l.target === currentNode.id)
+      .map((l) => nodeById.get(l.source))
+      .filter((n): n is GraphNode => !!n);
+  }, [currentNode, graphLinks, graphNodes]);
 
   // Strip frontmatter duplication from the mdast; extract full lede text
   const { mdast: cleanAst, lede } = useMemo(
@@ -302,6 +313,9 @@ export function NarrativeView({ content, graphNodes, graphLinks, breadcrumb, cha
 
       {/* Left gutter — ghost section TOC */}
       <GhostToc proseRef={proseRef} wrapperRef={wrapperRef} />
+
+      {/* Right margin top — inbound backlink nodes, beside the fiber title */}
+      <BacklinkNodes nodes={backlinkNodes} navigate={navigate} />
 
       {/* Left margin — text annotation dots + selection toolbar */}
       <TextAnnotationLayer
