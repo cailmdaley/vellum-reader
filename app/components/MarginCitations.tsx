@@ -155,7 +155,7 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       {glyphs.map((g, i) => (
         <div
           key={`${g.slug}-${i}`}
-          className={`margin-glyph margin-glyph--${statusClass(g.node.status)}${changedIds?.has(g.slug) ? ' margin-glyph--changed' : ''}`}
+          className={`margin-glyph margin-glyph--${statusClass(g.node.status)}${changedIds?.has(g.slug) ? ' margin-glyph--changed' : ''}${g.node.tempered ? ' margin-glyph--tempered' : ''}`}
           style={{ top: g.top }}
           onClick={() => handleClick(g)}
           onMouseEnter={() => handleMouseEnter(g, i)}
@@ -180,6 +180,7 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
           <div className="fiber-tooltip__status">
             <span>{glyphForNode(hoveredGlyph.node)}</span>
             <span>{hoveredGlyph.node.status}</span>
+            {hoveredGlyph.node.tempered && <span className="fiber-tooltip__tempered" title="Human-reviewed; load-bearing">⬡</span>}
             {hoveredGlyph.node.tags?.map((t) => (
               <span key={t} className="vellum-tag">{t}</span>
             ))}

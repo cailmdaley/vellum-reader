@@ -910,6 +910,11 @@ body {
   opacity: 0.9;
 }
 
+.workspace-decision-filter__btn--tempered.workspace-decision-filter__btn--active {
+  color: var(--teal);
+  border-color: var(--teal);
+}
+
 /* ── Map View ── */
 .vellum-map {
   width: 100%;
@@ -1198,6 +1203,25 @@ body {
   color: var(--text-muted);
   opacity: 0.6;
   flex-shrink: 0;
+}
+
+/* ── Tempered margin glyphs ── */
+.margin-glyph--tempered::after {
+  content: '⬡';
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.5rem;
+  color: var(--text-muted);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.fiber-tooltip__tempered {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 /* ── Changed margin glyphs (delta) ── */

@@ -47,6 +47,7 @@ function hasOpenDecision(node: GraphNode): boolean {
 export function WorkspaceView({ nodes, links, currentSlug, changedIds }: WorkspaceViewProps) {
   const { setMode } = useMode();
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>('all');
+  const [temperedOnly, setTemperedOnly] = useState(false);
   const { currentNode, children } = useMemo(() => {
     const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
     const current = nodeBySlug.get(currentSlug);
@@ -62,12 +63,14 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
     return { currentNode: current, children: kids };
   }, [nodes, links, currentSlug]);
 
-  // Filter children by decision status
+  // Filter children by decision status and tempered
   const filteredChildren = useMemo(() => {
-    if (decisionFilter === 'open') return children.filter(hasOpenDecision);
-    if (decisionFilter === 'resolved') return children.filter((n) => !hasOpenDecision(n));
-    return children;
-  }, [children, decisionFilter]);
+    let result = children;
+    if (decisionFilter === 'open') result = result.filter(hasOpenDecision);
+    else if (decisionFilter === 'resolved') result = result.filter((n) => !hasOpenDecision(n));
+    if (temperedOnly) result = result.filter((n) => n.tempered);
+    return result;
+  }, [children, decisionFilter, temperedOnly]);
 
   // Group children by normalized status
   const sections = useMemo(() => {
@@ -85,7 +88,7 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
 
   // Count summary
   const counts = useMemo(() => {
-    const c = { total: children.length, open: 0, active: 0, closed: 0, attention: 0, openDecisions: 0 };
+    const c = { total: children.length, open: 0, active: 0, closed: 0, attention: 0, openDecisions: 0, tempered: 0 };
     for (const n of children) {
       const s = normalizeStatus(n.status);
       if (s === 'open') c.open++;
@@ -93,6 +96,7 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
       else if (s === 'closed') c.closed++;
       else if (s === 'suspicious' || s === 'blocked') c.attention++;
       if (hasOpenDecision(n)) c.openDecisions++;
+      if (n.tempered) c.tempered++;
     }
     return c;
   }, [children]);
@@ -122,20 +126,29 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
             {counts.closed > 0 && <span className="workspace-count--closed">● {counts.closed} closed</span>}
           </div>
         )}
-        {counts.openDecisions > 0 && (
+        {(counts.openDecisions > 0 || counts.tempered > 0) && (
           <div className="workspace-decision-filter">
-            <button
-              className={`workspace-decision-filter__btn${decisionFilter === 'all' ? ' workspace-decision-filter__btn--active' : ''}`}
-              onClick={() => setDecisionFilter('all')}
-            >all</button>
-            <button
-              className={`workspace-decision-filter__btn${decisionFilter === 'open' ? ' workspace-decision-filter__btn--active' : ''}`}
-              onClick={() => setDecisionFilter('open')}
-            >◇ {counts.openDecisions} open</button>
-            <button
-              className={`workspace-decision-filter__btn${decisionFilter === 'resolved' ? ' workspace-decision-filter__btn--active' : ''}`}
-              onClick={() => setDecisionFilter('resolved')}
-            >resolved</button>
+            {counts.openDecisions > 0 && <>
+              <button
+                className={`workspace-decision-filter__btn${decisionFilter === 'all' ? ' workspace-decision-filter__btn--active' : ''}`}
+                onClick={() => setDecisionFilter('all')}
+              >all</button>
+              <button
+                className={`workspace-decision-filter__btn${decisionFilter === 'open' ? ' workspace-decision-filter__btn--active' : ''}`}
+                onClick={() => setDecisionFilter('open')}
+              >◇ {counts.openDecisions} open</button>
+              <button
+                className={`workspace-decision-filter__btn${decisionFilter === 'resolved' ? ' workspace-decision-filter__btn--active' : ''}`}
+                onClick={() => setDecisionFilter('resolved')}
+              >resolved</button>
+            </>}
+            {counts.tempered > 0 && (
+              <button
+                className={`workspace-decision-filter__btn workspace-decision-filter__btn--tempered${temperedOnly ? ' workspace-decision-filter__btn--active' : ''}`}
+                onClick={() => setTemperedOnly((v) => !v)}
+                title="Show only human-reviewed (tempered) fibers"
+              >⬡ {counts.tempered} tempered</button>
+            )}
           </div>
         )}
       </div>
