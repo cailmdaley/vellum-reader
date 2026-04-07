@@ -46,6 +46,9 @@ export function FiberHeader({ frontmatter, graphNode, lede: extractedLede }: Fib
         {tags.map((tag) => (
           <span key={tag} className="vellum-tag">{tag}</span>
         ))}
+        {graphNode?.tempered && (
+          <span className="vellum-tempered-badge" title="Human-reviewed; load-bearing">⬡ tempered</span>
+        )}
         {graphNode?.hasASTRA && (
           <a href="#astra-blocks" className="vellum-astra-badge" title="Structured ASTRA data below">
             {graphNode.decisionCount ? `${graphNode.decisionCount}d` : ''}

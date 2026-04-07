@@ -459,6 +459,18 @@ body {
 }
 .vellum-astra-badge:hover { opacity: 1; }
 
+.vellum-tempered-badge {
+  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 1px 5px;
+  letter-spacing: 0.03em;
+  opacity: 0.6;
+  title: "Human-reviewed; load-bearing";
+}
+
 /* ── Breadcrumb ── */
 .vellum-breadcrumb {
   display: flex;
@@ -804,6 +816,54 @@ body {
   font-family: 'JetBrains Mono', monospace;
   margin-top: 4px;
   line-height: 1.45;
+}
+
+.fiber-card--tempered {
+  border-left-color: var(--teal-faint);
+}
+
+.fiber-card__tempered {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  opacity: 0.5;
+  margin-left: auto;
+}
+
+.fiber-card__open-decisions {
+  color: var(--gold);
+  opacity: 0.8;
+}
+
+/* ── Workspace Decision Filter ── */
+.workspace-decision-filter {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+}
+
+.workspace-decision-filter__btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.workspace-decision-filter__btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.workspace-decision-filter__btn--active {
+  color: var(--gold);
+  border-color: var(--gold);
+  opacity: 0.9;
 }
 
 /* ── Map View ── */

@@ -10,6 +10,14 @@ import { Link, useNavigate } from '@remix-run/react';
 import { useMode, type Mode } from '~/contexts/ModeContext';
 import type { SearchHit } from '~/utils/content-server';
 
+/** Is the user currently typing into a focusable text element? */
+function isFocusedOnInput(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = (el as HTMLElement).tagName.toLowerCase();
+  return tag === 'input' || tag === 'textarea' || (el as HTMLElement).isContentEditable;
+}
+
 const MODES: { id: Mode; label: string }[] = [
   { id: 'narrative', label: 'Narrative' },
   { id: 'workspace', label: 'Workspace' },
@@ -29,6 +37,7 @@ export function ColumnHeader() {
   const [showResults, setShowResults] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Fetch search results with debounce
@@ -96,6 +105,18 @@ export function ColumnHeader() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // '/' focuses the search input when the user isn't already typing somewhere
+  useEffect(() => {
+    function handleSlash(e: KeyboardEvent) {
+      if (e.key === '/' && !isFocusedOnInput()) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleSlash);
+    return () => document.removeEventListener('keydown', handleSlash);
+  }, []);
+
   return (
     <div className="vellum-column-header">
       <div className="vellum-column-header__row">
@@ -115,6 +136,7 @@ export function ColumnHeader() {
         <div className="vellum-column-header__search" ref={searchRef}>
           <span className="vellum-column-header__search-icon">⌕</span>
           <input
+            ref={inputRef}
             type="search"
             placeholder="Search fibers…"
             value={query}

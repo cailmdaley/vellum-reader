@@ -5,7 +5,7 @@
  * If no current fiber or no children, shows all open/active fibers.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { useMode } from '~/contexts/ModeContext';
 import type { GraphNode, GraphLink } from '~/utils/content-server';
@@ -38,8 +38,15 @@ interface WorkspaceViewProps {
   changedIds?: Set<string>;
 }
 
+type DecisionFilter = 'all' | 'open' | 'resolved';
+
+function hasOpenDecision(node: GraphNode): boolean {
+  return (node.decisions ?? []).some((d) => !d.selectedKey);
+}
+
 export function WorkspaceView({ nodes, links, currentSlug, changedIds }: WorkspaceViewProps) {
   const { setMode } = useMode();
+  const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>('all');
   const { currentNode, children } = useMemo(() => {
     const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
     const current = nodeBySlug.get(currentSlug);
@@ -55,10 +62,17 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
     return { currentNode: current, children: kids };
   }, [nodes, links, currentSlug]);
 
+  // Filter children by decision status
+  const filteredChildren = useMemo(() => {
+    if (decisionFilter === 'open') return children.filter(hasOpenDecision);
+    if (decisionFilter === 'resolved') return children.filter((n) => !hasOpenDecision(n));
+    return children;
+  }, [children, decisionFilter]);
+
   // Group children by normalized status
   const sections = useMemo(() => {
     const byStatus = new Map<string, GraphNode[]>();
-    for (const node of children) {
+    for (const node of filteredChildren) {
       const s = normalizeStatus(node.status);
       if (!byStatus.has(s)) byStatus.set(s, []);
       byStatus.get(s)!.push(node);
@@ -67,17 +81,18 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
       status: s,
       nodes: byStatus.get(s)!,
     }));
-  }, [children]);
+  }, [filteredChildren]);
 
   // Count summary
   const counts = useMemo(() => {
-    const c = { total: children.length, open: 0, active: 0, closed: 0, attention: 0 };
+    const c = { total: children.length, open: 0, active: 0, closed: 0, attention: 0, openDecisions: 0 };
     for (const n of children) {
       const s = normalizeStatus(n.status);
       if (s === 'open') c.open++;
       else if (s === 'active') c.active++;
       else if (s === 'closed') c.closed++;
       else if (s === 'suspicious' || s === 'blocked') c.attention++;
+      if (hasOpenDecision(n)) c.openDecisions++;
     }
     return c;
   }, [children]);
@@ -107,10 +122,29 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
             {counts.closed > 0 && <span className="workspace-count--closed">● {counts.closed} closed</span>}
           </div>
         )}
+        {counts.openDecisions > 0 && (
+          <div className="workspace-decision-filter">
+            <button
+              className={`workspace-decision-filter__btn${decisionFilter === 'all' ? ' workspace-decision-filter__btn--active' : ''}`}
+              onClick={() => setDecisionFilter('all')}
+            >all</button>
+            <button
+              className={`workspace-decision-filter__btn${decisionFilter === 'open' ? ' workspace-decision-filter__btn--active' : ''}`}
+              onClick={() => setDecisionFilter('open')}
+            >◇ {counts.openDecisions} open</button>
+            <button
+              className={`workspace-decision-filter__btn${decisionFilter === 'resolved' ? ' workspace-decision-filter__btn--active' : ''}`}
+              onClick={() => setDecisionFilter('resolved')}
+            >resolved</button>
+          </div>
+        )}
       </div>
 
       {children.length === 0 && (
         <p className="workspace-empty">No sub-fibers. This fiber is a leaf.</p>
+      )}
+      {children.length > 0 && filteredChildren.length === 0 && (
+        <p className="workspace-empty">No fibers match this filter.</p>
       )}
 
       {/* Children grouped by status */}
@@ -130,18 +164,21 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
 
 function FiberCard({ node, changed, onNavigate }: { node: GraphNode; changed?: boolean; onNavigate?: () => void }) {
   const status = normalizeStatus(node.status);
+  const openDecisionCount = (node.decisions ?? []).filter((d) => !d.selectedKey).length;
   return (
-    <Link to={`/${node.slug}`} className={`fiber-card${changed ? ' fiber-card--changed' : ''}`} onClick={onNavigate}>
+    <Link to={`/${node.slug}`} className={`fiber-card${changed ? ' fiber-card--changed' : ''}${node.tempered ? ' fiber-card--tempered' : ''}`} onClick={onNavigate}>
       <div className="fiber-card__header">
         <span className={`fiber-card__dot fiber-card__dot--${status}`}>
           {STATUS_GLYPHS[node.status] ?? '○'}
         </span>
         <span className="fiber-card__title">{node.label}</span>
+        {node.tempered && <span className="fiber-card__tempered" title="Human-reviewed; load-bearing">⬡</span>}
       </div>
       <div className="fiber-card__meta">
         <span>{node.slug.split('/').pop()}</span>
         {node.tags.length > 0 && <span>{node.tags.slice(0, 3).join(', ')}</span>}
         {node.decisionCount ? <span>{node.decisionCount}d</span> : null}
+        {openDecisionCount > 0 ? <span className="fiber-card__open-decisions">◇ {openDecisionCount} open</span> : null}
         {node.findingCount ? <span>{node.findingCount}f</span> : null}
       </div>
       {cleanVerdict(node.verdict) && (
