@@ -7,6 +7,7 @@
 
 import { useNavigate } from '@remix-run/react';
 import type { LogEvent } from '~/utils/content-types';
+import { statusGlyph } from '~/utils/fiber-status';
 
 function formatTimeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -20,11 +21,6 @@ function formatTimeAgo(iso: string): string {
   if (days < 14) return `${days}d ago`;
   return `${Math.floor(days / 7)}w ago`;
 }
-
-const STATUS_GLYPHS: Record<string, string> = {
-  open: '○', active: '◐', closed: '●', suspended: '·',
-  resolved: '●', suspicious: '◈', blocked: '✕',
-};
 
 interface DeltaViewProps {
   events: LogEvent[];
@@ -81,7 +77,7 @@ export function DeltaView({ events, since, onAcknowledge }: DeltaViewProps) {
             onClick={() => navigate(`/${ev.fiberId}`)}
           >
             <span className="delta-view__item-glyph">
-              {STATUS_GLYPHS[ev.status] ?? '○'}
+              {statusGlyph(ev.status)}
             </span>
             <span className="delta-view__item-body">
               <span className="delta-view__item-title">{ev.title || ev.fiberId}</span>

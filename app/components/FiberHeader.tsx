@@ -4,16 +4,7 @@
  */
 
 import type { GraphNode } from '~/utils/content-types';
-
-const STATUS_GLYPHS: Record<string, string> = {
-  open: '○', active: '◐', closed: '●', suspended: '·',
-  resolved: '●', suspicious: '◈', blocked: '✕',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  open: 'open', active: 'active', closed: 'closed', suspended: 'suspended',
-  resolved: 'resolved', suspicious: 'suspicious', blocked: 'blocked',
-};
+import { statusGlyph } from '~/utils/fiber-status';
 
 interface FiberHeaderProps {
   frontmatter: Record<string, any>;
@@ -32,16 +23,13 @@ export function FiberHeader({ frontmatter, graphNode, lede: extractedLede }: Fib
   const verdict = extractedLede ?? frontmatter.outcome;
   const lede = verdict?.replace(/^>\s*/, '').trim();
 
-  const glyph = STATUS_GLYPHS[status] ?? '○';
-  const statusLabel = STATUS_LABELS[status] ?? status;
-
   return (
     <div className="vellum-fiber-header">
       <h1 className="vellum-fiber-header__title">{title}</h1>
       <div className="vellum-fiber-header__meta">
         <span className="vellum-fiber-header__status">
-          <span>{glyph}</span>
-          <span>{statusLabel}</span>
+          <span>{statusGlyph(status)}</span>
+          <span>{status}</span>
         </span>
         {tags.map((tag) => (
           <span key={tag} className="vellum-tag">{tag}</span>

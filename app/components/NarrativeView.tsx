@@ -23,6 +23,7 @@ import { FiberEditor } from './FiberEditor';
 import type { LightboxImage } from './Lightbox';
 import type { FiberContent, GraphNode, GraphLink, Annotation } from '~/utils/content-types';
 import { getAnnotations, getRawFiber, putRawFiber } from '~/utils/api-client';
+import { glyphForNode } from '~/utils/fiber-status';
 
 interface NarrativeViewProps {
   content: FiberContent;
@@ -163,23 +164,13 @@ export function NarrativeView({ content, graphNodes, graphLinks, breadcrumb, cha
     const cleanups: Array<() => void> = [];
     let tooltip: HTMLDivElement | null = null;
 
-    const STATUS_GLYPHS: Record<string, string> = {
-      open: '○', active: '◐', closed: '●', suspended: '·',
-      resolved: '●', suspicious: '◈', blocked: '✕',
-    };
-
-    function glyphFor(node: GraphNode): string {
-      if (node.decisions && node.decisions.length > 0) return '◇';
-      return STATUS_GLYPHS[node.status] ?? '○';
-    }
-
     function esc(s: string): string {
       return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function showTooltip(node: GraphNode, linkEl: HTMLAnchorElement) {
       if (!tooltip) return;
-      const glyph = glyphFor(node);
+      const glyph = glyphForNode(node);
       const decisionHtml = (node.decisions ?? []).slice(0, 3).map((d) =>
         `<div class="fiber-tooltip__decision"><span class="fiber-tooltip__decision-label">decision</span> ${esc(d.label)}${d.selectedLabel ? `: ${esc(d.selectedLabel)}` : ''}</div>`
       ).join('');

@@ -10,6 +10,7 @@ import { Link, useNavigate } from '@remix-run/react';
 import { useMode, type Mode } from '~/contexts/ModeContext';
 import type { SearchHit } from '~/utils/content-types';
 import { searchFibers } from '~/utils/api-client';
+import { statusGlyph } from '~/utils/fiber-status';
 
 // Note: the `/` → focus-search shortcut is installed by the global
 // keydown handler in app/routes/$.tsx (alongside 1/2/3, t, [, ]).
@@ -22,11 +23,6 @@ const MODES: { id: Mode; label: string }[] = [
   { id: 'map', label: 'Map' },
   { id: 'delta', label: 'Delta' },
 ];
-
-const STATUS_GLYPHS: Record<string, string> = {
-  open: '○', active: '◐', closed: '●', suspended: '·',
-  resolved: '●', suspicious: '◈', blocked: '✕',
-};
 
 export function ColumnHeader({ deltaCount = 0 }: { deltaCount?: number }) {
   const { mode, setMode } = useMode();
@@ -140,7 +136,7 @@ export function ColumnHeader({ deltaCount = 0 }: { deltaCount?: number }) {
                   onMouseEnter={() => setSelectedIdx(i)}
                 >
                   <span className="search-result__glyph">
-                    {STATUS_GLYPHS[hit.status] ?? '○'}
+                    {statusGlyph(hit.status)}
                   </span>
                   <span className="search-result__body">
                     <span className="search-result__title">{hit.title}</span>

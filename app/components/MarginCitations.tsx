@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 import type { GraphNode } from '~/utils/content-types';
+import { glyphForNode, statusClass } from '~/utils/fiber-status';
 
 interface Glyph {
   slug: string;
@@ -31,30 +32,6 @@ interface MarginCitationsProps {
   proseRef: React.RefObject<HTMLElement>;
   wrapperRef: React.RefObject<HTMLElement>;
   changedIds?: Set<string>;
-}
-
-const STATUS_GLYPHS: Record<string, string> = {
-  open:      '○',
-  active:    '◐',
-  closed:    '●',
-  suspended: '·',
-  // Legacy mystra names
-  resolved:  '●',
-  suspicious: '◈',
-  blocked:   '✕',
-};
-
-function glyphForNode(node: GraphNode): string {
-  if (node.decisions && node.decisions.length > 0) return '◇';
-  return STATUS_GLYPHS[node.status] ?? '○';
-}
-
-function statusClass(status: string): string {
-  const map: Record<string, string> = {
-    open: 'open', active: 'active', closed: 'closed', suspended: 'suspended',
-    resolved: 'closed', suspicious: 'suspicious', blocked: 'blocked',
-  };
-  return map[status] ?? 'open';
 }
 
 export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: MarginCitationsProps) {

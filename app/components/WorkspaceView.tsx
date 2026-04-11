@@ -9,27 +9,21 @@ import { useMemo, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { useMode } from '~/contexts/ModeContext';
 import type { GraphNode, GraphLink } from '~/utils/content-types';
+import {
+  cleanVerdict,
+  normalizeStatus,
+  statusGlyph,
+} from '~/utils/fiber-status';
 
+// Display order for the per-status sections. Titlecase labels and the
+// "Needs attention" rename for `suspicious` live here because they're
+// specific to the Workspace surface — other surfaces render statuses
+// verbatim.
 const STATUS_ORDER = ['active', 'suspicious', 'blocked', 'open', 'closed', 'suspended'];
 const STATUS_LABELS: Record<string, string> = {
   active: 'Active', open: 'Open', closed: 'Closed', suspended: 'Suspended',
   resolved: 'Closed', suspicious: 'Needs attention', blocked: 'Blocked',
 };
-const STATUS_GLYPHS: Record<string, string> = {
-  active: '◐', open: '○', closed: '●', suspended: '·',
-  resolved: '●', suspicious: '◈', blocked: '✕',
-};
-
-function normalizeStatus(status: string): string {
-  if (status === 'resolved') return 'closed';
-  return status;
-}
-
-/** Strip leading markdown blockquote prefix and trim. */
-function cleanVerdict(v?: string): string | undefined {
-  if (!v) return v;
-  return v.replace(/^>\s*/, '').trim() || undefined;
-}
 
 interface WorkspaceViewProps {
   nodes: GraphNode[];
@@ -164,7 +158,7 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
       {sections.map(({ status, nodes: sectionNodes }) => (
         <section key={status} className="workspace-section">
           <h2 className="workspace-section__heading">
-            {STATUS_GLYPHS[status]} {STATUS_LABELS[status]} ({sectionNodes.length})
+            {statusGlyph(status)} {STATUS_LABELS[status]} ({sectionNodes.length})
           </h2>
           {sectionNodes.map((node) => (
             <FiberCard key={node.id} node={node} changed={changedIds?.has(node.slug)} onNavigate={() => setMode('narrative')} />
@@ -182,7 +176,7 @@ function FiberCard({ node, changed, onNavigate }: { node: GraphNode; changed?: b
     <Link to={`/${node.slug}`} className={`fiber-card${changed ? ' fiber-card--changed' : ''}${node.tempered ? ' fiber-card--tempered' : ''}`} onClick={onNavigate}>
       <div className="fiber-card__header">
         <span className={`fiber-card__dot fiber-card__dot--${status}`}>
-          {STATUS_GLYPHS[node.status] ?? '○'}
+          {statusGlyph(node.status)}
         </span>
         <span className="fiber-card__title">{node.label}</span>
         {node.tempered && <span className="fiber-card__tempered" title="Human-reviewed; load-bearing">⬡</span>}
