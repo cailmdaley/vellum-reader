@@ -24,25 +24,19 @@ function encodeSlug(slug: string): string {
 
 // ── Annotations ──────────────────────────────────────────────────────
 
-/** List text + image annotations for a fiber. */
-export async function getAnnotations(slug: string): Promise<Annotation[]> {
-  try {
-    const res = await fetch(`/api/annotations?slug=${encodeURIComponent(slug)}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data.annotations ?? []) as Annotation[];
-  } catch {
-    return [];
-  }
-}
-
-/** List image annotations for a specific image on a fiber. */
-export async function getImageAnnotations(
+/**
+ * List annotations for a fiber, optionally filtered by kind and image src.
+ * Mirrors the content-server.ts signature so callers at both layers use the
+ * same API shape.
+ */
+export async function getAnnotations(
   slug: string,
-  imageSrc: string,
+  opts: { kind?: 'text' | 'image'; imageSrc?: string } = {},
 ): Promise<Annotation[]> {
   try {
-    const params = new URLSearchParams({ slug, kind: 'image', imageSrc });
+    const params = new URLSearchParams({ slug });
+    if (opts.kind) params.set('kind', opts.kind);
+    if (opts.imageSrc) params.set('imageSrc', opts.imageSrc);
     const res = await fetch(`/api/annotations?${params}`);
     if (!res.ok) return [];
     const data = await res.json();

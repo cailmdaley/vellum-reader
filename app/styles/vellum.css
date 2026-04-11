@@ -585,8 +585,6 @@ body {
 .margin-glyph--active  .margin-glyph__dot { color: var(--teal); }
 .margin-glyph--closed  .margin-glyph__dot { color: var(--teal); opacity: 0.7; }
 .margin-glyph--suspended .margin-glyph__dot { color: var(--text-muted); }
-/* Old mystra status names */
-.margin-glyph--resolved { color: var(--teal); }
 .margin-glyph--suspicious .margin-glyph__dot { color: var(--amber); }
 .margin-glyph--blocked .margin-glyph__dot { color: var(--mauve); }
 

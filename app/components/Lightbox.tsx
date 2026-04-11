@@ -19,7 +19,7 @@ import type { GraphNode, GraphLink, Annotation } from '~/utils/content-types';
 import {
   createAnnotation,
   deleteAnnotation,
-  getImageAnnotations,
+  getAnnotations,
   updateAnnotation,
 } from '~/utils/api-client';
 
@@ -138,7 +138,7 @@ export function Lightbox({ images, currentIndex, onClose, onNavigate, graphNodes
     if (!slug) return; // No fiber slug → can't persist; just show empty
     const src = imageKey(img.src);
     let cancelled = false;
-    getImageAnnotations(slug, src).then(anns => {
+    getAnnotations(slug, { kind: 'image', imageSrc: src }).then(anns => {
       if (!cancelled) setMarkers(anns.map(annotationToMarker));
     });
     return () => { cancelled = true; };
