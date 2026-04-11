@@ -2234,3 +2234,155 @@ body {
   color: var(--text);
 }
 
+/* ── Pretext Gate 1a: workspace card experiment ── */
+/* See [[vellum-reader/workspace]]. Intentionally scoped so the old
+ * CSS-flow .fiber-card class is undisturbed while the gate is under
+ * evaluation. Cards use absolutely-positioned .pretext-line spans
+ * driven by @chenglou/pretext arithmetic wrap — no CSS text flow. */
+
+.pretext-card {
+  background: var(--prose-bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(46, 42, 38, 0.04);
+  color: var(--text);
+}
+
+.pretext-card--tempered {
+  border-left: 2px solid var(--teal-faint);
+}
+
+.pretext-card--active {
+  border-left: 2px solid var(--teal);
+}
+
+.pretext-card--suspicious,
+.pretext-card--blocked {
+  border-left: 2px solid var(--amber);
+}
+
+.pretext-card--closed {
+  opacity: 0.82;
+}
+
+.pretext-line {
+  color: var(--text);
+}
+
+.pretext-line--title {
+  color: var(--text);
+  /* small letter-spacing concession for EB Garamond at display weight */
+  letter-spacing: 0.002em;
+}
+
+.pretext-line--outcome {
+  color: var(--text);
+}
+
+.pretext-line--highlight {
+  color: var(--text-muted);
+}
+
+/* ── /pretext-gate route ── */
+.pretext-gate {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 6rem;
+  font-family: 'EB Garamond', Georgia, serif;
+  color: var(--text);
+}
+
+.pretext-gate__header h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.4rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.pretext-gate__lede {
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin: 0 0 1rem;
+  max-width: 56ch;
+  color: var(--text);
+}
+
+.pretext-gate__picker {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.pretext-gate__picker label {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.pretext-gate__picker select {
+  font: inherit;
+  background: var(--prose-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 2px 6px;
+  min-width: 22ch;
+}
+
+.pretext-gate__picker button {
+  font: inherit;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.pretext-gate__picker button:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.pretext-gate__current {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0 0 2rem;
+}
+
+.pretext-gate__grid {
+  /* Stack the six widths vertically, not in a flex-wrap grid — the grid's
+   * varying heights leave gaps and push wide cells off-screen. Vertical
+   * stacking puts every width on the same eye-line for visual QA. */
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  align-items: flex-start;
+}
+
+.pretext-gate__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pretext-gate__cell-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pretext-gate__frame {
+  /* Tight dashed frame so the pretext card's exact width is obvious to the eye */
+  outline: 1px dashed var(--border);
+  outline-offset: 4px;
+}
+

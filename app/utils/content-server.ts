@@ -4,8 +4,15 @@
  * SERVER-ONLY. These functions run inside Remix loaders/actions and talk
  * directly to mystra over HTTP. Client components must not import this
  * module (not even for types — use `~/utils/content-types` for that and
- * `~/utils/api-client` for browser-side network calls). The `process.env`
- * reference below will crash the browser bundle if this file is pulled in.
+ * `~/utils/api-client` for browser-side network calls).
+ *
+ * `process.env` must stay behind a getter. Remix's client bundle
+ * tree-shakes unused loader imports from `~.tsx` route modules, but if
+ * ANY code path in this file evaluates at module init time it breaks that
+ * shake and the whole module (process.env and all) lands in the browser.
+ * That's what the `ReferenceError: process is not defined` in
+ * `$-*.js` was: the top-level `CONTENT_CDN = process.env[...]` assignment
+ * was evaluated eagerly.
  *
  * Node 18+ has globalThis.fetch — no need for node-fetch.
  */
@@ -19,9 +26,19 @@ import type {
   SearchHit,
 } from './content-types';
 
-export const CONTENT_CDN =
-  process.env['CONTENT_CDN'] ??
-  `http://localhost:${process.env['CONTENT_CDN_PORT'] ?? 3100}`;
+/**
+ * Lazily resolve the CDN origin. Must NOT be a top-level const: top-level
+ * evaluation is a module side effect the bundler cannot drop, and it
+ * turns this server-only module into a client-bundle crash
+ * (`ReferenceError: process is not defined`) when Remix can't tree-shake
+ * the import out of the `$.tsx` client chunk.
+ */
+export function cdnOrigin(): string {
+  return (
+    process.env['CONTENT_CDN'] ??
+    `http://localhost:${process.env['CONTENT_CDN_PORT'] ?? 3100}`
+  );
+}
 
 /**
  * Fetch a fiber's content by slug.
@@ -29,7 +46,7 @@ export const CONTENT_CDN =
  */
 export async function getFiberContent(slug: string): Promise<FiberContent | null> {
   const encodedSlug = slug.split('/').map(encodeURIComponent).join('%2F');
-  const url = `${CONTENT_CDN}/content/${encodedSlug}.json`;
+  const url = `${cdnOrigin()}/content/${encodedSlug}.json`;
   const res = await fetch(url).catch(() => null);
   if (!res || res.status === 404) return null;
   if (!res.ok) return null;
@@ -38,7 +55,7 @@ export async function getFiberContent(slug: string): Promise<FiberContent | null
 
 /** Fetch the full ASTRA graph (nodes + links) for margin citation glyphs. */
 export async function getAstraGraph(): Promise<AstraGraph> {
-  const url = `${CONTENT_CDN}/astra-graph.json`;
+  const url = `${cdnOrigin()}/astra-graph.json`;
   const res = await fetch(url).catch(() => null);
   if (!res || res.status === 404) return { nodes: [], links: [] };
   return res.json() as Promise<AstraGraph>;
@@ -46,7 +63,7 @@ export async function getAstraGraph(): Promise<AstraGraph> {
 
 /** Search fibers (for the header search box). */
 export async function searchFibers(query: string): Promise<SearchHit[]> {
-  const url = `${CONTENT_CDN}/api/search?q=${encodeURIComponent(query)}`;
+  const url = `${cdnOrigin()}/api/search?q=${encodeURIComponent(query)}`;
   const res = await fetch(url).catch(() => null);
   if (!res || !res.ok) return [];
   const data: any = await res.json();
@@ -65,7 +82,7 @@ export async function getAnnotations(
   const params = new URLSearchParams({ slug });
   if (opts.kind) params.set('kind', opts.kind);
   if (opts.imageSrc) params.set('imageSrc', opts.imageSrc);
-  const res = await fetch(`${CONTENT_CDN}/api/annotations?${params}`).catch(() => null);
+  const res = await fetch(`${cdnOrigin()}/api/annotations?${params}`).catch(() => null);
   if (!res || !res.ok) return [];
   const data: any = await res.json();
   return data.annotations ?? [];
@@ -84,7 +101,7 @@ export async function createAnnotation(input: {
   y?: number;
   imageSrc?: string;
 }): Promise<Annotation | null> {
-  const url = `${CONTENT_CDN}/api/annotations`;
+  const url = `${cdnOrigin()}/api/annotations`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -97,7 +114,7 @@ export async function createAnnotation(input: {
 
 /** Update an annotation's comment. */
 export async function updateAnnotation(id: string, comment: string): Promise<Annotation | null> {
-  const url = `${CONTENT_CDN}/api/annotations/${encodeURIComponent(id)}`;
+  const url = `${cdnOrigin()}/api/annotations/${encodeURIComponent(id)}`;
   const res = await fetch(url, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -110,7 +127,7 @@ export async function updateAnnotation(id: string, comment: string): Promise<Ann
 
 /** Delete an annotation. */
 export async function deleteAnnotation(id: string): Promise<boolean> {
-  const url = `${CONTENT_CDN}/api/annotations/${encodeURIComponent(id)}`;
+  const url = `${cdnOrigin()}/api/annotations/${encodeURIComponent(id)}`;
   const res = await fetch(url, { method: 'DELETE' }).catch(() => null);
   if (!res || !res.ok) return false;
   return true;
@@ -122,7 +139,7 @@ export async function deleteAnnotation(id: string): Promise<boolean> {
  */
 export async function getRawFiber(slug: string): Promise<RawFiber | null> {
   const encodedSlug = slug.split('/').map(encodeURIComponent).join('%2F');
-  const url = `${CONTENT_CDN}/content/${encodedSlug}.md`;
+  const url = `${cdnOrigin()}/content/${encodedSlug}.md`;
   const res = await fetch(url).catch(() => null);
   if (!res || !res.ok) return null;
   return res.json() as Promise<RawFiber>;
@@ -135,7 +152,7 @@ export async function getRawFiber(slug: string): Promise<RawFiber | null> {
  */
 export async function putRawFiber(slug: string, body: string): Promise<RawFiber | null> {
   const encodedSlug = slug.split('/').map(encodeURIComponent).join('%2F');
-  const url = `${CONTENT_CDN}/content/${encodedSlug}.md`;
+  const url = `${cdnOrigin()}/content/${encodedSlug}.md`;
   const res = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -148,7 +165,7 @@ export async function putRawFiber(slug: string, body: string): Promise<RawFiber 
 /** Fetch log events since a given timestamp. */
 export async function getLogEvents(since?: string): Promise<LogResponse> {
   const params = since ? `?since=${encodeURIComponent(since)}` : '';
-  const url = `${CONTENT_CDN}/api/log${params}`;
+  const url = `${cdnOrigin()}/api/log${params}`;
   const res = await fetch(url).catch(() => null);
   if (!res || !res.ok) return { since: since ?? null, count: 0, events: [] };
   return res.json() as Promise<LogResponse>;

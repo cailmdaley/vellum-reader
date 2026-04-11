@@ -8,11 +8,11 @@
  */
 
 import type { LoaderFunction } from '@remix-run/node';
-import { CONTENT_CDN } from '~/utils/content-server';
+import { cdnOrigin } from '~/utils/content-server';
 
 export const loader: LoaderFunction = async ({ params }) => {
   const path = params['*'] ?? '';
-  const res = await fetch(`${CONTENT_CDN}/static/${path}`);
+  const res = await fetch(`${cdnOrigin()}/static/${path}`);
 
   if (!res.ok) {
     return new Response('Not found', { status: 404 });
