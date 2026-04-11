@@ -19,7 +19,7 @@ import type {
   SearchHit,
 } from './content-types';
 
-const CONTENT_CDN =
+export const CONTENT_CDN =
   process.env['CONTENT_CDN'] ??
   `http://localhost:${process.env['CONTENT_CDN_PORT'] ?? 3100}`;
 
@@ -53,19 +53,19 @@ export async function searchFibers(query: string): Promise<SearchHit[]> {
   return data.hits ?? [];
 }
 
-/** Get all annotations for a slug. */
-export async function getAnnotations(slug: string): Promise<Annotation[]> {
-  const url = `${CONTENT_CDN}/api/annotations?slug=${encodeURIComponent(slug)}`;
-  const res = await fetch(url).catch(() => null);
-  if (!res || !res.ok) return [];
-  const data: any = await res.json();
-  return data.annotations ?? [];
-}
-
-/** Get image annotations for a fiber slug + image src pathname. */
-export async function getImageAnnotations(slug: string, imageSrc: string): Promise<Annotation[]> {
-  const url = `${CONTENT_CDN}/api/annotations?slug=${encodeURIComponent(slug)}&kind=image&imageSrc=${encodeURIComponent(imageSrc)}`;
-  const res = await fetch(url).catch(() => null);
+/**
+ * Get annotations for a slug, optionally filtered by kind ('text' | 'image')
+ * and an image src pathname. mystra does the filtering server-side; we just
+ * forward whatever the caller gives us.
+ */
+export async function getAnnotations(
+  slug: string,
+  opts: { kind?: 'text' | 'image'; imageSrc?: string } = {},
+): Promise<Annotation[]> {
+  const params = new URLSearchParams({ slug });
+  if (opts.kind) params.set('kind', opts.kind);
+  if (opts.imageSrc) params.set('imageSrc', opts.imageSrc);
+  const res = await fetch(`${CONTENT_CDN}/api/annotations?${params}`).catch(() => null);
   if (!res || !res.ok) return [];
   const data: any = await res.json();
   return data.annotations ?? [];

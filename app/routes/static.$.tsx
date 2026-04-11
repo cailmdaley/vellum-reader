@@ -8,10 +8,7 @@
  */
 
 import type { LoaderFunction } from '@remix-run/node';
-
-const CONTENT_CDN =
-  process.env['CONTENT_CDN'] ??
-  `http://localhost:${process.env['CONTENT_CDN_PORT'] ?? 3100}`;
+import { CONTENT_CDN } from '~/utils/content-server';
 
 export const loader: LoaderFunction = async ({ params }) => {
   const path = params['*'] ?? '';

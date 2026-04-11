@@ -14,12 +14,8 @@ import type { LoaderFunction, ActionFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { getRawFiber, putRawFiber } from '~/utils/content-server';
 
-function slugFromParams(params: { '*'?: string }): string {
-  return params['*'] ?? '';
-}
-
 export const loader: LoaderFunction = async ({ params }) => {
-  const slug = slugFromParams(params as { '*'?: string });
+  const slug = params['*'] ?? '';
   if (!slug) return json({ error: 'slug is required' }, 400);
   const fiber = await getRawFiber(slug);
   if (!fiber) return json({ error: 'fiber not found' }, 404);
@@ -30,7 +26,7 @@ export const action: ActionFunction = async ({ request, params }) => {
   if (request.method !== 'PUT') {
     return json({ error: 'method not allowed' }, 405);
   }
-  const slug = slugFromParams(params as { '*'?: string });
+  const slug = params['*'] ?? '';
   if (!slug) return json({ error: 'slug is required' }, 400);
   const body = (await request.json()) as { body?: unknown };
   if (typeof body?.body !== 'string') {

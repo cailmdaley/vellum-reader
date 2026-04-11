@@ -12,7 +12,12 @@ export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
   const slug = url.searchParams.get('slug') ?? '';
   if (!slug) return json({ annotations: [] });
-  const annotations = await getAnnotations(slug);
+  // Forward optional filters through to mystra (kind + per-image scoping).
+  const kindParam = url.searchParams.get('kind');
+  const kind: 'text' | 'image' | undefined =
+    kindParam === 'text' || kindParam === 'image' ? kindParam : undefined;
+  const imageSrc = url.searchParams.get('imageSrc') ?? undefined;
+  const annotations = await getAnnotations(slug, { kind, imageSrc });
   return json({ annotations });
 };
 

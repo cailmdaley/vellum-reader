@@ -29,23 +29,22 @@ const COLORS = {
   taupe: '#7A7368',
 };
 
-const STATUS_STROKE: Record<string, string> = {
-  resolved: COLORS.teal,
-  closed: COLORS.teal,
-  open: COLORS.taupe,
-  active: COLORS.teal,
-  suspicious: '#B8963E',
-  blocked: COLORS.mauve,
+// Status style: fill + stroke as a single entry. resolved/closed/active all
+// render the same way (settled = teal); open/suspicious/blocked each have
+// their own hue. Lookup falls back to "open".
+interface StatusStyle { fill: string; stroke: string; }
+const SETTLED: StatusStyle = { fill: '#2E5252', stroke: COLORS.teal };
+const STATUS_STYLE: Record<string, StatusStyle> = {
+  resolved: SETTLED,
+  closed: SETTLED,
+  active: SETTLED,
+  open: { fill: '#6B5B4B', stroke: COLORS.taupe },
+  suspicious: { fill: '#6B5B2E', stroke: '#B8963E' },
+  blocked: { fill: '#6B3838', stroke: COLORS.mauve },
 };
-
-const STATUS_FILL: Record<string, string> = {
-  resolved: '#2E5252',
-  closed: '#2E5252',
-  open: '#6B5B4B',
-  active: '#2E5252',
-  suspicious: '#6B5B2E',
-  blocked: '#6B3838',
-};
+function statusStyle(status: string): StatusStyle {
+  return STATUS_STYLE[status] ?? STATUS_STYLE.open;
+}
 
 // ── Procedural geometry ──
 
@@ -442,8 +441,7 @@ function renderMap(
     const nodeSeed = nodeHash / 1000000;
     const nodeFog = fogOpacity(distances.get(node.id), maxDist);
 
-    const fillColor = STATUS_FILL[node.status] ?? STATUS_FILL.open;
-    const strokeColor = STATUS_STROKE[node.status] ?? STATUS_STROKE.open;
+    const { fill: fillColor, stroke: strokeColor } = statusStyle(node.status);
 
     const g = nodeGroup
       .append('g')
@@ -551,34 +549,20 @@ function renderMap(
         .attr('stroke-dasharray', '3,2');
     }
 
-    // Label
+    // Label — vertically center N lines around the node's baseline
     const { lines, fontSize } = wrapLabel(node.label, 20);
     const lineHeight = fontSize * 1.15;
-
-    if (lines.length === 1) {
+    const baseY = fontSize * 0.35;
+    lines.forEach((line, i) => {
+      const y = baseY + (i - (lines.length - 1) / 2) * lineHeight;
       g.append('text')
         .attr('text-anchor', 'middle')
-        .attr('y', fontSize * 0.35)
+        .attr('y', y)
         .attr('font-size', `${fontSize}px`)
         .attr('fill', COLORS.text)
         .attr('fill-opacity', 0.85)
-        .text(lines[0]);
-    } else {
-      g.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('y', -lineHeight * 0.5 + fontSize * 0.35)
-        .attr('font-size', `${fontSize}px`)
-        .attr('fill', COLORS.text)
-        .attr('fill-opacity', 0.85)
-        .text(lines[0]);
-      g.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('y', lineHeight * 0.5 + fontSize * 0.35)
-        .attr('font-size', `${fontSize}px`)
-        .attr('fill', COLORS.text)
-        .attr('fill-opacity', 0.85)
-        .text(lines[1]);
-    }
+        .text(line);
+    });
   }
 
   return () => {

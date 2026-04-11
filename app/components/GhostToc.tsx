@@ -30,7 +30,6 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
   const [entries, setEntries] = useState<TocEntry[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
-  const navRef = useRef<HTMLElement | null>(null);
   const rafRef = useRef<number>(0);
   // id → element. Keyed (not indexed) so a re-render can never clear the
   // wrong slot: the single ref callback reads `data-toc-id` off the element
@@ -212,7 +211,6 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
 
   return (
     <nav
-      ref={navRef}
       className={`ghost-toc${hovered ? ' ghost-toc--hover' : ''}`}
       aria-label="Section navigation"
       onMouseEnter={() => setHovered(true)}

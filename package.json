@@ -25,13 +25,11 @@
     "esbuild": "^0.17.6",
     "isbot": "^3.8.0",
     "myst-to-react": "^1.2.0",
-    "node-fetch": "^2.6.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@remix-run/dev": "~1.19.3",
-    "@types/node-fetch": "^2.6.4",
     "@types/react": "^18.2.24",
     "@types/react-dom": "^18.2.8",
     "typescript": "^5.1.6"

@@ -161,7 +161,6 @@ export function TextAnnotationLayer({
 
   // Annotation highlights
   const [marks, setMarks] = useState<AnnotationMark[]>([]);
-  const markCleanupRef = useRef<(() => void) | null>(null);
 
   // Popover state
   const [activePopover, setActivePopover] = useState<{
@@ -228,12 +227,6 @@ export function TextAnnotationLayer({
     const prose = proseRef.current;
     const wrapper = wrapperRef.current;
     if (!prose || !wrapper) return;
-
-    // Clean up previous marks
-    if (markCleanupRef.current) {
-      markCleanupRef.current();
-      markCleanupRef.current = null;
-    }
 
     const wrapperRect = wrapper.getBoundingClientRect();
     const newMarks: AnnotationMark[] = [];
@@ -350,8 +343,8 @@ export function TextAnnotationLayer({
 
     prose.addEventListener('click', handleHighlightClick, true);
 
-    // Cleanup: unwrap all marks
-    markCleanupRef.current = () => {
+    // Cleanup: unwrap all marks, merge adjacent text nodes
+    return () => {
       prose.removeEventListener('click', handleHighlightClick, true);
       for (const el of allMarkEls) {
         const parent = el.parentNode;
@@ -360,14 +353,7 @@ export function TextAnnotationLayer({
           parent.insertBefore(el.firstChild, el);
         }
         parent.removeChild(el);
-        parent.normalize(); // merge adjacent text nodes
-      }
-    };
-
-    return () => {
-      if (markCleanupRef.current) {
-        markCleanupRef.current();
-        markCleanupRef.current = null;
+        parent.normalize();
       }
     };
   }, [annotations, proseRef, wrapperRef]);
