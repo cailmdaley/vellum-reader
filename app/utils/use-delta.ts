@@ -7,7 +7,8 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import type { LogEvent } from './content-server';
+import type { LogEvent } from './content-types';
+import { getDeltaSince } from './api-client';
 
 const STORAGE_KEY = 'vellum:lastVisit';
 
@@ -38,23 +39,17 @@ export function useDelta() {
     }
 
     // Fetch changes since last visit
-    fetch(`/api/delta?since=${encodeURIComponent(lastVisit)}`)
-      .then((res) => (res.ok ? res.json() : { events: [] }))
-      .then((data: { events?: LogEvent[] }) => {
-        const events = data.events ?? [];
-        // Deduplicate: collect unique fiber IDs that changed
-        const changedIds = new Set(events.map((e) => e.fiberId));
-        setState({
-          events,
-          changedIds,
-          since: lastVisit,
-          loading: false,
-          dismissed: false,
-        });
-      })
-      .catch(() => {
-        setState((s) => ({ ...s, loading: false }));
+    getDeltaSince(lastVisit).then(({ events }) => {
+      // Deduplicate: collect unique fiber IDs that changed
+      const changedIds = new Set(events.map((e) => e.fiberId));
+      setState({
+        events,
+        changedIds,
+        since: lastVisit,
+        loading: false,
+        dismissed: false,
       });
+    });
   }, []);
 
   const acknowledge = useCallback(() => {

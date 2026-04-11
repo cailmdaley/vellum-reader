@@ -15,7 +15,7 @@ import { useMode } from '~/contexts/ModeContext';
 import * as d3Selection from 'd3-selection';
 import * as d3Zoom from 'd3-zoom';
 import * as d3Force from 'd3-force';
-import type { GraphNode, GraphLink } from '~/utils/content-server';
+import type { GraphNode, GraphLink } from '~/utils/content-types';
 
 // ── Palette (Weathered Substrate) ──
 

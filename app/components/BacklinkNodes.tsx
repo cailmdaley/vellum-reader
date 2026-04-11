@@ -5,7 +5,7 @@
  * fiber title. Scrolls out of view with the header.
  */
 
-import type { GraphNode } from '~/utils/content-server';
+import type { GraphNode } from '~/utils/content-types';
 
 const STATUS_COLOR: Record<string, string> = {
   open: 'var(--gold)',

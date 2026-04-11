@@ -6,7 +6,7 @@
  */
 
 import { useNavigate } from '@remix-run/react';
-import type { LogEvent } from '~/utils/content-server';
+import type { LogEvent } from '~/utils/content-types';
 
 function formatTimeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();

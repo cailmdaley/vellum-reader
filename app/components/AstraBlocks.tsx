@@ -6,7 +6,7 @@
  * glyph in margin → hover tooltip → this full rendering.
  */
 
-import type { GraphNode } from '~/utils/content-server';
+import type { GraphNode } from '~/utils/content-types';
 
 interface AstraBlocksProps {
   graphNode?: GraphNode;

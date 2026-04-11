@@ -16,7 +16,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Annotation } from '~/utils/content-server';
+import type { Annotation } from '~/utils/content-types';
+import {
+  createAnnotation,
+  deleteAnnotation,
+  updateAnnotation,
+} from '~/utils/api-client';
 
 interface TextAnnotationLayerProps {
   slug: string;
@@ -370,22 +375,15 @@ export function TextAnnotationLayer({
   // Submit new annotation
   const handleSubmit = useCallback(async () => {
     if (!selectionContext || !commentText.trim()) return;
-
-    const res = await fetch('/api/annotations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        slug,
-        selectedText: selectionContext.selectedText,
-        contextBefore: selectionContext.contextBefore,
-        contextAfter: selectionContext.contextAfter,
-        comment: commentText.trim(),
-      }),
+    const ann = await createAnnotation({
+      slug,
+      selectedText: selectionContext.selectedText,
+      contextBefore: selectionContext.contextBefore,
+      contextAfter: selectionContext.contextAfter,
+      comment: commentText.trim(),
     });
-
-    if (res.ok) {
-      const data = await res.json();
-      onAnnotationsChange([...annotations, data.annotation]);
+    if (ann) {
+      onAnnotationsChange([...annotations, ann]);
       setSelectionRect(null);
       setShowCommentBox(false);
       setCommentText('');
@@ -396,17 +394,9 @@ export function TextAnnotationLayer({
 
   // Update annotation comment
   const handleUpdate = useCallback(async (id: string, comment: string) => {
-    const res = await fetch(`/api/annotations/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comment }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      onAnnotationsChange(
-        annotations.map((a) => (a.id === id ? data.annotation : a)),
-      );
+    const ann = await updateAnnotation(id, comment);
+    if (ann) {
+      onAnnotationsChange(annotations.map((a) => (a.id === id ? ann : a)));
       setActivePopover(null);
       setEditingComment(null);
     }
@@ -414,8 +404,7 @@ export function TextAnnotationLayer({
 
   // Delete annotation
   const handleDelete = useCallback(async (id: string) => {
-    const res = await fetch(`/api/annotations/${id}`, { method: 'DELETE' });
-    if (res.ok) {
+    if (await deleteAnnotation(id)) {
       onAnnotationsChange(annotations.filter((a) => a.id !== id));
       setActivePopover(null);
     }

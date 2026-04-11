@@ -11,7 +11,7 @@ import type { LoaderFunction, V2_MetaFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse } from '@remix-run/react';
 import { getFiberContent, getAstraGraph } from '~/utils/content-server';
-import type { FiberContent, AstraGraph } from '~/utils/content-server';
+import type { FiberContent, AstraGraph } from '~/utils/content-types';
 import { ColumnHeader } from '~/components/ColumnHeader';
 import { NarrativeView } from '~/components/NarrativeView';
 import { WorkspaceView } from '~/components/WorkspaceView';

@@ -19,8 +19,10 @@ import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { Lightbox } from './Lightbox';
 import { GhostToc } from './GhostToc';
 import { BacklinkNodes } from './BacklinkNodes';
+import { FiberEditor } from './FiberEditor';
 import type { LightboxImage } from './Lightbox';
-import type { FiberContent, GraphNode, GraphLink, Annotation } from '~/utils/content-server';
+import type { FiberContent, GraphNode, GraphLink, Annotation } from '~/utils/content-types';
+import { getAnnotations, getRawFiber, putRawFiber } from '~/utils/api-client';
 
 interface NarrativeViewProps {
   content: FiberContent;
@@ -111,16 +113,18 @@ export function NarrativeView({ content, graphNodes, graphLinks, breadcrumb, cha
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
+  // Inline edit mode — holds the raw markdown loaded from the content
+  // server, or null when the prose is rendered normally. Double-clicking
+  // the prose column populates it; save and cancel both clear it.
+  const [editorBuffer, setEditorBuffer] = useState<string | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
 
   // Fetch annotations for this fiber
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/annotations?slug=${encodeURIComponent(content.slug)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setAnnotations(data.annotations ?? []);
-      })
-      .catch(() => {});
+    getAnnotations(content.slug).then((anns) => {
+      if (!cancelled) setAnnotations(anns);
+    });
     return () => { cancelled = true; };
   }, [content.slug]);
 
@@ -241,6 +245,45 @@ export function NarrativeView({ content, graphNodes, graphLinks, breadcrumb, cha
     };
   }, [content.slug, graphNodes]);
 
+  // ── Double-click to edit the raw fiber markdown ──
+  // Attaches to the prose column; ignores clicks inside anchors (those
+  // SPA-navigate). On trigger, fetches the raw markdown from the content
+  // server and sets `editorBuffer`, which swaps the MyST render for a
+  // CodeMirror view. Hot reload handles post-save rendering automatically.
+  useEffect(() => {
+    const prose = proseRef.current;
+    if (!prose) return;
+    // Don't arm the handler while the editor is already open.
+    if (editorBuffer !== null || editorLoading) return;
+
+    const onDblClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // Let link double-clicks through so middle-click/new-tab keeps working.
+      if (target.closest('a')) return;
+      // Don't hijack dblclicks inside existing annotations or astra blocks.
+      if (target.closest('.astra-block, .text-annotation, .vellum-backlink, .fiber-header__meta')) return;
+      e.preventDefault();
+      // Clear any live text selection so it doesn't survive into the editor.
+      window.getSelection()?.removeAllRanges();
+
+      setEditorLoading(true);
+      getRawFiber(content.slug)
+        .then((raw) => {
+          if (raw) setEditorBuffer(raw.body);
+          else console.warn('[vellum] failed to load raw fiber for edit:', content.slug);
+        })
+        .finally(() => {
+          setEditorLoading(false);
+        });
+    };
+
+    prose.addEventListener('dblclick', onDblClick);
+    return () => {
+      prose.removeEventListener('dblclick', onDblClick);
+    };
+  }, [content.slug, editorBuffer, editorLoading]);
+
   // SPA navigation for internal links + image lightbox
   const handleProseClick = useCallback((e: React.MouseEvent<HTMLElement>) => {
     // Image click → open lightbox
@@ -292,15 +335,26 @@ export function NarrativeView({ content, graphNodes, graphLinks, breadcrumb, cha
           graphNode={currentNode}
           lede={lede}
         />
-        <ArticleProvider
-          kind={content.kind as any ?? 'Article'}
-          references={content.references ?? { cite: {}, footnotes: {} }}
-          frontmatter={content.frontmatter ?? {}}
-        >
-          <MyST ast={cleanAst} />
-        </ArticleProvider>
+        {editorBuffer !== null ? (
+          <FiberEditor
+            initialValue={editorBuffer}
+            // Success path: mystra writes the file, its watcher broadcasts
+            // RELOAD over WS, HotReloadListener revalidates, and the prose
+            // re-renders from the new AST.
+            onSave={(value) => putRawFiber(content.slug, value)}
+            onCancel={() => setEditorBuffer(null)}
+          />
+        ) : (
+          <ArticleProvider
+            kind={content.kind as any ?? 'Article'}
+            references={content.references ?? { cite: {}, footnotes: {} }}
+            frontmatter={content.frontmatter ?? {}}
+          >
+            <MyST ast={cleanAst} />
+          </ArticleProvider>
+        )}
 
-        <AstraBlocks graphNode={currentNode} />
+        {editorBuffer === null && <AstraBlocks graphNode={currentNode} />}
       </article>
 
       {/* Right margin — absolutely positioned citation glyphs */}

@@ -9,14 +9,13 @@
  * to avoid re-render jank on scroll.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface TocEntry {
   id: string;
   text: string;
   depth: number;
   naturalTop: number;
-  el: HTMLAnchorElement | null;
 }
 
 interface GhostTocProps {
@@ -31,9 +30,26 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
   const [entries, setEntries] = useState<TocEntry[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
-  const entriesRef = useRef<TocEntry[]>([]);
   const navRef = useRef<HTMLElement | null>(null);
   const rafRef = useRef<number>(0);
+  // id → element. Keyed (not indexed) so a re-render can never clear the
+  // wrong slot: the single ref callback reads `data-toc-id` off the element
+  // itself on both mount and unmount.
+  const anchorMapRef = useRef<Map<string, HTMLAnchorElement>>(new Map());
+
+  const setAnchor = useCallback((el: HTMLAnchorElement | null) => {
+    const map = anchorMapRef.current;
+    if (el) {
+      const id = el.dataset.tocId;
+      if (id) map.set(id, el);
+    } else {
+      // React passes null with no useful element reference on unmount; scrub
+      // any stale entries by checking whether we still own each mapped node.
+      for (const [id, node] of map) {
+        if (!node.isConnected) map.delete(id);
+      }
+    }
+  }, []);
 
   // Scan headings and measure natural positions
   useEffect(() => {
@@ -56,10 +72,9 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
         const top = rect.top - wrapperRect.top + window.scrollY;
         const depth = h.tagName === 'H3' ? 3 : 2;
 
-        next.push({ id, text, depth, naturalTop: top, el: null });
+        next.push({ id, text, depth, naturalTop: top });
       }
 
-      entriesRef.current = next;
       setEntries(next);
     };
 
@@ -99,8 +114,7 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
 
   // Direct DOM position updates — no React re-renders
   useEffect(() => {
-    const items = entriesRef.current;
-    if (items.length === 0) return;
+    if (entries.length === 0) return;
 
     function updatePositions() {
       const scrollY = window.scrollY;
@@ -112,23 +126,23 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
       const visible: number[] = [];
       const below: number[] = [];
 
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].naturalTop < viewTop) above.push(i);
-        else if (items[i].naturalTop > viewBottom) below.push(i);
+      for (let i = 0; i < entries.length; i++) {
+        if (entries[i].naturalTop < viewTop) above.push(i);
+        else if (entries[i].naturalTop > viewBottom) below.push(i);
         else visible.push(i);
       }
 
       // If nothing is visible yet (haven't scrolled to first heading),
       // treat everything as "below" and stack at the top
-      const allAboveViewport = visible.length === 0 && below.length === items.length;
+      const allAboveViewport = visible.length === 0 && below.length === entries.length;
 
       // Compute display positions
-      const positions = new Array<number>(items.length);
-      const onScreen = new Array<boolean>(items.length);
+      const positions = new Array<number>(entries.length);
+      const onScreen = new Array<boolean>(entries.length);
 
       if (allAboveViewport) {
         // Stack all at viewport top
-        for (let i = 0; i < items.length; i++) {
+        for (let i = 0; i < entries.length; i++) {
           positions[i] = viewTop + i * ENTRY_HEIGHT;
           onScreen[i] = false;
         }
@@ -146,7 +160,7 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
         let lastBottom = aboveBottom;
 
         for (const idx of visible) {
-          const top = Math.max(items[idx].naturalTop, lastBottom);
+          const top = Math.max(entries[idx].naturalTop, lastBottom);
           positions[idx] = top;
           onScreen[idx] = true;
           lastBottom = top + ENTRY_HEIGHT;
@@ -164,8 +178,9 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
       }
 
       // Batch DOM writes — read nothing after this point
-      for (let i = 0; i < items.length; i++) {
-        const el = items[i].el;
+      const anchors = anchorMapRef.current;
+      for (let i = 0; i < entries.length; i++) {
+        const el = anchors.get(entries[i].id);
         if (!el) continue;
         el.style.top = `${positions[i]}px`;
         const wasOff = el.classList.contains('ghost-toc__entry--offscreen');
@@ -203,10 +218,11 @@ export function GhostToc({ proseRef, wrapperRef }: GhostTocProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {entries.map((e, i) => (
+      {entries.map((e) => (
         <a
           key={e.id}
-          ref={(el) => { entriesRef.current[i].el = el; }}
+          ref={setAnchor}
+          data-toc-id={e.id}
           href={`#${e.id}`}
           className={
             'ghost-toc__entry'

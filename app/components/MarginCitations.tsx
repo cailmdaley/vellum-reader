@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@remix-run/react';
-import type { GraphNode } from '~/utils/content-server';
+import type { GraphNode } from '~/utils/content-types';
 
 interface Glyph {
   slug: string;

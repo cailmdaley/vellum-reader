@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { useMode } from '~/contexts/ModeContext';
-import type { GraphNode, GraphLink } from '~/utils/content-server';
+import type { GraphNode, GraphLink } from '~/utils/content-types';
 
 const STATUS_ORDER = ['active', 'suspicious', 'blocked', 'open', 'closed', 'suspended'];
 const STATUS_LABELS: Record<string, string> = {

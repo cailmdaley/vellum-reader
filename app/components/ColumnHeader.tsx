@@ -8,7 +8,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from '@remix-run/react';
 import { useMode, type Mode } from '~/contexts/ModeContext';
-import type { SearchHit } from '~/utils/content-server';
+import type { SearchHit } from '~/utils/content-types';
+import { searchFibers } from '~/utils/api-client';
 
 /** Is the user currently typing into a focusable text element? */
 function isFocusedOnInput(): boolean {
@@ -41,27 +42,17 @@ export function ColumnHeader({ deltaCount = 0 }: { deltaCount?: number }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Fetch search results with debounce
+  // Fetch search results with debounce.
+  // Empty query returns all fibers (preload); non-empty queries are ranked.
   const doSearch = useCallback((q: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!q.trim()) {
-      setResults([]);
-      setShowResults(false);
-      return;
-    }
+    // No debounce for preload (empty query), 200ms for typed queries
     debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setResults(data.hits ?? []);
-          setShowResults(true);
-          setSelectedIdx(-1);
-        }
-      } catch {
-        setResults([]);
-      }
-    }, 200);
+      const hits = await searchFibers(q);
+      setResults(hits);
+      setShowResults(true);
+      setSelectedIdx(-1);
+    }, q ? 200 : 0);
   }, []);
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
@@ -146,7 +137,7 @@ export function ColumnHeader({ deltaCount = 0 }: { deltaCount?: number }) {
             value={query}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            onFocus={() => query && results.length > 0 && setShowResults(true)}
+            onFocus={() => doSearch(query)}
             aria-label="Search fibers"
           />
 

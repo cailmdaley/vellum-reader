@@ -1,71 +1,33 @@
 /**
- * Fetch helpers for MySTRA content server at :3100
- * Vellum is a pure client — it reads but never writes to .felt/
+ * Fetch helpers for MySTRA content server at :3100.
+ *
+ * SERVER-ONLY. These functions run inside Remix loaders/actions and talk
+ * directly to mystra over HTTP. Client components must not import this
+ * module (not even for types — use `~/utils/content-types` for that and
+ * `~/utils/api-client` for browser-side network calls). The `process.env`
+ * reference below will crash the browser bundle if this file is pulled in.
+ *
+ * Node 18+ has globalThis.fetch — no need for node-fetch.
  */
 
-import fetch from 'node-fetch';
+import type {
+  Annotation,
+  AstraGraph,
+  FiberContent,
+  LogResponse,
+  RawFiber,
+  SearchHit,
+} from './content-types';
 
-const CONTENT_CDN = process.env.CONTENT_CDN ?? `http://localhost:${process.env.CONTENT_CDN_PORT ?? 3100}`;
-
-export interface FiberContent {
-  slug: string;
-  kind?: string;
-  mdast: any;
-  frontmatter: Record<string, any>;
-  references?: any;
-  dependencies?: string[];
-}
-
-export interface AstraGraph {
-  nodes: GraphNode[];
-  links: GraphLink[];
-}
-
-export interface GraphFinding {
-  key: string;
-  claim: string;
-  hasEvidence: boolean;
-}
-
-export interface GraphNode {
-  id: string;
-  label: string;
-  slug: string;
-  kind?: string;
-  status: string;
-  tags: string[];
-  verdict?: string;
-  decisions?: GraphDecision[];
-  findings?: GraphFinding[];
-  decisionCount?: number;
-  findingCount?: number;
-  tempered?: boolean;
-  depth?: number;
-  narrative?: boolean;
-  hasASTRA?: boolean;
-}
-
-export interface GraphDecision {
-  key: string;
-  label: string;
-  rationale?: string;
-  selectedKey?: string;
-  selectedLabel?: string;
-  excluded: Array<{ key: string; label: string; reason?: string }>;
-}
-
-export interface GraphLink {
-  source: string;
-  target: string;
-  kind: 'contains' | 'data-flow' | 'cites';
-}
+const CONTENT_CDN =
+  process.env['CONTENT_CDN'] ??
+  `http://localhost:${process.env['CONTENT_CDN_PORT'] ?? 3100}`;
 
 /**
  * Fetch a fiber's content by slug.
- * Tries /content/{slug}.json first (flat), then /content/{...slug parts}.json (wildcard).
+ * Tries /content/{slug}.json with path segments URL-encoded.
  */
 export async function getFiberContent(slug: string): Promise<FiberContent | null> {
-  // Content server expects encoded slashes for nested slugs
   const encodedSlug = slug.split('/').map(encodeURIComponent).join('%2F');
   const url = `${CONTENT_CDN}/content/${encodedSlug}.json`;
   const res = await fetch(url).catch(() => null);
@@ -82,16 +44,6 @@ export async function getAstraGraph(): Promise<AstraGraph> {
   return res.json() as Promise<AstraGraph>;
 }
 
-export interface SearchHit {
-  id: string;
-  title: string;
-  status: string;
-  tags: string[];
-  snippet?: string;
-  outcome?: string;
-  score: number;
-}
-
 /** Search fibers (for the header search box). */
 export async function searchFibers(query: string): Promise<SearchHit[]> {
   const url = `${CONTENT_CDN}/api/search?q=${encodeURIComponent(query)}`;
@@ -99,19 +51,6 @@ export async function searchFibers(query: string): Promise<SearchHit[]> {
   if (!res || !res.ok) return [];
   const data: any = await res.json();
   return data.hits ?? [];
-}
-
-/** Annotation shape from the content server. */
-export interface Annotation {
-  id: string;
-  slug: string;
-  selectedText: string;
-  contextBefore: string;
-  contextAfter: string;
-  comment: string;
-  createdAt: number;
-  author?: string;
-  paragraphIndex?: number;
 }
 
 /** Get all annotations for a slug. */
@@ -123,14 +62,27 @@ export async function getAnnotations(slug: string): Promise<Annotation[]> {
   return data.annotations ?? [];
 }
 
+/** Get image annotations for a fiber slug + image src pathname. */
+export async function getImageAnnotations(slug: string, imageSrc: string): Promise<Annotation[]> {
+  const url = `${CONTENT_CDN}/api/annotations?slug=${encodeURIComponent(slug)}&kind=image&imageSrc=${encodeURIComponent(imageSrc)}`;
+  const res = await fetch(url).catch(() => null);
+  if (!res || !res.ok) return [];
+  const data: any = await res.json();
+  return data.annotations ?? [];
+}
+
 /** Create a new annotation. */
 export async function createAnnotation(input: {
   slug: string;
-  selectedText: string;
-  contextBefore: string;
-  contextAfter: string;
+  kind?: 'text' | 'image';
+  selectedText?: string;
+  contextBefore?: string;
+  contextAfter?: string;
   comment: string;
   paragraphIndex?: number;
+  x?: number;
+  y?: number;
+  imageSrc?: string;
 }): Promise<Annotation | null> {
   const url = `${CONTENT_CDN}/api/annotations`;
   const res = await fetch(url, {
@@ -164,20 +116,33 @@ export async function deleteAnnotation(id: string): Promise<boolean> {
   return true;
 }
 
-export interface LogEvent {
-  at: string;
-  type: string;
-  fiberId: string;
-  title: string;
-  status: string;
-  tags: string[];
-  outcome?: string;
+/**
+ * Raw markdown read — used by the inline double-click editor.
+ * Returns the full file contents (frontmatter + body) plus a sha256.
+ */
+export async function getRawFiber(slug: string): Promise<RawFiber | null> {
+  const encodedSlug = slug.split('/').map(encodeURIComponent).join('%2F');
+  const url = `${CONTENT_CDN}/content/${encodedSlug}.md`;
+  const res = await fetch(url).catch(() => null);
+  if (!res || !res.ok) return null;
+  return res.json() as Promise<RawFiber>;
 }
 
-export interface LogResponse {
-  since: string | null;
-  count: number;
-  events: LogEvent[];
+/**
+ * PUT the edited file back to mystra, which writes to disk atomically.
+ * The mystra file watcher then fires a RELOAD over the dev WebSocket and
+ * vellum revalidates, so the caller does not need to re-fetch anything.
+ */
+export async function putRawFiber(slug: string, body: string): Promise<RawFiber | null> {
+  const encodedSlug = slug.split('/').map(encodeURIComponent).join('%2F');
+  const url = `${CONTENT_CDN}/content/${encodedSlug}.md`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  }).catch(() => null);
+  if (!res || !res.ok) return null;
+  return res.json() as Promise<RawFiber>;
 }
 
 /** Fetch log events since a given timestamp. */

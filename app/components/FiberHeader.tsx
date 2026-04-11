@@ -3,7 +3,7 @@
  * Sits above the prose body within the prose column.
  */
 
-import type { GraphNode } from '~/utils/content-server';
+import type { GraphNode } from '~/utils/content-types';
 
 const STATUS_GLYPHS: Record<string, string> = {
   open: '○', active: '◐', closed: '●', suspended: '·',

@@ -8,10 +8,20 @@
  * Traceability chain (when available from ASTRA data):
  *   figure → recipe → inputs → decisions
  * shown in a collapsible panel below the image.
+ *
+ * Annotation persistence: markers are stored via the mystra annotation API
+ * (kind: 'image') keyed by fiber slug + image pathname. They survive page
+ * reloads and are shared across sessions (project-local JSON store).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GraphNode, GraphLink } from '~/utils/content-server';
+import type { GraphNode, GraphLink, Annotation } from '~/utils/content-types';
+import {
+  createAnnotation,
+  deleteAnnotation,
+  getImageAnnotations,
+  updateAnnotation,
+} from '~/utils/api-client';
 
 export interface LightboxImage {
   src: string;
@@ -27,31 +37,15 @@ export interface ImageMarker {
   comment: string;
 }
 
-const STORAGE_KEY = 'vellum-lightbox-markers';
-
 /** Stable key for an image — use pathname to avoid host differences between dev/prod */
 function imageKey(src: string): string {
   try { return new URL(src).pathname; }
   catch { return src; }
 }
 
-function loadMarkers(src: string): ImageMarker[] {
-  try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    return all[imageKey(src)] ?? [];
-  } catch { return []; }
-}
-
-function saveMarkers(src: string, markers: ImageMarker[]) {
-  try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    if (markers.length > 0) {
-      all[imageKey(src)] = markers;
-    } else {
-      delete all[imageKey(src)];
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-  } catch { /* localStorage unavailable */ }
+/** Convert an API Annotation (image kind) to an ImageMarker. */
+function annotationToMarker(ann: Annotation): ImageMarker {
+  return { id: ann.id, x: ann.x ?? 0, y: ann.y ?? 0, comment: ann.comment };
 }
 
 interface LightboxProps {
@@ -72,8 +66,13 @@ export function Lightbox({ images, currentIndex, onClose, onNavigate, graphNodes
   const [markers, setMarkers] = useState<ImageMarker[]>([]);
   const [pendingMark, setPendingMark] = useState<{ x: number; y: number } | null>(null);
   const [commentText, setCommentText] = useState('');
+  const [saving, setSaving] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const [traceExpanded, setTraceExpanded] = useState(false);
+  /** Which marker id has an open popover (click-to-inspect). */
+  const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
+  /** Inline edit text for the popover. */
+  const [editingComment, setEditingComment] = useState<string | null>(null);
 
   const image = images[currentIndex];
   const hasMultiple = images.length > 1;
@@ -100,15 +99,22 @@ export function Lightbox({ images, currentIndex, onClose, onNavigate, graphNodes
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
+        if (activeMarkerId) {
+          setActiveMarkerId(null);
+          setEditingComment(null);
+          e.preventDefault();
+          return;
+        }
         if (pendingMark) {
           setPendingMark(null);
-        } else {
-          onClose();
+          e.preventDefault();
+          return;
         }
+        onClose();
         e.preventDefault();
         return;
       }
-      if (pendingMark) return; // Don't navigate while annotating
+      if (pendingMark || activeMarkerId) return; // Don't navigate while annotating
 
       if (e.key === 'ArrowLeft' && currentIndex > 0) {
         onNavigate(currentIndex - 1);
@@ -118,13 +124,24 @@ export function Lightbox({ images, currentIndex, onClose, onNavigate, graphNodes
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [currentIndex, images.length, onClose, onNavigate, pendingMark]);
+  }, [currentIndex, images.length, onClose, onNavigate, pendingMark, activeMarkerId]);
 
-  // Load persisted markers when image changes
+  // Load persisted markers from API when image changes
   useEffect(() => {
     const img = images[currentIndex];
-    setMarkers(img ? loadMarkers(img.src) : []);
     setPendingMark(null);
+    setActiveMarkerId(null);
+    setEditingComment(null);
+    setMarkers([]);
+    if (!img) return;
+    const slug = img.fiberSlug;
+    if (!slug) return; // No fiber slug → can't persist; just show empty
+    const src = imageKey(img.src);
+    let cancelled = false;
+    getImageAnnotations(slug, src).then(anns => {
+      if (!cancelled) setMarkers(anns.map(annotationToMarker));
+    });
+    return () => { cancelled = true; };
   }, [currentIndex, images]);
 
   // Auto-focus comment textarea
@@ -134,51 +151,87 @@ export function Lightbox({ images, currentIndex, onClose, onNavigate, graphNodes
     }
   }, [pendingMark]);
 
-  // Click image to place annotation marker
+  // Click image to place annotation marker (only when no marker is active)
   const handleImageClick = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
+    if (activeMarkerId) {
+      setActiveMarkerId(null);
+      setEditingComment(null);
+      return;
+    }
     if (!imgRef.current) return;
     const rect = imgRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setPendingMark({ x, y });
     setCommentText('');
-  }, []);
+  }, [activeMarkerId]);
 
-  // Save annotation (to state + localStorage)
-  const saveMarker = useCallback(() => {
-    if (!pendingMark || !commentText.trim()) return;
-    const newMarker: ImageMarker = {
-      id: `m-${Date.now()}`,
-      x: pendingMark.x,
-      y: pendingMark.y,
-      comment: commentText.trim(),
-    };
-    setMarkers(prev => {
-      const updated = [...prev, newMarker];
-      saveMarkers(image.src, updated);
-      return updated;
-    });
-    setPendingMark(null);
-    setCommentText('');
-  }, [pendingMark, commentText, image?.src]);
+  // Save annotation to API
+  const saveMarker = useCallback(async () => {
+    if (!pendingMark || !commentText.trim() || !image) return;
+    const slug = image.fiberSlug;
+    if (!slug) return;
+    setSaving(true);
+    try {
+      const ann = await createAnnotation({
+        slug,
+        kind: 'image',
+        x: pendingMark.x,
+        y: pendingMark.y,
+        imageSrc: imageKey(image.src),
+        comment: commentText.trim(),
+        selectedText: '',
+        contextBefore: '',
+        contextAfter: '',
+      });
+      if (ann) {
+        setMarkers(prev => [...prev, annotationToMarker(ann)]);
+      }
+    } finally {
+      setSaving(false);
+      setPendingMark(null);
+      setCommentText('');
+    }
+  }, [pendingMark, commentText, image]);
 
-  // Delete a marker
-  const deleteMarker = useCallback((id: string) => {
-    setMarkers(prev => {
-      const updated = prev.filter(m => m.id !== id);
-      saveMarkers(image.src, updated);
-      return updated;
-    });
-  }, [image?.src]);
+  // Delete a marker via API
+  const handleDeleteMarker = useCallback(async (id: string) => {
+    const ok = await deleteAnnotation(id);
+    if (ok) {
+      setMarkers(prev => prev.filter(m => m.id !== id));
+      if (activeMarkerId === id) {
+        setActiveMarkerId(null);
+        setEditingComment(null);
+      }
+    }
+  }, [activeMarkerId]);
 
-  // Click backdrop to close
+  // Save edited comment via API
+  const handleSaveEdit = useCallback(async (id: string) => {
+    if (editingComment === null) return;
+    const ann = await updateAnnotation(id, editingComment.trim());
+    if (ann) {
+      setMarkers(prev => prev.map(m => m.id === id ? { ...m, comment: ann.comment } : m));
+    }
+    setEditingComment(null);
+    setActiveMarkerId(null);
+  }, [editingComment]);
+
+  // Click backdrop to close (also dismiss active marker)
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).classList.contains('vellum-lightbox')) {
+      if (activeMarkerId) {
+        setActiveMarkerId(null);
+        setEditingComment(null);
+        return;
+      }
       onClose();
     }
-  }, [onClose]);
+  }, [onClose, activeMarkerId]);
 
   if (!image) return null;
+
+  const activeMarker = activeMarkerId ? markers.find(m => m.id === activeMarkerId) : null;
 
   return (
     <div className="vellum-lightbox" onClick={handleBackdropClick}>
@@ -222,11 +275,70 @@ export function Lightbox({ images, currentIndex, onClose, onNavigate, graphNodes
         {markers.map((m, i) => (
           <span
             key={m.id}
-            className="vellum-lightbox__marker"
+            className={`vellum-lightbox__marker${activeMarkerId === m.id ? ' vellum-lightbox__marker--active' : ''}`}
             style={{ left: `${m.x}%`, top: `${m.y}%` }}
             title={m.comment}
+            onClick={e => {
+              e.stopPropagation();
+              if (activeMarkerId === m.id) {
+                setActiveMarkerId(null);
+                setEditingComment(null);
+              } else {
+                setActiveMarkerId(m.id);
+                setEditingComment(null);
+                setPendingMark(null);
+              }
+            }}
           >
             {i + 1}
+
+            {/* Popover — only on the active marker */}
+            {activeMarkerId === m.id && (
+              <div
+                className="vellum-lightbox__marker-popover"
+                onClick={e => e.stopPropagation()}
+              >
+                <button
+                  className="vellum-lightbox__marker-popover-close"
+                  onClick={() => { setActiveMarkerId(null); setEditingComment(null); }}
+                  aria-label="Close popover"
+                >
+                  &times;
+                </button>
+                {editingComment !== null ? (
+                  <>
+                    <textarea
+                      className="vellum-lightbox__marker-popover-edit"
+                      value={editingComment}
+                      onChange={e => setEditingComment(e.target.value)}
+                      rows={3}
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSaveEdit(m.id); }
+                        if (e.key === 'Escape') { setEditingComment(null); }
+                      }}
+                    />
+                    <div className="vellum-lightbox__marker-popover-actions">
+                      <button onClick={() => void handleSaveEdit(m.id)}>Save</button>
+                      <button onClick={() => setEditingComment(null)}>Cancel</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="vellum-lightbox__marker-popover-comment">{m.comment || <em>No comment</em>}</p>
+                    <div className="vellum-lightbox__marker-popover-actions">
+                      <button onClick={() => setEditingComment(m.comment)}>Edit</button>
+                      <button
+                        className="vellum-lightbox__marker-popover-delete"
+                        onClick={() => void handleDeleteMarker(m.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </span>
         ))}
 
@@ -254,12 +366,18 @@ export function Lightbox({ images, currentIndex, onClose, onNavigate, graphNodes
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                saveMarker();
+                void saveMarker();
+              }
+              if (e.key === 'Escape') {
+                e.stopPropagation();
+                setPendingMark(null);
               }
             }}
           />
           <div className="vellum-lightbox__annotate-actions">
-            <button onClick={saveMarker} disabled={!commentText.trim()}>Save</button>
+            <button onClick={() => void saveMarker()} disabled={!commentText.trim() || saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
             <button onClick={() => setPendingMark(null)}>Cancel</button>
           </div>
         </div>
@@ -281,12 +399,20 @@ export function Lightbox({ images, currentIndex, onClose, onNavigate, graphNodes
       {markers.length > 0 && (
         <div className="vellum-lightbox__annotations">
           {markers.map((m, i) => (
-            <div key={m.id} className="vellum-lightbox__annotation-item">
+            <div
+              key={m.id}
+              className={`vellum-lightbox__annotation-item${activeMarkerId === m.id ? ' vellum-lightbox__annotation-item--active' : ''}`}
+              onClick={() => {
+                setActiveMarkerId(m.id);
+                setEditingComment(null);
+                setPendingMark(null);
+              }}
+            >
               <span className="vellum-lightbox__annotation-num">{i + 1}</span>
               <span>{m.comment}</span>
               <button
                 className="vellum-lightbox__annotation-delete"
-                onClick={() => deleteMarker(m.id)}
+                onClick={e => { e.stopPropagation(); void handleDeleteMarker(m.id); }}
                 title="Remove annotation"
               >&times;</button>
             </div>
