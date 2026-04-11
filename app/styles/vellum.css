@@ -2496,3 +2496,101 @@ body {
   text-transform: uppercase;
 }
 
+/* ── /pretext-gate-2 route — dense grid of cards under CSS-transform pan ── */
+.pretext-gate-2 {
+  /* Override the default .pretext-gate max-width so the viewport can stretch
+   * edge-to-edge. Gate 2 is a perf surface; centering a 1100px column inside
+   * a wider window would just leave dead space on either side. */
+  max-width: none;
+  padding: 1.5rem 1.5rem 0;
+}
+
+.pretext-gate-2__hud {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0.9rem;
+  background: var(--prose-bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(46, 42, 38, 0.1);
+  font-family: 'JetBrains Mono', monospace;
+  z-index: 10;
+  pointer-events: none;
+  /* The HUD floats above the viewport; keep it cheap to render so it
+   * doesn't itself consume frame budget. No transitions, no filters. */
+}
+
+.pretext-gate-2__hud.is-healthy {
+  border-left: 2px solid var(--teal);
+}
+
+.pretext-gate-2__hud.is-degraded {
+  border-left: 2px solid var(--amber);
+}
+
+.pretext-gate-2__hud.is-bad {
+  border-left: 2px solid #b94a4a;
+}
+
+.pretext-gate-2__hud-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.pretext-gate-2__hud-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pretext-gate-2__hud-value {
+  font-size: 0.95rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pretext-gate-2__viewport {
+  position: relative;
+  height: calc(100vh - 9rem);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--page-bg);
+  cursor: grab;
+  touch-action: none;
+  /* Isolate compositing: a new stacking context plus will-change hints the
+   * browser to promote the inner canvas to its own layer, so pan is pure
+   * transform on the compositor thread. */
+  contain: strict;
+}
+
+.pretext-gate-2__viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.pretext-gate-2__canvas {
+  /* An explicit oversized width gives the grid room to lay out more
+   * columns than the viewport holds, so horizontal pan has somewhere to
+   * go. The value is wider than any reasonable monitor; the viewport's
+   * `overflow: hidden` clips the excess until the user pans. */
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2400px;
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 320px);
+  gap: 1.25rem;
+  will-change: transform;
+}
+
+.pretext-gate-2__cell {
+  /* Width is inlined by React so it matches what we hand pretext exactly. */
+  break-inside: avoid;
+}
+
