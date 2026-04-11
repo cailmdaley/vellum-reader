@@ -10,7 +10,6 @@ import { searchFibers } from '~/utils/content-server';
 export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
   const q = url.searchParams.get('q') ?? '';
-  if (!q.trim()) return json({ hits: [] });
   const hits = await searchFibers(q);
   return json({ hits });
 };

@@ -8,6 +8,11 @@
     "start": "remix-serve build"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.12.3",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.41.0",
     "@myst-theme/common": "^1.2.0",
     "@myst-theme/providers": "^1.2.0",
     "@myst-theme/site": "^1.2.0",
