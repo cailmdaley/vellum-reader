@@ -128,7 +128,7 @@ export default function ContentPage() {
     <div className="vellum-page">
       <ColumnHeader deltaCount={dismissed ? 0 : deltaCount} />
 
-      {mode === 'narrative' && content && (
+      {mode === 'narrative' && content?.mdast && (
         <NarrativeView
           content={content}
           graphNodes={graph.nodes}
@@ -138,7 +138,7 @@ export default function ContentPage() {
         />
       )}
 
-      {mode === 'narrative' && !content && (
+      {mode === 'narrative' && !content?.mdast && (
         <div className="vellum-error">
           Fiber <em>{slug}</em> not found. Is the content server running?
         </div>

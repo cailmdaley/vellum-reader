@@ -10,7 +10,13 @@
 export interface FiberContent {
   slug: string;
   kind?: string;
-  mdast: any;
+  /**
+   * Parsed mdast tree from mystra. Optional because Remix's loader
+   * serialization converts `any` fields to optional, and because the content
+   * server can legitimately return nothing when a fiber has no body.
+   * Callers must guard before handing it to MyST.
+   */
+  mdast?: any;
   frontmatter: Record<string, any>;
   references?: any;
   dependencies?: string[];

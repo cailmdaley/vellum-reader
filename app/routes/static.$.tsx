@@ -8,26 +8,23 @@
  */
 
 import type { LoaderFunction } from '@remix-run/node';
-import fetch from 'node-fetch';
 
-const CONTENT_CDN = process.env.CONTENT_CDN ?? `http://localhost:${process.env.CONTENT_CDN_PORT ?? 3100}`;
+const CONTENT_CDN =
+  process.env['CONTENT_CDN'] ??
+  `http://localhost:${process.env['CONTENT_CDN_PORT'] ?? 3100}`;
 
 export const loader: LoaderFunction = async ({ params }) => {
   const path = params['*'] ?? '';
-  const url = `${CONTENT_CDN}/static/${path}`;
-  const res = await fetch(url);
+  const res = await fetch(`${CONTENT_CDN}/static/${path}`);
 
   if (!res.ok) {
     return new Response('Not found', { status: 404 });
   }
 
-  const contentType = res.headers.get('content-type') ?? 'application/octet-stream';
-  const body = await res.buffer();
-
-  return new Response(body, {
+  return new Response(await res.arrayBuffer(), {
     status: 200,
     headers: {
-      'Content-Type': contentType,
+      'Content-Type': res.headers.get('content-type') ?? 'application/octet-stream',
       'Cache-Control': 'public, max-age=3600',
     },
   });

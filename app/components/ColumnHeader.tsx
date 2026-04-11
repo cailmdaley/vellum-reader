@@ -11,13 +11,10 @@ import { useMode, type Mode } from '~/contexts/ModeContext';
 import type { SearchHit } from '~/utils/content-types';
 import { searchFibers } from '~/utils/api-client';
 
-/** Is the user currently typing into a focusable text element? */
-function isFocusedOnInput(): boolean {
-  const el = document.activeElement;
-  if (!el) return false;
-  const tag = (el as HTMLElement).tagName.toLowerCase();
-  return tag === 'input' || tag === 'textarea' || (el as HTMLElement).isContentEditable;
-}
+// Note: the `/` → focus-search shortcut is installed by the global
+// keydown handler in app/routes/$.tsx (alongside 1/2/3, t, [, ]).
+// ColumnHeader used to install its own duplicate; that has been
+// removed so there is exactly one source of truth.
 
 const MODES: { id: Mode; label: string }[] = [
   { id: 'narrative', label: 'Narrative' },
@@ -39,7 +36,6 @@ export function ColumnHeader({ deltaCount = 0 }: { deltaCount?: number }) {
   const [showResults, setShowResults] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Fetch search results with debounce.
@@ -97,18 +93,6 @@ export function ColumnHeader({ deltaCount = 0 }: { deltaCount?: number }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // '/' focuses the search input when the user isn't already typing somewhere
-  useEffect(() => {
-    function handleSlash(e: KeyboardEvent) {
-      if (e.key === '/' && !isFocusedOnInput()) {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    }
-    document.addEventListener('keydown', handleSlash);
-    return () => document.removeEventListener('keydown', handleSlash);
-  }, []);
-
   return (
     <div className="vellum-column-header">
       <div className="vellum-column-header__row">
@@ -131,7 +115,6 @@ export function ColumnHeader({ deltaCount = 0 }: { deltaCount?: number }) {
         <div className="vellum-column-header__search" ref={searchRef}>
           <span className="vellum-column-header__search-icon">⌕</span>
           <input
-            ref={inputRef}
             type="search"
             placeholder="Search fibers…"
             value={query}

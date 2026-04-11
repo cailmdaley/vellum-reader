@@ -11,6 +11,7 @@ import { ThemeProvider } from '@myst-theme/providers';
 import { renderers as defaultRenderers } from '@myst-theme/site';
 import vellumCss from '~/styles/vellum.css';
 import { ModeProvider } from '~/contexts/ModeContext';
+import { HotReloadListener } from '~/components/HotReloadListener';
 
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: vellumCss },
@@ -26,9 +27,17 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <ThemeProvider renderers={defaultRenderers}>
+        {/*
+          ThemeProvider installs the MyST renderer registry into React context
+          so <MyST /> components downstream can find node renderers. Vellum
+          doesn't offer a light/dark toggle, so theme is pinned to null and
+          setTheme is a no-op — the required props are there to satisfy the
+          provider contract, not to drive a real theme switcher.
+        */}
+        <ThemeProvider theme={null} setTheme={() => {}} renderers={defaultRenderers}>
           <ModeProvider>
             <Outlet />
+            <HotReloadListener />
           </ModeProvider>
         </ThemeProvider>
         <ScrollRestoration />
