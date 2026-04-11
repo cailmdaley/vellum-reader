@@ -2386,3 +2386,113 @@ body {
   outline-offset: 4px;
 }
 
+/* ── /pretext-gate-1b route — live-resizable card with media pane ── */
+.pretext-gate-1b__stage {
+  display: flex;
+  align-items: flex-start;
+  gap: 2.5rem;
+  padding: 1rem 0 5rem;
+  flex-wrap: wrap;
+}
+
+.pretext-gate-1b__card-wrap {
+  position: relative;
+  outline: 1px dashed var(--border);
+  outline-offset: 4px;
+  /* Card wrapper's width is driven inline by React state. */
+}
+
+.pretext-gate-1b__handle {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  width: 16px;
+  height: 16px;
+  background: var(--gold);
+  border: 1px solid var(--prose-bg);
+  border-radius: 2px;
+  cursor: ew-resize;
+  touch-action: none;
+  box-shadow: 0 1px 3px rgba(46, 42, 38, 0.18);
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.pretext-gate-1b__handle:hover {
+  transform: scale(1.1);
+}
+
+.pretext-gate-1b__handle.is-dragging {
+  background: var(--text);
+  transform: scale(1.15);
+}
+
+.pretext-gate-1b__legend {
+  max-width: 32ch;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.pretext-gate-1b__legend p {
+  margin: 0 0 0.8rem;
+}
+
+.pretext-gate-1b__legend ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pretext-gate-1b__legend li {
+  padding: 0.2rem 0;
+  border-top: 1px solid var(--border-faint);
+}
+
+.pretext-gate-1b__legend li:first-child {
+  border-top: none;
+}
+
+/* ── Media pane inside a pretext card ── */
+.pretext-card__media {
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.pretext-sparkline {
+  display: block;
+}
+
+.pretext-sparkline__frame {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.pretext-sparkline__tick {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.pretext-sparkline__area {
+  fill: var(--gold-faint);
+}
+
+.pretext-sparkline__line {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pretext-sparkline__label {
+  fill: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
