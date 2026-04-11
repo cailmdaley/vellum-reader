@@ -3,9 +3,10 @@
   "private": true,
   "sideEffects": false,
   "scripts": {
-    "build": "remix build",
-    "dev": "PORT=3200 remix dev",
-    "start": "remix-serve build"
+    "build": "npm --prefix ../vellum-next run build",
+    "dev": "npm --prefix ../vellum-next run dev -- --port 3200",
+    "start": "npm --prefix ../vellum-next run preview -- --host 0.0.0.0 --port 3200",
+    "typecheck": "npm --prefix ../vellum-next run typecheck"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.5",
