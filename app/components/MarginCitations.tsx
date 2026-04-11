@@ -34,6 +34,9 @@ interface MarginCitationsProps {
   changedIds?: Set<string>;
 }
 
+/** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
+const LINK_HOVER_DELAY_MS = 250;
+
 export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: MarginCitationsProps) {
   const [glyphs, setGlyphs] = useState<Glyph[]>([]);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -49,7 +52,15 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
   useEffect(() => {
     if (!proseRef.current || !wrapperRef.current) return;
 
+    const cleanups: Array<() => void> = [];
+    let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+
     const measure = () => {
+      // Drop any listeners from the previous measurement — new glyph
+      // indices would otherwise point into stale state.
+      for (const fn of cleanups.splice(0)) fn();
+      if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+
       const prose = proseRef.current!;
       const wrapper = wrapperRef.current!;
       const wrapperRect = wrapper.getBoundingClientRect();
@@ -59,7 +70,6 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
         prose.querySelectorAll<HTMLAnchorElement>('a[href^="/"]')
       );
 
-      const seen = new Set<string>();
       const next: Glyph[] = [];
 
       for (const a of anchors) {
@@ -70,7 +80,6 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
         const node = nodeBySlug.current.get(slug);
         if (!node) continue;
 
-        // Deduplicate: if same slug appears multiple times, stack glyphs
         const rect = a.getBoundingClientRect();
         const top = rect.top - wrapperRect.top + window.scrollY;
 
@@ -94,6 +103,28 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       });
 
       setGlyphs(positioned);
+
+      // Surface the same tooltip when the user hovers a prose link, not
+      // just the margin glyph. Delayed so scrubbing across links while
+      // reading doesn't flash tooltips.
+      positioned.forEach((g, i) => {
+        const onEnter = () => {
+          g.linkEl.classList.add('margin-active');
+          if (hoverTimer) clearTimeout(hoverTimer);
+          hoverTimer = setTimeout(() => setHoveredIdx(i), LINK_HOVER_DELAY_MS);
+        };
+        const onLeave = () => {
+          g.linkEl.classList.remove('margin-active');
+          if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+          setHoveredIdx((cur) => (cur === i ? null : cur));
+        };
+        g.linkEl.addEventListener('mouseenter', onEnter);
+        g.linkEl.addEventListener('mouseleave', onLeave);
+        cleanups.push(() => {
+          g.linkEl.removeEventListener('mouseenter', onEnter);
+          g.linkEl.removeEventListener('mouseleave', onLeave);
+        });
+      });
     };
 
     // Measure after paint
@@ -106,6 +137,8 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
+      if (hoverTimer) clearTimeout(hoverTimer);
+      for (const fn of cleanups) fn();
     };
   }, [proseRef, wrapperRef, nodes]);
 

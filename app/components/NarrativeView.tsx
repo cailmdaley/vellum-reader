@@ -23,7 +23,6 @@ import { FiberEditor } from './FiberEditor';
 import type { LightboxImage } from './Lightbox';
 import type { FiberContent, GraphNode, GraphLink, Annotation } from '~/utils/content-types';
 import { getAnnotations, getRawFiber, putRawFiber } from '~/utils/api-client';
-import { glyphForNode } from '~/utils/fiber-status';
 
 interface NarrativeViewProps {
   content: FiberContent;
@@ -147,94 +146,6 @@ export function NarrativeView({ content, graphNodes, graphLinks, breadcrumb, cha
     () => stripFrontmatterNodes(content.mdast, content.frontmatter ?? {}, currentNode?.verdict),
     [content.mdast, content.frontmatter, currentNode?.verdict],
   );
-
-  // ── Inline link hover tooltip ──
-  // Shows the same fiber tooltip on prose links that margin glyphs show.
-  useEffect(() => {
-    const prose: HTMLElement | null = proseRef.current;
-    const wrapper: HTMLDivElement | null = wrapperRef.current;
-    if (!prose || !wrapper) return;
-    // Capture non-null refs for closure use
-    const _prose = prose;
-    const _wrapper = wrapper;
-
-    const nodeBySlug = new Map(graphNodes.map((n) => [n.slug, n]));
-
-    let hoverTimer: ReturnType<typeof setTimeout> | null = null;
-    const cleanups: Array<() => void> = [];
-    let tooltip: HTMLDivElement | null = null;
-
-    function esc(s: string): string {
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function showTooltip(node: GraphNode, linkEl: HTMLAnchorElement) {
-      if (!tooltip) return;
-      const glyph = glyphForNode(node);
-      const decisionHtml = (node.decisions ?? []).slice(0, 3).map((d) =>
-        `<div class="fiber-tooltip__decision"><span class="fiber-tooltip__decision-label">decision</span> ${esc(d.label)}${d.selectedLabel ? `: ${esc(d.selectedLabel)}` : ''}</div>`
-      ).join('');
-      const moreCount = (node.decisions?.length ?? 0) - 3;
-      const moreHtml = moreCount > 0 ? `<div class="fiber-tooltip__decision" style="font-style:italic;color:var(--text-muted)">+${moreCount} more</div>` : '';
-
-      tooltip.innerHTML = `
-        <div class="fiber-tooltip__title">${esc(node.label)}</div>
-        <div class="fiber-tooltip__status"><span>${glyph}</span><span>${esc(node.status)}</span>${(node.tags ?? []).map(t => `<span class="vellum-tag">${esc(t)}</span>`).join('')}</div>
-        ${node.verdict ? `<div class="fiber-tooltip__verdict">${esc(node.verdict)}</div>` : ''}
-        ${decisionHtml}${moreHtml}
-      `;
-      const wrapperRect = _wrapper.getBoundingClientRect();
-      const linkRect = linkEl.getBoundingClientRect();
-      const top = linkRect.top - wrapperRect.top + _wrapper.scrollTop;
-      tooltip.style.display = 'block';
-      tooltip.style.top = `${top}px`;
-    }
-
-    function attachListeners() {
-      // Create tooltip element inside the wrapper
-      tooltip = document.createElement('div');
-      tooltip.className = 'fiber-tooltip';
-      tooltip.style.display = 'none';
-      tooltip.setAttribute('aria-hidden', 'true');
-      _wrapper.appendChild(tooltip);
-
-      const links = _prose.querySelectorAll<HTMLAnchorElement>('a[href^="/"]');
-      for (const link of links) {
-        const href = link.getAttribute('href') ?? '';
-        const slug = href.replace(/^\//, '').split('#')[0].split('?')[0];
-        const node = slug ? nodeBySlug.get(slug) : undefined;
-        if (!node) continue;
-
-        const onEnter = () => {
-          link.classList.add('margin-active');
-          if (hoverTimer) clearTimeout(hoverTimer);
-          hoverTimer = setTimeout(() => showTooltip(node, link), 250);
-        };
-        const onLeave = () => {
-          link.classList.remove('margin-active');
-          if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
-          if (tooltip) tooltip.style.display = 'none';
-        };
-
-        link.addEventListener('mouseenter', onEnter);
-        link.addEventListener('mouseleave', onLeave);
-        cleanups.push(() => {
-          link.removeEventListener('mouseenter', onEnter);
-          link.removeEventListener('mouseleave', onLeave);
-        });
-      }
-    }
-
-    // Delay to let MyST render the prose links into the DOM
-    const attachTimer = setTimeout(attachListeners, 120);
-
-    return () => {
-      clearTimeout(attachTimer);
-      if (hoverTimer) clearTimeout(hoverTimer);
-      if (tooltip) { tooltip.remove(); tooltip = null; }
-      for (const fn of cleanups) fn();
-    };
-  }, [content.slug, graphNodes]);
 
   // ── Double-click to edit the raw fiber markdown ──
   // Attaches to the prose column; ignores clicks inside anchors (those
