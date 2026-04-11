@@ -5,6 +5,7 @@
  * fiber title. Scrolls out of view with the header.
  */
 
+import { useNavigate } from '@remix-run/react';
 import type { GraphNode } from '~/utils/content-types';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -18,10 +19,10 @@ const STATUS_COLOR: Record<string, string> = {
 
 interface BacklinkNodesProps {
   nodes: GraphNode[];
-  navigate: (slug: string) => void;
 }
 
-export function BacklinkNodes({ nodes, navigate }: BacklinkNodesProps) {
+export function BacklinkNodes({ nodes }: BacklinkNodesProps) {
+  const navigate = useNavigate();
   if (nodes.length === 0) return null;
 
   return (

@@ -13,7 +13,7 @@
  *   decision   → ◇  (gold, diamond variant)
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 import type { GraphNode } from '~/utils/content-types';
 import { glyphForNode, statusClass } from '~/utils/fiber-status';
@@ -42,16 +42,11 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const navigate = useNavigate();
 
-  // Build slug→node index
-  const nodeBySlug = useRef<Map<string, GraphNode>>(new Map());
-  useEffect(() => {
-    nodeBySlug.current = new Map(nodes.map((n) => [n.slug, n]));
-  }, [nodes]);
-
   // Measure positions after prose paints
   useEffect(() => {
     if (!proseRef.current || !wrapperRef.current) return;
 
+    const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
     const cleanups: Array<() => void> = [];
     let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -77,7 +72,7 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
         const slug = href.replace(/^\//, ''); // strip leading /
         if (!slug) continue;
 
-        const node = nodeBySlug.current.get(slug);
+        const node = nodeBySlug.get(slug);
         if (!node) continue;
 
         const rect = a.getBoundingClientRect();
@@ -142,20 +137,6 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
     };
   }, [proseRef, wrapperRef, nodes]);
 
-  function handleClick(g: Glyph) {
-    navigate(g.href);
-  }
-
-  function handleMouseEnter(g: Glyph, i: number) {
-    g.linkEl.classList.add('margin-active');
-    setHoveredIdx(i);
-  }
-
-  function handleMouseLeave(g: Glyph) {
-    g.linkEl.classList.remove('margin-active');
-    setHoveredIdx(null);
-  }
-
   if (glyphs.length === 0) return null;
 
   const hoveredGlyph = hoveredIdx !== null ? glyphs[hoveredIdx] : null;
@@ -167,12 +148,12 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
           key={`${g.slug}-${i}`}
           className={`margin-glyph margin-glyph--${statusClass(g.node.status)}${changedIds?.has(g.slug) ? ' margin-glyph--changed' : ''}${g.node.tempered ? ' margin-glyph--tempered' : ''}`}
           style={{ top: g.top }}
-          onClick={() => handleClick(g)}
-          onMouseEnter={() => handleMouseEnter(g, i)}
-          onMouseLeave={() => handleMouseLeave(g)}
+          onClick={() => navigate(g.href)}
+          onMouseEnter={() => { g.linkEl.classList.add('margin-active'); setHoveredIdx(i); }}
+          onMouseLeave={() => { g.linkEl.classList.remove('margin-active'); setHoveredIdx(null); }}
           role="link"
           tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && handleClick(g)}
+          onKeyDown={(e) => e.key === 'Enter' && navigate(g.href)}
           aria-label={`Navigate to ${g.label}`}
         >
           <span className="margin-glyph__dot">{glyphForNode(g.node)}</span>

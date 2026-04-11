@@ -1,9 +1,6 @@
 /**
  * Vellum — Weathered Substrate
  *
- * A research notebook is not an app. It's a surface.
- * Single centered column of prose. Margin annotations. Zero chrome.
- *
  * Palette:
  *   page-bg:    #EDE8E0    (aged parchment)
  *   prose-bg:   #FAFAF7    (where the eye rests — protected, cherished)
@@ -33,7 +30,7 @@
   --mauve: #A87070;
   --border: #D4CCBF;
   --border-faint: rgba(212, 204, 191, 0.5);
-  --prose-width: 680px;
+  --prose-width: 720px;
   --margin-width: 160px;
   --margin-gap: 56px;
   --shadow: 0 2px 8px rgba(46, 42, 38, 0.07), 0 1px 3px rgba(46, 42, 38, 0.04);
@@ -543,19 +540,6 @@ body {
 }
 
 /* ── Right Margin: Citation Glyphs ── */
-.vellum-margin-right {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  /* The margin column is positioned relative to the prose wrapper */
-}
-
-.vellum-margin-right__inner {
-  position: sticky;
-  top: 56px; /* approximate column header height */
-  /* This is a positioning container for the glyphs */
-}
-
 /* Individual glyphs are absolutely positioned within the prose wrapper */
 .margin-glyph {
   position: absolute;
@@ -660,11 +644,12 @@ body {
 }
 
 .fiber-tooltip__decision-label {
-  font-weight: 600;
-  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 400;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 /* ── Ghost TOC (left gutter) ── */
@@ -955,9 +940,8 @@ body {
   filter: brightness(1.1);
 }
 
-/* ── Error / Loading states ── */
-.vellum-error,
-.vellum-loading {
+/* ── Error state ── */
+.vellum-error {
   width: var(--prose-width);
   max-width: 100%;
   background: var(--prose-bg);
@@ -967,115 +951,6 @@ body {
   color: var(--text-muted);
   text-align: center;
   box-shadow: var(--shadow);
-}
-
-/* ── Delta Banner ── */
-.delta-banner {
-  width: var(--prose-width);
-  border-left: 2px solid var(--gold);
-  background: rgba(154, 123, 53, 0.06);
-  padding: 8px 14px;
-  margin-bottom: 1rem;
-  border-radius: 0 2px 2px 0;
-  animation: delta-appear 0.4s ease-out both;
-}
-
-@keyframes delta-appear {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.delta-banner__summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.78rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--text-muted);
-}
-
-.delta-banner__count {
-  color: var(--gold);
-  font-weight: 500;
-}
-
-.delta-banner__since {
-  opacity: 0.7;
-}
-
-.delta-banner__sep {
-  opacity: 0.35;
-}
-
-.delta-banner__chips {
-  flex: 1;
-  opacity: 0.6;
-  font-size: 0.72rem;
-}
-
-.delta-banner__toggle,
-.delta-banner__dismiss {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px 6px;
-  font-size: 0.75rem;
-  border-radius: 2px;
-  transition: background 0.15s, color 0.15s;
-}
-.delta-banner__toggle:hover,
-.delta-banner__dismiss:hover {
-  background: var(--gold-faint);
-  color: var(--gold);
-}
-
-.delta-banner__list {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-faint);
-  max-height: 240px;
-  overflow-y: auto;
-}
-
-.delta-banner__item {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 3px 4px;
-  text-decoration: none;
-  color: inherit;
-  font-size: 0.82rem;
-  border-radius: 2px;
-  transition: background 0.1s;
-  cursor: pointer;
-}
-.delta-banner__item:hover {
-  background: var(--gold-faint);
-}
-
-.delta-banner__item-glyph {
-  font-size: 0.7rem;
-  flex-shrink: 0;
-  color: var(--text-muted);
-}
-
-.delta-banner__item-title {
-  color: var(--text);
-  font-weight: 500;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.delta-banner__item-type {
-  font-size: 0.68rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--text-muted);
-  opacity: 0.6;
-  flex-shrink: 0;
 }
 
 /* ── Delta View (tab-based delta mode) ── */
@@ -1543,13 +1418,15 @@ body {
 }
 
 .astra-decision__label {
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 400;
+  font-size: 0.85rem;
   color: var(--text);
 }
 
 .astra-decision__selected {
-  font-size: 0.85rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
   color: var(--teal);
   margin-bottom: 0.3rem;
   padding-left: 1.35rem;
@@ -1562,11 +1439,20 @@ body {
 }
 
 .astra-decision__rationale {
-  font-size: 0.88rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
   color: var(--text-muted);
   margin: 0;
-  line-height: 1.65;
+  line-height: 1.6;
   padding-left: 1.35rem; /* align under label, past the glyph */
+}
+
+.astra-decision__rationale strong,
+.astra-decision__rationale em,
+.astra-decision__rationale b,
+.astra-decision__rationale i {
+  font-weight: inherit;
+  font-style: normal;
 }
 
 /* Excluded alternatives */
@@ -1579,10 +1465,19 @@ body {
   display: flex;
   gap: 6px;
   align-items: baseline;
-  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
   color: var(--text-muted);
   opacity: 0.7;
   margin-bottom: 0.25rem;
+}
+
+.astra-excluded strong,
+.astra-excluded em,
+.astra-excluded b,
+.astra-excluded i {
+  font-weight: inherit;
+  font-style: normal;
 }
 
 .astra-excluded__glyph {
@@ -1608,17 +1503,32 @@ body {
 }
 
 .astra-finding__verdict {
-  font-size: 0.88rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
   color: var(--text);
   margin: 0;
-  line-height: 1.65;
+  line-height: 1.6;
 }
 
 .astra-finding__claim {
-  font-size: 0.88rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 400;
   color: var(--text);
   margin: 0;
-  line-height: 1.65;
+  line-height: 1.6;
+}
+
+.astra-finding__verdict strong,
+.astra-finding__verdict em,
+.astra-finding__verdict b,
+.astra-finding__verdict i,
+.astra-finding__claim strong,
+.astra-finding__claim em,
+.astra-finding__claim b,
+.astra-finding__claim i {
+  font-weight: inherit;
+  font-style: normal;
 }
 
 .astra-finding__evidence-dot {
@@ -1787,7 +1697,7 @@ body {
   border-radius: 50%;
   background: var(--gold);
   border: 2px solid var(--prose-bg);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   color: var(--prose-bg);
   font-size: 11px;
   font-weight: 700;
@@ -1799,9 +1709,103 @@ body {
   pointer-events: auto;
   z-index: 10;
 }
+.vellum-lightbox__marker--active {
+  box-shadow: 0 2px 10px rgba(154, 123, 53, 0.5);
+  z-index: 20;
+}
 .vellum-lightbox__marker--pending {
   background: var(--amber);
   animation: lightbox-pulse 1s ease-in-out infinite;
+}
+
+/* Marker popover — appears above the clicked marker */
+.vellum-lightbox__marker-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--prose-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.75rem;
+  width: 220px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  /* Override marker centering for popover contents */
+  display: block;
+  font-size: 1rem;
+  font-weight: 400;
+  font-family: 'EB Garamond', serif;
+}
+.vellum-lightbox__marker-popover-close {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.375rem;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+.vellum-lightbox__marker-popover-close:hover { color: var(--text); }
+.vellum-lightbox__marker-popover-comment {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  padding-right: 1rem;
+}
+.vellum-lightbox__marker-popover-edit {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 0.375rem;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--prose-bg);
+  resize: vertical;
+}
+.vellum-lightbox__marker-popover-edit:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+.vellum-lightbox__marker-popover-actions {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+  justify-content: flex-end;
+}
+.vellum-lightbox__marker-popover-actions button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 0.2rem 0.6rem;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.vellum-lightbox__marker-popover-actions button:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.vellum-lightbox__marker-popover-delete {
+  color: var(--text-muted) !important;
+}
+.vellum-lightbox__marker-popover-delete:hover {
+  color: #b44 !important;
+  border-color: #b44 !important;
+}
+
+/* Annotation list item — highlight when its marker is active */
+.vellum-lightbox__annotation-item--active {
+  background: var(--gold-faint);
+  border-color: var(--gold);
 }
 
 @keyframes lightbox-pulse {
@@ -2112,3 +2116,123 @@ body {
   .vellum-column-header { width: 100%; }
   .vellum-prose { padding: 2rem 1.5rem 4rem; }
 }
+
+/* ── Fiber source editor (inline CM6) ─────────────────────────────────
+   Appears in place of the rendered prose when the user double-clicks
+   the column. Kept quiet and on-substrate: thin border, cream ground,
+   JetBrains Mono for the buffer, EB Garamond for the toolbar labels.
+   No cards, no shadows — the editor should feel like the page flipped
+   over to show its underlying markup, not a floating modal.
+*/
+.fiber-editor {
+  display: flex;
+  flex-direction: column;
+  margin: 1.5rem 0 2rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--prose-bg);
+}
+
+.fiber-editor__toolbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border-faint);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.fiber-editor__label {
+  letter-spacing: 0.02em;
+}
+
+.fiber-editor__dirty {
+  color: var(--gold);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.fiber-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fiber-editor__error {
+  color: var(--mauve);
+  font-size: 0.8rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-style: normal;
+}
+
+.fiber-editor__button {
+  appearance: none;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.8rem;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.9rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.fiber-editor__button:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.fiber-editor__button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.fiber-editor__button--primary {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.fiber-editor__button--primary:hover:not(:disabled) {
+  color: var(--prose-bg);
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.fiber-editor__host {
+  min-height: 320px;
+  max-height: 70vh;
+  overflow: auto;
+  /* Let CM6 style the inside; we just give it room. */
+}
+
+.fiber-editor__host .cm-editor {
+  height: 100%;
+}
+
+.fiber-editor__hint {
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--border-faint);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.fiber-editor__hint kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-style: normal;
+  font-size: 0.75rem;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+}
+

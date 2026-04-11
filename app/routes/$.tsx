@@ -54,7 +54,7 @@ export default function ContentPage() {
   const { slug, content, graph } = useLoaderData<LoaderData>();
   const { mode, setMode } = useMode();
   const navigate = useNavigate();
-  const { deltaEvents, changedIds, since, dismissed, acknowledge } = useDelta();
+  const { deltaEvents, changedIds, since, acknowledge } = useDelta();
   const [outlineOpen, setOutlineOpen] = useState(false);
 
   // Global keyboard shortcuts
@@ -126,7 +126,7 @@ export default function ContentPage() {
 
   return (
     <div className="vellum-page">
-      <ColumnHeader deltaCount={dismissed ? 0 : deltaCount} />
+      <ColumnHeader deltaCount={deltaCount} />
 
       {mode === 'narrative' && content?.mdast && (
         <NarrativeView
@@ -164,7 +164,7 @@ export default function ContentPage() {
 
       {mode === 'delta' && (
         <DeltaView
-          events={dismissed ? [] : deltaEvents}
+          events={deltaEvents}
           since={since}
           onAcknowledge={acknowledge}
         />

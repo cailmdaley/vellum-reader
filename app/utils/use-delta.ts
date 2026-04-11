@@ -16,53 +16,47 @@ interface DeltaState {
   events: LogEvent[];
   changedIds: Set<string>;
   since: string | null;
-  loading: boolean;
-  dismissed: boolean;
 }
 
+const EMPTY_STATE: DeltaState = {
+  events: [],
+  changedIds: new Set(),
+  since: null,
+};
+
 export function useDelta() {
-  const [state, setState] = useState<DeltaState>({
-    events: [],
-    changedIds: new Set(),
-    since: null,
-    loading: true,
-    dismissed: false,
-  });
+  const [state, setState] = useState<DeltaState>(EMPTY_STATE);
 
   useEffect(() => {
     const lastVisit = localStorage.getItem(STORAGE_KEY);
     if (!lastVisit) {
       // First visit — record timestamp, no delta to show
       localStorage.setItem(STORAGE_KEY, new Date().toISOString());
-      setState((s) => ({ ...s, loading: false }));
       return;
     }
 
     // Fetch changes since last visit
     getDeltaSince(lastVisit).then(({ events }) => {
-      // Deduplicate: collect unique fiber IDs that changed
-      const changedIds = new Set(events.map((e) => e.fiberId));
       setState({
         events,
-        changedIds,
+        changedIds: new Set(events.map((e) => e.fiberId)),
         since: lastVisit,
-        loading: false,
-        dismissed: false,
       });
     });
   }, []);
 
+  // Acknowledge clears the delta state. Because both `events` and
+  // `changedIds` become empty, downstream consumers naturally render
+  // zero counts and an empty list — no separate "dismissed" flag.
   const acknowledge = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, new Date().toISOString());
-    setState((s) => ({ ...s, dismissed: true, changedIds: new Set(), events: [] }));
+    setState(EMPTY_STATE);
   }, []);
 
   return {
     deltaEvents: state.events,
     changedIds: state.changedIds,
     since: state.since,
-    loading: state.loading,
-    dismissed: state.dismissed,
     acknowledge,
   };
 }

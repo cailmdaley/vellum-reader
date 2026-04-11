@@ -271,7 +271,7 @@ export function NarrativeView({ content, graphNodes, graphLinks, breadcrumb, cha
       <GhostToc proseRef={proseRef} wrapperRef={wrapperRef} />
 
       {/* Right margin top — inbound backlink nodes, beside the fiber title */}
-      <BacklinkNodes nodes={backlinkNodes} navigate={navigate} />
+      <BacklinkNodes nodes={backlinkNodes} />
 
       {/* Left margin — text annotation dots + selection toolbar */}
       <TextAnnotationLayer
