@@ -1,0 +1,158 @@
+/**
+ * ColumnHeader — search + mode tabs, inside the prose column.
+ *
+ * Not a full-width app bar. Lives in the document flow at prose-width,
+ * sticks as you scroll. Part of the surface, not chrome.
+ */
+
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useMode, type Mode } from '~/contexts/ModeContext';
+import type { SearchHit } from '~/utils/content-types';
+import { searchFibers } from '~/api';
+import { statusGlyph } from '~/utils/fiber-status';
+
+// Note: the `/` → focus-search shortcut is installed by the global
+// keydown handler in app/routes/$.tsx (alongside 1/2/3, t, [, ]).
+// ColumnHeader used to install its own duplicate; that has been
+// removed so there is exactly one source of truth.
+
+const MODES: { id: Mode; label: string }[] = [
+  { id: 'narrative', label: 'Narrative' },
+  { id: 'workspace', label: 'Workspace' },
+  { id: 'map', label: 'Map' },
+  { id: 'delta', label: 'Delta' },
+];
+
+export function ColumnHeader({ deltaCount = 0, children }: { deltaCount?: number; children?: React.ReactNode }) {
+  const { mode, setMode } = useMode();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchHit[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(-1);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Fetch search results with debounce.
+  // Empty query returns all fibers (preload); non-empty queries are ranked.
+  const doSearch = useCallback((q: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    // No debounce for preload (empty query), 200ms for typed queries
+    debounceRef.current = setTimeout(async () => {
+      const hits = await searchFibers(q);
+      setResults(hits);
+      setShowResults(true);
+      setSelectedIdx(-1);
+    }, q ? 200 : 0);
+  }, []);
+
+  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const q = e.target.value;
+    setQuery(q);
+    doSearch(q);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape') {
+      setShowResults(false);
+      setQuery('');
+      (e.target as HTMLInputElement).blur();
+      return;
+    }
+    if (!showResults || results.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIdx((i) => Math.min(i + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const hit = results[selectedIdx >= 0 ? selectedIdx : 0];
+      if (hit) {
+        setShowResults(false);
+        setQuery('');
+        setMode('narrative');
+        navigate(`/${hit.id}`);
+      }
+    }
+  }
+
+  // Close on click outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowResults(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div className="vellum-column-header">
+      <div className="vellum-column-header__row">
+        <Link to="/" className="vellum-column-header__wordmark">Vellum</Link>
+        <nav className="vellum-column-header__tabs" aria-label="View mode">
+          {MODES.map(({ id, label }) => (
+            <button
+              key={id}
+              className={`vellum-mode-tab${mode === id ? ' vellum-mode-tab--active' : ''}`}
+              onClick={() => setMode(id)}
+              aria-current={mode === id ? 'true' : undefined}
+            >
+              {label}
+              {id === 'delta' && deltaCount > 0 && (
+                <span className="vellum-mode-tab__badge">{deltaCount}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="vellum-column-header__search" ref={searchRef}>
+          <span className="vellum-column-header__search-icon">⌕</span>
+          <input
+            type="search"
+            placeholder="Search fibers…"
+            value={query}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            onFocus={() => doSearch(query)}
+            aria-label="Search fibers"
+          />
+
+          {showResults && results.length > 0 && (
+            <div className="search-results">
+              {results.slice(0, 12).map((hit, i) => (
+                <a
+                  key={hit.id}
+                  href={`/${hit.id}`}
+                  className={`search-result${i === selectedIdx ? ' search-result--selected' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowResults(false);
+                    setQuery('');
+                    setMode('narrative');
+                    navigate(`/${hit.id}`);
+                  }}
+                  onMouseEnter={() => setSelectedIdx(i)}
+                >
+                  <span className="search-result__glyph">
+                    {statusGlyph(hit.status)}
+                  </span>
+                  <span className="search-result__body">
+                    <span className="search-result__title">{hit.title}</span>
+                    {hit.outcome && (
+                      <span className="search-result__outcome">{hit.outcome}</span>
+                    )}
+                  </span>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
