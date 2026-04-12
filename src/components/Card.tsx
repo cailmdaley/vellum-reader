@@ -95,10 +95,13 @@ export function Card(props: CardProps) {
     case 'insight':
       return <InsightCard {...props} content={content} />;
     case 'plot':
+      return <PlotCard {...props} content={content} />;
     case 'input':
+      return <InputCard {...props} content={content} />;
     case 'output':
+      return <OutputCard {...props} content={content} />;
     case 'myst':
-      return <StubCard {...props} content={content} />;
+      return <MystCard {...props} content={content} />;
   }
 }
 
@@ -365,37 +368,130 @@ function InsightCard({
   );
 }
 
-// ── Stub types (plot / input / output / myst) ───────────────────────────
-// Keep the primitive complete — every declared type must render
-// something — but flag the body as not-yet-wired so a reader can see
-// where further work is due.
+// ── Plot ─────────────────────────────────────────────────────────────────
+// A figure/image with an optional caption. The pretext lockup carries
+// the caption (or a filename fallback); the image sits below the lockup
+// so the card reads title-then-figure like a published plate. Compact
+// tier shows only the caption — useful when a plot is cited inline and
+// the reader just needs to know which figure is referenced.
 
-function StubCard({
+function PlotCard({
   content,
   width,
   onClose,
   className,
-}: CardProps & { content: Exclude<CardContent, { type: 'fiber' | 'decision' | 'insight' }> }) {
+}: CardProps & { content: Extract<CardContent, { type: 'plot' }> }) {
   const tier = tierForWidth(width);
-  const label = (() => {
-    switch (content.type) {
-      case 'plot':
-        return content.caption ?? content.src;
-      case 'input':
-        return content.label;
-      case 'output':
-        return content.label;
-      case 'myst':
-        return content.label;
-    }
-  })();
+  const caption = content.caption ?? filenameOf(content.src);
+  const title = `▭  ${caption}`;
 
   return (
     <CardShell
       width={width}
-      typeLabel={content.type}
-      title={`${content.type} — ${label}`}
-      body={`${content.type} card: rendering for this type is not yet implemented.`}
+      typeLabel="plot"
+      title={title}
+      body={null}
+      meta={tier === 'full' ? content.src : null}
+      tier={tier}
+      onClose={onClose}
+      className={className}
+      below={({ innerWidth }) => {
+        if (tier === 'compact') return null;
+        return (
+          <div className="card__plot" style={{ padding: `0 ${CARD_PAD_X}px ${CARD_PAD_Y}px` }}>
+            <img
+              className="card__plot-img"
+              src={content.src}
+              alt={caption}
+              style={{ width: innerWidth, height: 'auto', display: 'block' }}
+            />
+          </div>
+        );
+      }}
+    />
+  );
+}
+
+function filenameOf(src: string): string {
+  const tail = src.split('/').pop() ?? src;
+  return tail.split('?')[0] ?? tail;
+}
+
+// ── Input ────────────────────────────────────────────────────────────────
+// A data source the fiber depends on. Shows the label in the lockup and
+// a monospace provenance line ("from: catalog:data:build-mocks.galaxy-
+// catalog") below. The `from:` reference is the ASTRA data-flow primitive;
+// showing it raw is a feature — the reader can copy it into a query.
+
+function InputCard({
+  content,
+  width,
+  onClose,
+  className,
+}: CardProps & { content: Extract<CardContent, { type: 'input' }> }) {
+  const tier = tierForWidth(width);
+  const title = `◂  ${content.label}`;
+  const meta = content.from ? `from: ${content.from}` : null;
+  return (
+    <CardShell
+      width={width}
+      typeLabel="input"
+      title={title}
+      body={null}
+      meta={meta}
+      tier={tier}
+      onClose={onClose}
+      className={className}
+    />
+  );
+}
+
+// ── Output ───────────────────────────────────────────────────────────────
+// An artifact the fiber produces. Symmetric with Input — the recipe
+// pointer (if any) is the provenance line readers can trace downstream.
+
+function OutputCard({
+  content,
+  width,
+  onClose,
+  className,
+}: CardProps & { content: Extract<CardContent, { type: 'output' }> }) {
+  const tier = tierForWidth(width);
+  const title = `▸  ${content.label}`;
+  const meta = content.recipe ? `recipe: ${content.recipe}` : null;
+  return (
+    <CardShell
+      width={width}
+      typeLabel="output"
+      title={title}
+      body={null}
+      meta={meta}
+      tier={tier}
+      onClose={onClose}
+      className={className}
+    />
+  );
+}
+
+// ── MyST ─────────────────────────────────────────────────────────────────
+// Generic prose/note content block. The label is the title; the body,
+// if provided, is rendered as plain pretext lines — not full MyST AST.
+// A later pass can wire real MyST rendering when tables or code blocks
+// become necessary; for now a legible prose block earns the slot.
+
+function MystCard({
+  content,
+  width,
+  onClose,
+  className,
+}: CardProps & { content: Extract<CardContent, { type: 'myst' }> }) {
+  const tier = tierForWidth(width);
+  return (
+    <CardShell
+      width={width}
+      typeLabel="myst"
+      title={`¶  ${content.label}`}
+      body={content.body ?? null}
       meta={null}
       tier={tier}
       onClose={onClose}

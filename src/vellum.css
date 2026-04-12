@@ -4126,3 +4126,76 @@ a.pretext-prose-frag:hover {
   color: var(--text-muted);
   background: var(--prose-bg);
 }
+
+/* Type accents for the non-decision/non-insight variants. Each gets a
+   distinct left-border tint so cards of different kinds read apart at a
+   glance while sharing the same body chrome. Open/resolved borders on
+   decision and insight cards still win because they ship as their own
+   selectors further up. */
+.card--plot { border-left: 2px solid var(--teal, #2dd4bf); }
+.card--input { border-left: 2px solid var(--text-muted, #6b6b6b); }
+.card--output { border-left: 2px solid var(--text-muted, #6b6b6b); }
+.card--myst { border-left: 2px solid var(--border, rgba(184, 134, 11, 0.2)); }
+
+.card__plot-img {
+  border: 1px solid var(--border, rgba(184, 134, 11, 0.2));
+  background: var(--prose-bg, #FAFAF7);
+  border-radius: 2px;
+}
+
+/* ── /card-qa — unified Card primitive gate surface ─────────────────── */
+.card-qa {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  font-family: 'EB Garamond', Georgia, serif;
+  color: var(--text);
+}
+.card-qa__header {
+  margin-bottom: 2rem;
+}
+.card-qa__header h1 {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-weight: 500;
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
+  color: var(--text);
+}
+.card-qa__header p {
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 60ch;
+  margin: 0;
+}
+.card-qa__grid {
+  border-collapse: separate;
+  border-spacing: 0 1rem;
+  width: 100%;
+}
+.card-qa__grid thead th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 0 1rem 0.25rem;
+  border-bottom: 1px solid var(--border, rgba(184, 134, 11, 0.2));
+}
+.card-qa__type {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: left;
+  vertical-align: top;
+  padding: 0.25rem 1rem 0 0;
+  width: 8rem;
+}
+.card-qa__cell {
+  vertical-align: top;
+  padding: 0 0.75rem 0 0;
+}
+
