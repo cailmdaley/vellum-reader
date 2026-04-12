@@ -1426,72 +1426,43 @@ body {
   color: var(--gold);
 }
 
-/* ── Decision Tooltip ──
-   Left-margin counterpart to `.fiber-tooltip`. Appears when the reader
-   hovers a `⧖` decision glyph; shows the rationale, selected option,
-   and excluded alternatives. Interactive by default: the title is a
-   button that scrolls the prose to the full AstraBlocks entry.
+/* ── Margin Card Preview ──
+   The hover-pop shell used by left-margin decision (`⧖`) and insight
+   (`●`) glyphs. Anchors the unified Card primitive in the left gutter
+   at a fixed preview width so hover previews and pinned floating cards
+   render through the same Card component — the tooltip is just
+   positioning + a pin affordance, not its own bespoke layout.
 
    Anchor pattern mirrors `.margin-decision`: `right` is measured from
-   `.margin-decisions`' zero-width origin, so `var(--prose-width) +
-   var(--margin-gap) - 4px` places the card's right edge a hair left of
-   the glyph column. The card sizes itself by content up to `max-width`,
-   extending leftward into the left gutter. No explicit `left` so the
-   tooltip doesn't collapse into negative width when both edges are
-   pinned inside a width-0 containing block. */
-.decision-tooltip {
+   the stack's zero-width origin (`.margin-decisions` / `.margin-insights`),
+   so `var(--prose-width) + var(--margin-gap) - 4px` places the preview's
+   right edge a hair left of the glyph column. The preview has a fixed
+   JS-side width (see MarginCardPreview.tsx) because pretext needs a
+   concrete width to lay out into; `max-height` + `overflow-y` handles
+   the case where a decision's excluded list pushes the card tall. At
+   viewports narrow enough to squeeze the gutter, the 960 px media query
+   hides the whole margin substrate. */
+.margin-card-preview {
   position: absolute;
   z-index: 500;
   right: calc(var(--prose-width) + var(--margin-gap) - 4px);
-  width: max-content;
-  /* Viewport-aware cap so the tooltip fits in the available left-gutter
-     space at narrow viewports without overflowing off-screen. Derivation
-     mirrors the decision glyph's: the glyph's right edge sits at
-     `max(0, 50vw - 524px)`, so the tooltip can span from ~8 px to that
-     position. At 1280 viewport that's ~108 px wide; at 1600 it's ~268.
-     Clamped at [140 px, 420 px] — 140 is about the minimum where the
-     title plus rationale can be read without extreme wrapping; below
-     that the 960 px media query hides the whole left-margin substrate
-     anyway. */
-  max-width: clamp(100px, calc(50vw - 532px), 420px);
-  /* At tight widths the excluded-options list can still push the card
-     tall. Cap height and let the body scroll if the rationale/excluded
-     list is longer than the cap allows. */
   max-height: 60vh;
   overflow-y: auto;
-  background: var(--prose-bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 10px 14px;
-  box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
-  font-size: 0.82rem;
   pointer-events: auto;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
-}
-
-.decision-tooltip__title {
-  /* Rendered as a button so keyboard focus works and it carries the
-     `scroll to full decision block` click affordance. */
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0 0 6px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text);
   cursor: pointer;
-  text-align: left;
-  border-bottom: 1px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
+  border-radius: 3px;
+  box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
 }
-.decision-tooltip__pin {
+.margin-card-preview:focus { outline: none; }
+.margin-card-preview:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.margin-card-preview__pin {
   position: absolute;
-  top: 6px;
+  top: 4px;
   right: 6px;
+  z-index: 2;
   background: none;
   border: none;
   color: var(--text-muted);
@@ -1502,60 +1473,9 @@ body {
   opacity: 0.6;
   transition: opacity 0.15s, color 0.15s;
 }
-.decision-tooltip__pin:hover {
+.margin-card-preview__pin:hover {
   opacity: 1;
   color: var(--gold);
-}
-
-.decision-tooltip__title:hover {
-  color: var(--gold);
-  border-bottom-color: rgba(154, 123, 53, 0.5);
-}
-.decision-tooltip__glyph {
-  color: var(--gold);
-  font-size: 1rem;
-  line-height: 1;
-}
-.decision-tooltip__selected {
-  font-size: 0.8rem;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-.decision-tooltip__kicker {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-right: 2px;
-}
-.decision-tooltip__rationale {
-  font-size: 0.8rem;
-  color: var(--text);
-  line-height: 1.5;
-  border-top: 1px solid var(--border-faint);
-  padding-top: 6px;
-  margin-top: 2px;
-}
-.decision-tooltip__excluded {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0 0;
-  border-top: 1px solid var(--border-faint);
-  padding-top: 6px;
-}
-.decision-tooltip__excluded-item {
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  line-height: 1.45;
-  margin-top: 4px;
-}
-.decision-tooltip__excluded-label {
-  color: var(--text);
-  font-weight: 500;
-}
-.decision-tooltip__excluded-reason {
-  color: var(--text-muted);
 }
 
 /* ── Left Margin: Insight Glyphs ──
@@ -1618,91 +1538,6 @@ body {
 .margin-insight:hover .margin-insight__label {
   opacity: 1;
   color: var(--text);
-}
-
-/* Insight tooltip: mirrors `.decision-tooltip` geometry so both pop-ups
-   appear in the same left-gutter column with matching chrome. */
-.insight-tooltip {
-  position: absolute;
-  z-index: 500;
-  right: calc(var(--prose-width) + var(--margin-gap) - 4px);
-  width: max-content;
-  max-width: clamp(100px, calc(50vw - 532px), 420px);
-  max-height: 60vh;
-  overflow-y: auto;
-  background: var(--prose-bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 10px 14px;
-  box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
-  font-size: 0.82rem;
-  pointer-events: auto;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
-}
-.insight-tooltip__title {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0 0 6px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  border-bottom: 1px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
-}
-.insight-tooltip__title:hover {
-  color: var(--gold);
-  border-bottom-color: rgba(154, 123, 53, 0.5);
-}
-.insight-tooltip__glyph {
-  color: var(--gold);
-  font-size: 1rem;
-  line-height: 1;
-}
-.insight-tooltip__pin {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 2px 4px;
-  line-height: 1;
-  opacity: 0.6;
-  transition: opacity 0.15s, color 0.15s;
-}
-.insight-tooltip__pin:hover {
-  opacity: 1;
-  color: var(--gold);
-}
-.insight-tooltip__claim {
-  font-size: 0.82rem;
-  color: var(--text);
-  line-height: 1.5;
-  border-top: 1px solid var(--border-faint);
-  padding-top: 6px;
-  margin-top: 2px;
-}
-.insight-tooltip__evidence {
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  margin-top: 6px;
-}
-.insight-tooltip__kicker {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-right: 2px;
 }
 
 /* ── Ghost TOC (left gutter) ── */
@@ -3313,8 +3148,7 @@ body {
   .margin-decision { display: none; }
   .margin-insight { display: none; }
   .fiber-tooltip { display: none !important; }
-  .decision-tooltip { display: none !important; }
-  .insight-tooltip { display: none !important; }
+  .margin-card-preview { display: none !important; }
   .ann-margin-dot { display: none; }
 }
 

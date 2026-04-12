@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GraphNode } from '~/utils/content-types';
+import { MarginCardPreview } from './MarginCardPreview';
 
 interface MarginDecisionsProps {
   graphNode?: GraphNode;
@@ -126,67 +127,13 @@ export function MarginDecisions({ graphNode, wrapperRef }: MarginDecisionsProps)
       ))}
 
       {hoveredDecision && hoveredIdx >= 0 && (
-        <div
-          className="decision-tooltip"
-          style={{ top: FIRST_GLYPH_TOP + hoveredIdx * STACK_GAP + 20 }}
+        <MarginCardPreview
+          content={{ type: 'decision', decision: hoveredDecision }}
+          top={FIRST_GLYPH_TOP + hoveredIdx * STACK_GAP + 20}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
-        >
-          <button
-            type="button"
-            className="decision-tooltip__title"
-            onClick={() => scrollToDecision(hoveredDecision.key)}
-          >
-            <span className="decision-tooltip__glyph">⧖</span>
-            {hoveredDecision.label}
-          </button>
-          <button
-            type="button"
-            className="decision-tooltip__pin"
-            title="Open as floating card"
-            onClick={(e) => {
-              document.dispatchEvent(
-                new CustomEvent('vellum:open-card', {
-                  detail: {
-                    content: { type: 'decision', decision: hoveredDecision },
-                    x: e.clientX,
-                    y: e.clientY,
-                  },
-                }),
-              );
-              scheduleClose();
-            }}
-          >
-            ⊞
-          </button>
-          {hoveredDecision.selectedLabel && (
-            <div className="decision-tooltip__selected">
-              <span className="decision-tooltip__kicker">chose</span>{' '}
-              {hoveredDecision.selectedLabel}
-            </div>
-          )}
-          {hoveredDecision.rationale && (
-            <div className="decision-tooltip__rationale">
-              {hoveredDecision.rationale}
-            </div>
-          )}
-          {hoveredDecision.excluded && hoveredDecision.excluded.length > 0 && (
-            <ul className="decision-tooltip__excluded">
-              {hoveredDecision.excluded.map((ex) => (
-                <li key={ex.key} className="decision-tooltip__excluded-item">
-                  <span className="decision-tooltip__excluded-label">
-                    {ex.label}
-                  </span>
-                  {ex.reason && (
-                    <span className="decision-tooltip__excluded-reason">
-                      {' '}— {ex.reason}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          onScrollToAnchor={() => scrollToDecision(hoveredDecision.key)}
+        />
       )}
     </div>
   );

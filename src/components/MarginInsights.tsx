@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GraphNode } from '~/utils/content-types';
+import { MarginCardPreview } from './MarginCardPreview';
 
 interface MarginInsightsProps {
   graphNode?: GraphNode;
@@ -121,48 +122,13 @@ export function MarginInsights({ graphNode, wrapperRef: _wrapperRef }: MarginIns
       ))}
 
       {hoveredFinding && hoveredIdx >= 0 && (
-        <div
-          className="insight-tooltip"
-          style={{ top: baseTop + hoveredIdx * STACK_GAP + 20 }}
+        <MarginCardPreview
+          content={{ type: 'insight', finding: hoveredFinding }}
+          top={baseTop + hoveredIdx * STACK_GAP + 20}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
-        >
-          <button
-            type="button"
-            className="insight-tooltip__title"
-            onClick={() => scrollToFinding(hoveredFinding.key)}
-          >
-            <span className="insight-tooltip__glyph">
-              {hoveredFinding.hasEvidence ? '●' : '○'}
-            </span>
-            Insight
-          </button>
-          <button
-            type="button"
-            className="insight-tooltip__pin"
-            title="Open as floating card"
-            onClick={(e) => {
-              document.dispatchEvent(
-                new CustomEvent('vellum:open-card', {
-                  detail: {
-                    content: { type: 'insight', finding: hoveredFinding },
-                    x: e.clientX,
-                    y: e.clientY,
-                  },
-                }),
-              );
-              scheduleClose();
-            }}
-          >
-            ⊞
-          </button>
-          <div className="insight-tooltip__claim">{hoveredFinding.claim}</div>
-          {hoveredFinding.hasEvidence && (
-            <div className="insight-tooltip__evidence">
-              <span className="insight-tooltip__kicker">evidence</span> attached
-            </div>
-          )}
-        </div>
+          onScrollToAnchor={() => scrollToFinding(hoveredFinding.key)}
+        />
       )}
     </div>
   );
