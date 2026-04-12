@@ -1,12 +1,12 @@
 /**
  * CanvasDivider — draggable vertical rail between the left content and the
- * right canvas. Writes its position to `--canvas-width` on :root and
- * persists to localStorage so it survives reloads.
+ * right-side canvas pane. Writes its position to `--canvas-width` on :root
+ * and persists to localStorage so it survives reloads.
  *
- * Gate 1 of the workspace constitution. Resizing uses pointer capture on the
- * rail itself so the drag stays live even when the cursor wanders into iframes,
- * the canvas body, or the narrative column. Minimum widths clamp the split
- * so neither side can collapse entirely.
+ * Resizing uses pointer capture on the rail itself so the drag stays live
+ * even when the cursor wanders into iframes, the canvas body, or the
+ * narrative column. Minimum widths clamp the split so neither side can
+ * collapse entirely.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';

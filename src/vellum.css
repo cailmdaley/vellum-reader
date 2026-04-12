@@ -1666,6 +1666,22 @@ body {
   padding: 2rem 0;
 }
 
+/* Temporary message inside the right-side pane in Workspace mode, shown
+   while the card component that will render a fiber's decomposition is
+   still being built. */
+.workspace-anatomy-placeholder {
+  padding: 2rem 4px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1.5;
+}
+.workspace-anatomy-placeholder__hint em {
+  font-style: normal;
+  color: var(--text);
+  font-weight: 500;
+}
+
 .workspace-section {
   margin-bottom: 2rem;
 }

@@ -1,18 +1,20 @@
 /**
- * Canvas — the shared right-side panel that persists across mode switches.
+ * Canvas — the right-side aside of the reader, paired with the draggable
+ * divider. This component is only the chrome: a fixed-position pane with the
+ * page's background, sized by the `--canvas-width` CSS variable that the
+ * divider writes on the root element.
  *
- * Gate 1 of the workspace constitution: the canvas is an empty surface with
- * the correct Weathered Substrate background, sitting to the right of the
- * draggable divider. Later gates will populate it with decision cards,
- * insight cards, and fiber previews popped from the left panel.
- *
- * See .felt/vellum-reader/workspace for the full constitution.
+ * What appears inside the pane is decided by whichever tab (Narrative,
+ * Workspace, Map) is active. Each tab passes its own children in — there is
+ * no shared state between tabs, so switching tabs swaps the whole right side.
  */
 
-export function Canvas() {
+import type { ReactNode } from 'react';
+
+export function Canvas({ children }: { children?: ReactNode }) {
   return (
-    <aside className="vellum-canvas" aria-label="Workspace canvas">
-      <div className="vellum-canvas__inner" />
+    <aside className="vellum-canvas" aria-label="Canvas">
+      <div className="vellum-canvas__inner">{children}</div>
     </aside>
   );
 }

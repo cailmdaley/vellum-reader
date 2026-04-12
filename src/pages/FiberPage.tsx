@@ -152,7 +152,22 @@ export function FiberPage() {
     <div className="vellum-page">
       <HotReloadListener onReload={reloadCurrentFiber} />
       <CanvasDivider />
-      <Canvas />
+      {/* The right side of every tab. The draggable divider and this aside
+          are always on screen, but what fills the aside is decided by the
+          active tab: Narrative leaves it empty for now, Workspace will show
+          the selected fiber's decomposition (decisions, findings, inputs,
+          outputs) as a column of cards, and Map is not built yet. */}
+      <Canvas>
+        {mode === 'workspace' && currentNode ? (
+          <div className="workspace-anatomy-placeholder">
+            <p className="workspace-anatomy-placeholder__hint">
+              The decomposition of <em>{currentNode.label}</em> into decision,
+              finding, input, and output cards will appear here once the
+              shared card component is built.
+            </p>
+          </div>
+        ) : null}
+      </Canvas>
       <FloatingIsland
         currentNode={currentNode}
         graphNodes={graph.nodes}
