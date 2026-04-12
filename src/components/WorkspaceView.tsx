@@ -1,37 +1,76 @@
+/**
+ * WorkspaceView — the Workspace tab's left column.
+ *
+ * A dense, filterable list of the current fiber's child fibers, modeled on
+ * a GitHub issue tracker. Clicking a row picks which fiber is decomposed
+ * into cards on the right-hand anatomy pane (state lifted to FiberPage) —
+ * clicking a row does NOT navigate away from the current URL. The ↗ button
+ * on each row is the explicit "open this in Narrative" action.
+ *
+ * Filters stacked on top of the list: always-on search, segmented status,
+ * ⧖ open-decisions toggle, ⬡ tempered toggle, ◇ recently-changed toggle,
+ * and a scrollable row of tag chips derived from the visible children.
+ */
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useMode } from '~/contexts/ModeContext';
 import type { GraphLink, GraphNode } from '~/utils/content-types';
 import { cleanVerdict, normalizeStatus, statusGlyph } from '~/utils/fiber-status';
-
-const STATUS_ORDER = ['active', 'unresolved', 'blocked', 'open', 'closed', 'suspended'];
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Active',
-  open: 'Open',
-  closed: 'Closed',
-  suspended: 'Suspended',
-  resolved: 'Closed',
-  unresolved: 'Needs attention',
-  blocked: 'Blocked',
-};
 
 interface WorkspaceViewProps {
   nodes: GraphNode[];
   links: GraphLink[];
   currentSlug: string;
+  selectedSlug: string;
+  onSelect: (slug: string) => void;
+  onOpenInNarrative: (slug: string) => void;
   changedIds?: Set<string>;
 }
 
-type DecisionFilter = 'all' | 'open' | 'resolved';
+type StatusFilter = 'all' | 'active' | 'open' | 'closed' | 'attention';
+
+const STATUS_TABS: Array<{ key: StatusFilter; label: string }> = [
+  { key: 'all', label: 'all' },
+  { key: 'active', label: '◐ active' },
+  { key: 'open', label: '○ open' },
+  { key: 'attention', label: '◈ attention' },
+  { key: 'closed', label: '● closed' },
+];
 
 function hasOpenDecision(node: GraphNode): boolean {
   return (node.decisions ?? []).some((decision) => !decision.selectedKey);
 }
 
-export function WorkspaceView({ nodes, links, currentSlug, changedIds }: WorkspaceViewProps) {
-  const { setMode } = useMode();
-  const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>('all');
+function matchesStatus(node: GraphNode, filter: StatusFilter): boolean {
+  if (filter === 'all') return true;
+  const status = normalizeStatus(node.status);
+  if (filter === 'attention') return status === 'unresolved' || status === 'blocked';
+  return status === filter;
+}
+
+function matchesSearch(node: GraphNode, query: string): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  if (node.label.toLowerCase().includes(q)) return true;
+  if (node.slug.toLowerCase().includes(q)) return true;
+  if ((node.verdict ?? '').toLowerCase().includes(q)) return true;
+  if (node.tags.some((tag) => tag.toLowerCase().includes(q))) return true;
+  return false;
+}
+
+export function WorkspaceView({
+  nodes,
+  links,
+  currentSlug,
+  selectedSlug,
+  onSelect,
+  onOpenInNarrative,
+  changedIds,
+}: WorkspaceViewProps) {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [openDecisionsOnly, setOpenDecisionsOnly] = useState(false);
   const [temperedOnly, setTemperedOnly] = useState(false);
+  const [changedOnly, setChangedOnly] = useState(false);
+  const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState('');
 
   const { currentNode, children } = useMemo(() => {
     const nodeBySlug = new Map(nodes.map((node) => [node.slug, node]));
@@ -45,50 +84,57 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
     return { currentNode: current, children: kids };
   }, [nodes, links, currentSlug]);
 
-  const filteredChildren = useMemo(() => {
-    let result = children;
-    if (decisionFilter === 'open') result = result.filter(hasOpenDecision);
-    else if (decisionFilter === 'resolved') result = result.filter((node) => !hasOpenDecision(node));
-    if (temperedOnly) result = result.filter((node) => node.tempered);
-    return result;
-  }, [children, decisionFilter, temperedOnly]);
-
-  const sections = useMemo(() => {
-    const byStatus = new Map<string, GraphNode[]>();
-    for (const node of filteredChildren) {
-      const status = normalizeStatus(node.status);
-      if (!byStatus.has(status)) byStatus.set(status, []);
-      byStatus.get(status)!.push(node);
+  // Tag chips are derived from whatever's in scope (children of the current
+  // fiber) so the filter row never surfaces a tag that can't match a row.
+  const tagHistogram = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const node of children) {
+      for (const tag of node.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
-    return STATUS_ORDER.filter((status) => byStatus.has(status)).map((status) => ({
-      status,
-      nodes: byStatus.get(status)!,
-    }));
-  }, [filteredChildren]);
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  }, [children]);
+
+  const filtered = useMemo(() => {
+    return children.filter((node) => {
+      if (!matchesStatus(node, statusFilter)) return false;
+      if (openDecisionsOnly && !hasOpenDecision(node)) return false;
+      if (temperedOnly && !node.tempered) return false;
+      if (changedOnly && !(changedIds?.has(node.slug))) return false;
+      if (activeTags.size > 0 && !node.tags.some((tag) => activeTags.has(tag))) return false;
+      if (!matchesSearch(node, search)) return false;
+      return true;
+    });
+  }, [children, statusFilter, openDecisionsOnly, temperedOnly, changedOnly, activeTags, changedIds, search]);
 
   const counts = useMemo(() => {
-    const summary = {
-      total: children.length,
-      open: 0,
-      active: 0,
-      closed: 0,
-      attention: 0,
-      openDecisions: 0,
-      tempered: 0,
-    };
-
+    let active = 0;
+    let open = 0;
+    let closed = 0;
+    let attention = 0;
+    let openDecisions = 0;
+    let tempered = 0;
+    let changed = 0;
     for (const node of children) {
       const status = normalizeStatus(node.status);
-      if (status === 'open') summary.open++;
-      else if (status === 'active') summary.active++;
-      else if (status === 'closed') summary.closed++;
-      else if (status === 'unresolved' || status === 'blocked') summary.attention++;
-      if (hasOpenDecision(node)) summary.openDecisions++;
-      if (node.tempered) summary.tempered++;
+      if (status === 'active') active++;
+      else if (status === 'open') open++;
+      else if (status === 'closed') closed++;
+      else if (status === 'unresolved' || status === 'blocked') attention++;
+      if (hasOpenDecision(node)) openDecisions++;
+      if (node.tempered) tempered++;
+      if (changedIds?.has(node.slug)) changed++;
     }
+    return { total: children.length, active, open, closed, attention, openDecisions, tempered, changed };
+  }, [children, changedIds]);
 
-    return summary;
-  }, [children]);
+  function toggleTag(tag: string) {
+    setActiveTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
+  }
 
   if (!currentNode) {
     return (
@@ -108,108 +154,178 @@ export function WorkspaceView({ nodes, links, currentSlug, changedIds }: Workspa
         {children.length > 0 && (
           <div className="workspace-parent__counts">
             <span>{counts.total} sub-fibers</span>
-            {counts.active > 0 && <span className="workspace-count--active">◐ {counts.active} active</span>}
-            {counts.attention > 0 && <span className="workspace-count--open">◈ {counts.attention} attention</span>}
-            {counts.open > 0 && <span className="workspace-count--open">○ {counts.open} open</span>}
-            {counts.closed > 0 && <span className="workspace-count--closed">● {counts.closed} closed</span>}
-          </div>
-        )}
-        {(counts.openDecisions > 0 || counts.tempered > 0) && (
-          <div className="workspace-decision-filter">
-            {counts.openDecisions > 0 && (
-              <>
-                <button
-                  className={`workspace-decision-filter__btn${decisionFilter === 'all' ? ' workspace-decision-filter__btn--active' : ''}`}
-                  onClick={() => setDecisionFilter('all')}
-                >
-                  all
-                </button>
-                <button
-                  className={`workspace-decision-filter__btn${decisionFilter === 'open' ? ' workspace-decision-filter__btn--active' : ''}`}
-                  onClick={() => setDecisionFilter('open')}
-                >
-                  ⧖ {counts.openDecisions} open
-                </button>
-                <button
-                  className={`workspace-decision-filter__btn${decisionFilter === 'resolved' ? ' workspace-decision-filter__btn--active' : ''}`}
-                  onClick={() => setDecisionFilter('resolved')}
-                >
-                  resolved
-                </button>
-              </>
-            )}
-            {counts.tempered > 0 && (
-              <button
-                className={`workspace-decision-filter__btn workspace-decision-filter__btn--tempered${temperedOnly ? ' workspace-decision-filter__btn--active' : ''}`}
-                onClick={() => setTemperedOnly((value) => !value)}
-                title="Show only human-reviewed (tempered) fibers"
-              >
-                ⬡ {counts.tempered} tempered
-              </button>
-            )}
+            {counts.active > 0 && <span className="workspace-count--active">◐ {counts.active}</span>}
+            {counts.attention > 0 && <span className="workspace-count--open">◈ {counts.attention}</span>}
+            {counts.open > 0 && <span className="workspace-count--open">○ {counts.open}</span>}
+            {counts.closed > 0 && <span className="workspace-count--closed">● {counts.closed}</span>}
           </div>
         )}
       </div>
 
-      {children.length === 0 && (
+      {children.length === 0 ? (
         <p className="workspace-empty">No sub-fibers. This fiber is a leaf.</p>
-      )}
-      {children.length > 0 && filteredChildren.length === 0 && (
-        <p className="workspace-empty">No fibers match this filter.</p>
-      )}
-
-      {sections.map(({ status, nodes: sectionNodes }) => (
-        <section key={status} className="workspace-section">
-          <h2 className="workspace-section__heading">
-            {statusGlyph(status)} {STATUS_LABELS[status]} ({sectionNodes.length})
-          </h2>
-          {sectionNodes.map((node) => (
-            <FiberCard
-              key={node.id}
-              node={node}
-              changed={changedIds?.has(node.slug)}
-              onNavigate={() => setMode('narrative')}
+      ) : (
+        <>
+          <div className="workspace-filters">
+            <input
+              type="search"
+              className="workspace-filters__search"
+              placeholder="Search title, slug, tag, outcome…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              spellCheck={false}
             />
-          ))}
-        </section>
-      ))}
+
+            <div className="workspace-filters__row">
+              {STATUS_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  className={`workspace-chip${statusFilter === tab.key ? ' workspace-chip--active' : ''}`}
+                  onClick={() => setStatusFilter(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+              {counts.openDecisions > 0 && (
+                <button
+                  className={`workspace-chip workspace-chip--gold${openDecisionsOnly ? ' workspace-chip--active' : ''}`}
+                  onClick={() => setOpenDecisionsOnly((v) => !v)}
+                  title="Only fibers with open decisions"
+                >
+                  ⧖ {counts.openDecisions}
+                </button>
+              )}
+              {counts.tempered > 0 && (
+                <button
+                  className={`workspace-chip workspace-chip--teal${temperedOnly ? ' workspace-chip--active' : ''}`}
+                  onClick={() => setTemperedOnly((v) => !v)}
+                  title="Only human-reviewed (tempered) fibers"
+                >
+                  ⬡ {counts.tempered}
+                </button>
+              )}
+              {counts.changed > 0 && (
+                <button
+                  className={`workspace-chip workspace-chip--gold${changedOnly ? ' workspace-chip--active' : ''}`}
+                  onClick={() => setChangedOnly((v) => !v)}
+                  title="Only fibers changed since the last delta checkpoint"
+                >
+                  ◇ {counts.changed}
+                </button>
+              )}
+            </div>
+
+            {tagHistogram.length > 0 && (
+              <div className="workspace-filters__tags">
+                {tagHistogram.map(([tag, count]) => (
+                  <button
+                    key={tag}
+                    className={`workspace-tag${activeTags.has(tag) ? ' workspace-tag--active' : ''}`}
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag} <span className="workspace-tag__count">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="workspace-list" role="list">
+            <div className="workspace-list__summary">
+              {filtered.length === children.length
+                ? `${filtered.length} fibers`
+                : `${filtered.length} of ${children.length}`}
+            </div>
+            {filtered.length === 0 && (
+              <p className="workspace-empty">No fibers match these filters.</p>
+            )}
+            {filtered.map((node) => (
+              <FiberRow
+                key={node.id}
+                node={node}
+                selected={node.slug === selectedSlug}
+                changed={changedIds?.has(node.slug)}
+                onSelect={() => onSelect(node.slug)}
+                onOpenInNarrative={() => onOpenInNarrative(node.slug)}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-function FiberCard({
+function FiberRow({
   node,
+  selected,
   changed,
-  onNavigate,
+  onSelect,
+  onOpenInNarrative,
 }: {
   node: GraphNode;
+  selected: boolean;
   changed?: boolean;
-  onNavigate?: () => void;
+  onSelect: () => void;
+  onOpenInNarrative: () => void;
 }) {
   const status = normalizeStatus(node.status);
-  const openDecisionCount = (node.decisions ?? []).filter((decision) => !decision.selectedKey).length;
+  const openDecisions = (node.decisions ?? []).filter((d) => !d.selectedKey).length;
+  const outcome = cleanVerdict(node.verdict);
 
   return (
-    <Link
-      to={`/${node.slug}`}
-      className={`fiber-card${changed ? ' fiber-card--changed' : ''}${node.tempered ? ' fiber-card--tempered' : ''}`}
-      onClick={onNavigate}
+    <div
+      role="listitem"
+      className={`fiber-row${selected ? ' fiber-row--selected' : ''}${changed ? ' fiber-row--changed' : ''}${node.tempered ? ' fiber-row--tempered' : ''}`}
+      onClick={onSelect}
+      onDoubleClick={onOpenInNarrative}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          if (e.metaKey || e.ctrlKey) onOpenInNarrative();
+          else onSelect();
+        }
+      }}
     >
-      <div className="fiber-card__header">
-        <span className={`fiber-card__dot fiber-card__dot--${status}`}>
-          {statusGlyph(node.status)}
-        </span>
-        <span className="fiber-card__title">{node.label}</span>
-        {node.tempered && <span className="fiber-card__tempered" title="Human-reviewed; load-bearing">⬡</span>}
+      <span className={`fiber-row__dot fiber-row__dot--${status}`} title={status}>
+        {statusGlyph(node.status)}
+      </span>
+      <div className="fiber-row__body">
+        <div className="fiber-row__title-line">
+          <span className="fiber-row__title">{node.label}</span>
+          {node.tags.slice(0, 3).map((tag) => (
+            <span key={tag} className="fiber-row__tag">{tag}</span>
+          ))}
+        </div>
+        {outcome && <div className="fiber-row__outcome">{outcome}</div>}
       </div>
-      <div className="fiber-card__meta">
-        <span>{node.slug.split('/').pop()}</span>
-        {node.tags.length > 0 && <span>{node.tags.slice(0, 3).join(', ')}</span>}
-        {node.decisionCount ? <span>{node.decisionCount}d</span> : null}
-        {openDecisionCount > 0 ? <span className="fiber-card__open-decisions">⧖ {openDecisionCount} open</span> : null}
-        {node.findingCount ? <span>{node.findingCount}f</span> : null}
+      <div className="fiber-row__meta">
+        {openDecisions > 0 && (
+          <span className="fiber-row__metric fiber-row__metric--gold" title={`${openDecisions} open decisions`}>
+            ⧖ {openDecisions}
+          </span>
+        )}
+        {(node.findingCount ?? 0) > 0 && (
+          <span className="fiber-row__metric" title={`${node.findingCount} findings`}>
+            ● {node.findingCount}
+          </span>
+        )}
+        {node.tempered && (
+          <span className="fiber-row__metric fiber-row__metric--teal" title="Tempered">⬡</span>
+        )}
+        <button
+          type="button"
+          className="fiber-row__open"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenInNarrative();
+          }}
+          title="Open in Narrative"
+          aria-label={`Open ${node.label} in Narrative`}
+        >
+          ↗
+        </button>
       </div>
-      {cleanVerdict(node.verdict) && <p className="fiber-card__outcome">{cleanVerdict(node.verdict)}</p>}
-    </Link>
+    </div>
   );
 }

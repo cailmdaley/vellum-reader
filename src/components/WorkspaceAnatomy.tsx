@@ -63,6 +63,14 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
   const innerWidth = useCanvasInnerWidth();
   const decisions = node.decisions ?? [];
   const findings = node.findings ?? [];
+  const inputs = node.inputs ?? [];
+  const outputs = node.outputs ?? [];
+
+  const nothing =
+    decisions.length === 0 &&
+    findings.length === 0 &&
+    inputs.length === 0 &&
+    outputs.length === 0;
 
   return (
     <div className="workspace-anatomy">
@@ -106,9 +114,51 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
         </section>
       )}
 
-      {decisions.length === 0 && findings.length === 0 && (
+      {inputs.length > 0 && (
+        <section className="workspace-anatomy__section">
+          <h3 className="workspace-anatomy__heading">
+            Inputs <span className="workspace-anatomy__count">{inputs.length}</span>
+          </h3>
+          <div className="workspace-anatomy__stack">
+            {inputs.map((input) => (
+              <Card
+                key={input.id}
+                width={innerWidth}
+                content={{
+                  type: 'input',
+                  label: input.description ? `${input.id} — ${input.description}` : input.id,
+                  from: input.from ?? input.source,
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {outputs.length > 0 && (
+        <section className="workspace-anatomy__section">
+          <h3 className="workspace-anatomy__heading">
+            Outputs <span className="workspace-anatomy__count">{outputs.length}</span>
+          </h3>
+          <div className="workspace-anatomy__stack">
+            {outputs.map((output) => (
+              <Card
+                key={output.id}
+                width={innerWidth}
+                content={{
+                  type: 'output',
+                  label: output.description ? `${output.id} — ${output.description}` : output.id,
+                  recipe: output.recipe,
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {nothing && (
         <p className="workspace-anatomy__empty">
-          No decisions or insights on <em>{node.label}</em> yet.
+          No ASTRA structure on <em>{node.label}</em> yet.
         </p>
       )}
     </div>

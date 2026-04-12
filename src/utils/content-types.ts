@@ -35,6 +35,21 @@ export interface GraphDecision {
   excluded: Array<{ key: string; label: string; reason?: string }>;
 }
 
+export interface GraphInput {
+  id: string;
+  kind: 'data' | 'analysis';
+  description?: string;
+  from?: string;
+  source?: string;
+}
+
+export interface GraphOutput {
+  id: string;
+  kind: string;
+  description?: string;
+  recipe?: string;
+}
+
 export interface GraphNode {
   id: string;
   label: string;
@@ -45,6 +60,8 @@ export interface GraphNode {
   verdict?: string;
   decisions?: GraphDecision[];
   findings?: GraphFinding[];
+  inputs?: GraphInput[];
+  outputs?: GraphOutput[];
   decisionCount?: number;
   findingCount?: number;
   tempered?: boolean;

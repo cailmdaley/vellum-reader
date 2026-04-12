@@ -140,6 +140,19 @@ export function FiberPage() {
     [graph.nodes, slug],
   );
 
+  // Workspace: the right-side anatomy is driven by this selection, not the
+  // URL slug. Clicking a row in WorkspaceView's list picks which fiber is
+  // decomposed into cards on the right, without navigating away. The default
+  // is whatever fiber the URL points at.
+  const [anatomySlug, setAnatomySlug] = useState<string | null>(null);
+  useEffect(() => {
+    setAnatomySlug(slug || null);
+  }, [slug]);
+  const anatomyNode = useMemo(
+    () => graph.nodes.find((n) => n.slug === (anatomySlug ?? slug)),
+    [graph.nodes, anatomySlug, slug],
+  );
+
   const citingBacklinks = useMemo(() => {
     if (!currentNode || !graph.links) return [];
     const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
@@ -159,9 +172,9 @@ export function FiberPage() {
           the selected fiber's decomposition (decisions, findings, inputs,
           outputs) as a column of cards, and Map is not built yet. */}
       <Canvas>
-        {mode === 'workspace' && currentNode ? (
+        {mode === 'workspace' && anatomyNode ? (
           <WorkspaceAnatomy
-            node={currentNode}
+            node={anatomyNode}
             onNavigate={(s) => navigate(`/${s}`)}
           />
         ) : null}
@@ -206,6 +219,12 @@ export function FiberPage() {
           nodes={graph.nodes}
           links={graph.links}
           currentSlug={slug}
+          selectedSlug={anatomySlug ?? slug}
+          onSelect={setAnatomySlug}
+          onOpenInNarrative={(s) => {
+            navigate(`/${s}`);
+            setMode('narrative');
+          }}
           changedIds={changedIds}
         />
       )}
