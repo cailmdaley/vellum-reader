@@ -10,6 +10,7 @@ import { NarrativeView } from '~/components/NarrativeView';
 import { WorkspaceView } from '~/components/WorkspaceView';
 import { Canvas } from '~/components/Canvas';
 import { CanvasDivider } from '~/components/CanvasDivider';
+import { WorkspaceAnatomy } from '~/components/WorkspaceAnatomy';
 import { useMode, type Mode } from '~/contexts/ModeContext';
 import { useDelta } from '~/utils/use-delta';
 import type { AstraGraph, FiberContent } from '~/utils/content-types';
@@ -159,13 +160,10 @@ export function FiberPage() {
           outputs) as a column of cards, and Map is not built yet. */}
       <Canvas>
         {mode === 'workspace' && currentNode ? (
-          <div className="workspace-anatomy-placeholder">
-            <p className="workspace-anatomy-placeholder__hint">
-              The decomposition of <em>{currentNode.label}</em> into decision,
-              finding, input, and output cards will appear here once the
-              shared card component is built.
-            </p>
-          </div>
+          <WorkspaceAnatomy
+            node={currentNode}
+            onNavigate={(s) => navigate(`/${s}`)}
+          />
         ) : null}
       </Canvas>
       <FloatingIsland

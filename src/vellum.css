@@ -1666,20 +1666,50 @@ body {
   padding: 2rem 0;
 }
 
-/* Temporary message inside the right-side pane in Workspace mode, shown
-   while the card component that will render a fiber's decomposition is
-   still being built. */
-.workspace-anatomy-placeholder {
-  padding: 2rem 4px;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  font-style: italic;
-  line-height: 1.5;
+/* Right-side content for the Workspace tab: a fiber's own Card at
+   the top, followed by its decisions and insights as Cards in a
+   vertical flow. Same weathered substrate as the rest of the page. */
+.workspace-anatomy {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 2px;
 }
-.workspace-anatomy-placeholder__hint em {
+.workspace-anatomy__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.workspace-anatomy__heading {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin: 0 0 0.25rem;
+  padding-left: 2px;
+}
+.workspace-anatomy__count {
+  margin-left: 0.5rem;
+  opacity: 0.7;
+}
+.workspace-anatomy__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.workspace-anatomy__empty {
+  font-family: 'EB Garamond', Georgia, serif;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  padding: 1rem 4px;
+}
+.workspace-anatomy__empty em {
   font-style: normal;
   color: var(--text);
-  font-weight: 500;
 }
 
 .workspace-section {
@@ -3604,6 +3634,69 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(184, 134, 11, 0.2) transparent;
 }
+
+/* ── Unified Card primitive ───────────────────────────────────────────
+   Shared chrome and form factor for every Card in Vellum — fiber,
+   decision, insight, and the stubbed plot / input / output / myst
+   variants. The title lockup and any body lines are pretext-composed
+   and positioned absolutely inside .card__lockup; type-specific
+   content (decision options, evidence lists) flows below the lockup
+   in ordinary CSS. */
+
+.card {
+  background: var(--prose-bg, #FAFAF7);
+  border: 1px solid rgba(184, 134, 11, 0.15);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: 'EB Garamond', Georgia, serif;
+  overflow: hidden;
+}
+.card--open { border-left: 2px solid var(--gold, #b8860b); }
+.card--resolved { border-left: 2px solid var(--teal, #2dd4bf); }
+
+.card__close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font: 500 14px 'JetBrains Mono', monospace;
+  cursor: pointer;
+  padding: 2px 4px;
+  z-index: 1;
+}
+.card__close:hover { color: var(--gold); }
+
+/* Options list below a Decision Card's lockup. Each ✕ row reads as a
+   rejected alternative — glyph, label, optional reason. */
+.card__options {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.card__option {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.card__option-glyph {
+  margin-right: 6px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.card__option-label {
+  color: var(--text);
+}
+.card__option-reason {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 
 /* Tame MyST prose inside the card */
 .fiber-card__prose p {
