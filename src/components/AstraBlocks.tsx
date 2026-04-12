@@ -78,7 +78,11 @@ export function AstraBlocks({ graphNode }: AstraBlocksProps) {
           </h3>
           {findings.length > 0 ? (
             findings.map((f) => (
-              <div key={f.key} className="astra-finding">
+              <div
+                key={f.key}
+                id={`astra-finding-${f.key}`}
+                className="astra-finding"
+              >
                 <p className="astra-finding__claim">
                   {f.hasEvidence && <span className="astra-finding__evidence-dot" title="Has evidence">●</span>}
                   {f.claim}

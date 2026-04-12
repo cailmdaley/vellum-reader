@@ -17,6 +17,7 @@ import { FiberHeader } from './FiberHeader';
 import { AstraBlocks } from './AstraBlocks';
 import { MarginCitations } from './MarginCitations';
 import { MarginDecisions } from './MarginDecisions';
+import { MarginInsights } from './MarginInsights';
 import { PretextProse } from './PretextProse';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { Lightbox } from './Lightbox';
@@ -421,6 +422,10 @@ export function NarrativeView({
       </article>
 
       <MarginDecisions
+        graphNode={currentNode}
+        wrapperRef={wrapperRef}
+      />
+      <MarginInsights
         graphNode={currentNode}
         wrapperRef={wrapperRef}
       />

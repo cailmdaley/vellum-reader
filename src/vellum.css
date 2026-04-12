@@ -1248,20 +1248,17 @@ body {
    placed opposite the paragraph they bear on, hover → evidence —
    is future-stage work tracked in [[vellum-reader/margins]]. */
 .margin-decisions {
-  display: none;
   /* Do NOT establish a new containing block here. Decision children use
      `right: calc(var(--prose-width) + var(--margin-gap))` to anchor
      themselves 56 px beyond the left edge of the prose column, mirroring
      the right-margin citation glyphs. That formula is measured relative
      to the nearest positioned ancestor — which must be `.vellum-prose-
      wrapper` (width: 720 px, position: relative), not a zero-width
-     `.margin-decisions` box. Before this fix `.margin-decisions` was
-     `position: absolute; width: 0; height: 0`, so the same `right: 776`
-     offset landed at viewport x ≈ -789 and the glyphs were off-screen
-     for every prose-width configuration — the MarginDecisions surface
-     shipped in e200972 but was never actually visible. Keeping this
-     element in normal flow with `pointer-events: none` lets it carry
-     the aria-label without creating a containing block. */
+     `.margin-decisions` box. Keeping this element in normal flow with
+     `pointer-events: none` lets it carry the aria-label without
+     creating a containing block. Responsive hiding happens via the
+     per-child `.margin-decision { display: none }` rule in the ≤960px
+     media query below. */
   pointer-events: none;
 }
 .margin-decision {
@@ -1559,6 +1556,153 @@ body {
 }
 .decision-tooltip__excluded-reason {
   color: var(--text-muted);
+}
+
+/* ── Left Margin: Insight Glyphs ──
+   Shares anchoring and interaction model with `.margin-decision`. The
+   stack lives below the decision stack in the same left gutter so the
+   reader sees ⧖ and ● clusters as related marginalia on the same
+   column. `display: none` + pointer-events: none for the container
+   matches MarginDecisions — children carry `pointer-events: auto`. */
+.margin-insights {
+  pointer-events: none;
+}
+.margin-insight {
+  position: absolute;
+  right: calc(var(--prose-width) + var(--margin-gap));
+  max-width: max(60px, calc(50vw - 532px));
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  cursor: pointer;
+  pointer-events: auto;
+  font-size: 0.78rem;
+  line-height: 1;
+  white-space: nowrap;
+  padding: 2px 4px;
+  border-radius: 2px;
+  transition: background 0.15s;
+  color: inherit;
+  text-decoration: none;
+  flex-direction: row-reverse;
+  overflow: hidden;
+}
+.margin-insight:hover {
+  background: var(--gold-faint);
+}
+.margin-insight__glyph {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: transform 0.15s, color 0.15s;
+}
+.margin-insight--evidence .margin-insight__glyph {
+  color: var(--gold);
+}
+.margin-insight:hover .margin-insight__glyph {
+  transform: scale(1.2);
+  color: var(--gold);
+}
+.margin-insight__label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.75;
+  transition: opacity 0.15s, color 0.15s;
+}
+.margin-insight:hover .margin-insight__label {
+  opacity: 1;
+  color: var(--text);
+}
+
+/* Insight tooltip: mirrors `.decision-tooltip` geometry so both pop-ups
+   appear in the same left-gutter column with matching chrome. */
+.insight-tooltip {
+  position: absolute;
+  z-index: 500;
+  right: calc(var(--prose-width) + var(--margin-gap) - 4px);
+  width: max-content;
+  max-width: clamp(100px, calc(50vw - 532px), 420px);
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--prose-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
+  font-size: 0.82rem;
+  pointer-events: auto;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+}
+.insight-tooltip__title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.insight-tooltip__title:hover {
+  color: var(--gold);
+  border-bottom-color: rgba(154, 123, 53, 0.5);
+}
+.insight-tooltip__glyph {
+  color: var(--gold);
+  font-size: 1rem;
+  line-height: 1;
+}
+.insight-tooltip__pin {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.15s, color 0.15s;
+}
+.insight-tooltip__pin:hover {
+  opacity: 1;
+  color: var(--gold);
+}
+.insight-tooltip__claim {
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.5;
+  border-top: 1px solid var(--border-faint);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+.insight-tooltip__evidence {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.insight-tooltip__kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
 }
 
 /* ── Ghost TOC (left gutter) ── */
@@ -3167,8 +3311,10 @@ body {
   .vellum-prose-wrapper { width: var(--prose-width); }
   .margin-glyph { display: none; }
   .margin-decision { display: none; }
+  .margin-insight { display: none; }
   .fiber-tooltip { display: none !important; }
   .decision-tooltip { display: none !important; }
+  .insight-tooltip { display: none !important; }
   .ann-margin-dot { display: none; }
 }
 
