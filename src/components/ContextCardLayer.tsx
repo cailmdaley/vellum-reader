@@ -1,58 +1,55 @@
 /**
- * ContextCardLayer — floating fiber preview cards in the Narrative view.
+ * ContextCardLayer — floating cards layer for the Narrative view.
  *
- * Manages spawning, dragging, resizing, and dismissing context cards.
- * Each card is a viewport-fixed floating panel showing a fiber's content.
- * Cards are opened via a custom DOM event so any component can trigger them
- * without prop-drilling.
+ * Renders a stack of viewport-fixed, draggable, resizable cards built on
+ * the unified Card primitive (`Card.tsx`). Any surface can pop a card by
+ * dispatching one of two custom events:
  *
- * Integration: Add to NarrativeView.tsx alongside other layer components:
- *
- *   <ContextCardLayer
- *     graphNodes={graphNodes}
- *     graphLinks={graphLinks}
- *     proseRef={proseRef}
- *     wrapperRef={wrapperRef}
- *     onNavigate={(slug) => navigate(`/${slug}`)}
- *   />
- *
- * To open a card, dispatch from any click handler:
- *
- *   document.dispatchEvent(new CustomEvent('vellum:open-context-card', {
- *     detail: { slug, x: event.clientX, y: event.clientY }
+ *   // Open any Card content directly — decision, insight, plot, input,
+ *   // output, myst, or a fully-assembled fiber payload.
+ *   document.dispatchEvent(new CustomEvent('vellum:open-card', {
+ *     detail: { content: CardContent, x, y }
  *   }));
+ *
+ *   // Slug-based convenience: fetch the fiber's content and spawn a
+ *   // fiber-typed Card. Historical API — MarginCitations still uses it.
+ *   document.dispatchEvent(new CustomEvent('vellum:open-context-card', {
+ *     detail: { slug, x, y }
+ *   }));
+ *
+ * The layer owns drag/resize state, z-ordering, and ESC-to-dismiss. Each
+ * card body is rendered through the shared `Card` component so a floating
+ * DecisionCard looks and behaves like a Workspace-anatomy DecisionCard.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FiberContent, GraphLink, GraphNode } from '~/utils/content-types';
+import type { GraphLink, GraphNode } from '~/utils/content-types';
 import { getFiberContent } from '~/api';
 
-import { FiberCard } from './FiberCard';
+import { Card, type CardContent } from './Card';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface ContextCard {
-  /** Unique key — fiber slug + timestamp to allow duplicate cards. */
+interface FloatingCard {
+  /** Unique id — timestamp-salted so duplicate contents are allowed. */
   id: string;
-  /** Fiber slug to load. */
-  slug: string;
+  /** The actual Card payload to render. */
+  content: CardContent;
   /** Viewport-relative left position (px). */
   x: number;
   /** Viewport-relative top position (px). */
   y: number;
   /** Card width (px). */
   width: number;
-  /** Card height (px). */
+  /** Card minimum height (px) — Card composes its real height from content. */
   height: number;
-  /** If true, card scrolls with prose (margin-anchored). Unused in this iteration. */
-  pinned: boolean;
-  /** FiberContent once loaded. */
-  content?: FiberContent | null;
-  /** GraphNode for this fiber. */
-  node?: GraphNode;
 }
 
 interface OpenCardEvent extends CustomEvent {
+  detail: { content: CardContent; x: number; y: number };
+}
+
+interface OpenContextCardEvent extends CustomEvent {
   detail: { slug: string; x: number; y: number };
 }
 
@@ -66,112 +63,32 @@ export interface ContextCardLayerProps {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DEFAULT_WIDTH = 320;
-const DEFAULT_HEIGHT = 240;
+const DEFAULT_WIDTH = 340;
+const DEFAULT_HEIGHT = 200;
 
-/**
- * Offset from click point so the card doesn't obscure the element that
- * triggered it.
- */
+/** Offset from the click point so the card doesn't cover its trigger. */
 const SPAWN_OFFSET_X = 16;
 const SPAWN_OFFSET_Y = 8;
 
-// ── Placeholder card body ─────────────────────────────────────────────────────
+function clampSpawn(x: number, y: number): { x: number; y: number } {
+  const vw = typeof window === 'undefined' ? 1200 : window.innerWidth;
+  const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
+  return {
+    x: Math.max(8, Math.min(x + SPAWN_OFFSET_X, vw - DEFAULT_WIDTH - 8)),
+    y: Math.max(8, Math.min(y + SPAWN_OFFSET_Y, vh - DEFAULT_HEIGHT - 8)),
+  };
+}
 
-/** Minimal card body used until a real FiberCard component lands. */
-function FiberCardPlaceholder({
-  node,
-  content: _content,
-  width,
-  onClose,
-  onNavigate,
-}: {
-  node?: GraphNode;
-  content?: FiberContent | null;
-  width: number;
-  onClose?: () => void;
-  onNavigate?: (slug: string) => void;
-}) {
-  return (
-    <div
-      style={{
-        position: 'relative',
-        padding: 14,
-        width,
-        background: 'var(--prose-bg)',
-        border: '1px solid rgba(184,134,11,0.15)',
-        borderRadius: '0 0 3px 3px',
-        boxSizing: 'border-box',
-      }}
-    >
-      {onClose && (
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: 4,
-            right: 8,
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            fontSize: 18,
-            lineHeight: 1,
-            padding: 0,
-          }}
-          aria-label="Close card"
-        >
-          ×
-        </button>
-      )}
-      {node ? (
-        <>
-          <div
-            style={{
-              fontFamily: "'EB Garamond', serif",
-              fontSize: 17,
-              color: 'var(--text)',
-              marginRight: 20,
-            }}
-          >
-            {node.label}
-          </div>
-          {node.verdict && (
-            <div
-              style={{
-                fontFamily: "'EB Garamond', serif",
-                fontSize: 14,
-                color: 'var(--text-muted)',
-                marginTop: 6,
-              }}
-            >
-              {node.verdict}
-            </div>
-          )}
-          {onNavigate && (
-            <button
-              onClick={() => onNavigate(node.slug)}
-              style={{
-                marginTop: 10,
-                background: 'none',
-                border: '1px solid rgba(184,134,11,0.25)',
-                borderRadius: 2,
-                color: 'var(--gold)',
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 11,
-                padding: '3px 8px',
-                cursor: 'pointer',
-              }}
-            >
-              open →
-            </button>
-          )}
-        </>
-      ) : (
-        <div className="context-card-float__loading">Loading…</div>
-      )}
-    </div>
-  );
+function titleOf(content: CardContent): string {
+  switch (content.type) {
+    case 'fiber': return content.node.label;
+    case 'decision': return content.decision.label;
+    case 'insight': return 'Insight';
+    case 'plot': return content.caption ?? 'Figure';
+    case 'input': return content.label;
+    case 'output': return content.label;
+    case 'myst': return content.label;
+  }
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -180,9 +97,9 @@ export function ContextCardLayer({
   graphNodes,
   onNavigate,
 }: ContextCardLayerProps) {
-  const [cards, setCards] = useState<ContextCard[]>([]);
-  // Track which card is currently being dragged/resized via a ref to avoid
-  // stale closure issues in pointer event handlers.
+  const [cards, setCards] = useState<FloatingCard[]>([]);
+  // Drag/resize target tracked via ref to avoid stale closures in the
+  // window-level pointer move handler.
   const dragStateRef = useRef<{
     cardId: string;
     mode: 'drag' | 'resize';
@@ -194,83 +111,80 @@ export function ContextCardLayer({
     startHeight: number;
   } | null>(null);
 
-  // ── Card management helpers ──────────────────────────────────────────────
-
-  const updateCard = useCallback((id: string, patch: Partial<ContextCard>) => {
-    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-  }, []);
-
   const removeCard = useCallback((id: string) => {
     setCards((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
-  // ── Open-card event listener ──────────────────────────────────────────────
+  // ── open-card (generic) ───────────────────────────────────────────────────
+  // Spawns a floating card for any CardContent. Callers provide the payload
+  // directly; the layer doesn't fetch anything.
 
   useEffect(() => {
     const handler = (e: Event) => {
       const ev = e as OpenCardEvent;
-      const { slug, x, y } = ev.detail;
-      const id = `${slug}__${Date.now()}`;
-
-      // Clamp spawn position so the card stays inside the viewport.
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const cardX = Math.min(x + SPAWN_OFFSET_X, vw - DEFAULT_WIDTH - 8);
-      const cardY = Math.min(y + SPAWN_OFFSET_Y, vh - DEFAULT_HEIGHT - 8);
-
-      const node = graphNodes.find((n) => n.slug === slug);
-
-      const newCard: ContextCard = {
+      const { content, x, y } = ev.detail;
+      const id = `${content.type}__${Date.now()}__${Math.random().toString(36).slice(2, 6)}`;
+      const pos = clampSpawn(x, y);
+      setCards((prev) => [...prev, {
         id,
-        slug,
-        x: Math.max(8, cardX),
-        y: Math.max(8, cardY),
+        content,
+        x: pos.x,
+        y: pos.y,
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT,
-        pinned: false,
-        node,
-        content: undefined,
-      };
+      }]);
+    };
+    document.addEventListener('vellum:open-card', handler);
+    return () => document.removeEventListener('vellum:open-card', handler);
+  }, []);
 
-      setCards((prev) => [...prev, newCard]);
+  // ── open-context-card (slug-based, legacy) ────────────────────────────────
+  // Looks up the GraphNode, fetches FiberContent asynchronously, then
+  // assembles a {type:'fiber'} CardContent. The card appears immediately
+  // with whatever node metadata we have and upgrades once content lands.
 
-      // Fetch content asynchronously.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as OpenContextCardEvent;
+      const { slug, x, y } = ev.detail;
+      const node = graphNodes.find((n) => n.slug === slug);
+      if (!node) return;
+
+      const id = `fiber:${slug}__${Date.now()}`;
+      const pos = clampSpawn(x, y);
+      setCards((prev) => [...prev, {
+        id,
+        content: { type: 'fiber', node },
+        x: pos.x,
+        y: pos.y,
+        width: DEFAULT_WIDTH,
+        height: DEFAULT_HEIGHT,
+      }]);
+
       getFiberContent(slug).then((content) => {
-        setCards((prev) =>
-          prev.map((c) =>
-            c.id === id
-              ? {
-                  ...c,
-                  content,
-                  // Also resolve node in case graphNodes changed between
-                  // event dispatch and content fetch.
-                  node: graphNodes.find((n) => n.slug === slug) ?? c.node,
-                }
-              : c,
-          ),
-        );
+        setCards((prev) => prev.map((c) => (
+          c.id === id
+            ? { ...c, content: { type: 'fiber', node, content: content ?? undefined } }
+            : c
+        )));
       });
     };
-
     document.addEventListener('vellum:open-context-card', handler);
     return () => document.removeEventListener('vellum:open-context-card', handler);
   }, [graphNodes]);
 
-  // ── Escape key: dismiss topmost card ─────────────────────────────────────
+  // ── Escape: dismiss topmost card ─────────────────────────────────────────
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      setCards((prev) => {
-        if (prev.length === 0) return prev;
-        return prev.slice(0, -1);
-      });
+      setCards((prev) => (prev.length === 0 ? prev : prev.slice(0, -1)));
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  // ── Pointer move/up handler (shared for drag and resize) ──────────────────
+  // ── Shared pointer move/up handler (drag and resize) ──────────────────────
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -278,29 +192,25 @@ export function ContextCardLayer({
       if (!state) return;
 
       if (state.mode === 'drag') {
-        setCards((prev) =>
-          prev.map((c) =>
-            c.id === state.cardId
-              ? {
-                  ...c,
-                  x: e.clientX - state.startClientX + state.startCardX,
-                  y: e.clientY - state.startClientY + state.startCardY,
-                }
-              : c,
-          ),
-        );
+        setCards((prev) => prev.map((c) => (
+          c.id === state.cardId
+            ? {
+                ...c,
+                x: e.clientX - state.startClientX + state.startCardX,
+                y: e.clientY - state.startClientY + state.startCardY,
+              }
+            : c
+        )));
       } else {
-        setCards((prev) =>
-          prev.map((c) =>
-            c.id === state.cardId
-              ? {
-                  ...c,
-                  width: Math.max(200, state.startWidth + (e.clientX - state.startClientX)),
-                  height: Math.max(100, state.startHeight + (e.clientY - state.startClientY)),
-                }
-              : c,
-          ),
-        );
+        setCards((prev) => prev.map((c) => (
+          c.id === state.cardId
+            ? {
+                ...c,
+                width: Math.max(200, state.startWidth + (e.clientX - state.startClientX)),
+                height: Math.max(100, state.startHeight + (e.clientY - state.startClientY)),
+              }
+            : c
+        )));
       }
     };
 
@@ -318,12 +228,10 @@ export function ContextCardLayer({
     };
   }, []);
 
-  // ── Drag / resize initiators ──────────────────────────────────────────────
-
   const startDrag = useCallback(
-    (card: ContextCard) => (e: React.PointerEvent<HTMLDivElement>) => {
+    (card: FloatingCard) => (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
-      // Bring this card to the front by moving it to the end of the list.
+      // Lift to front by moving to the end of the list (highest z-index).
       setCards((prev) => {
         const without = prev.filter((c) => c.id !== card.id);
         const target = prev.find((c) => c.id === card.id);
@@ -345,7 +253,7 @@ export function ContextCardLayer({
   );
 
   const startResize = useCallback(
-    (card: ContextCard) => (e: React.PointerEvent<HTMLDivElement>) => {
+    (card: FloatingCard) => (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       dragStateRef.current = {
@@ -382,30 +290,24 @@ export function ContextCardLayer({
             zIndex: 100 + index,
           }}
         >
-          {/* Drag handle */}
+          {/* Drag handle — the strip above the card chrome. Title echoes
+              the card's own title so the handle still reads when it
+              overflows or wraps the body. */}
           <div
             className="context-card-float__handle"
             onPointerDown={startDrag(card)}
           >
-            <span className="context-card-float__title">
-              {card.node?.label ?? card.slug}
-            </span>
+            <span className="context-card-float__title">{titleOf(card.content)}</span>
           </div>
 
-          {/* Card body */}
-          {card.node ? (
-            <FiberCard
-              node={card.node}
-              width={card.width}
-              content={card.content ?? undefined}
-              onClose={() => removeCard(card.id)}
-              onNavigate={onNavigate}
-            />
-          ) : (
-            <div className="context-card-float__loading">Loading…</div>
-          )}
+          <Card
+            content={card.content}
+            width={card.width}
+            onClose={() => removeCard(card.id)}
+            onNavigate={onNavigate}
+          />
 
-          {/* Resize handle — bottom-right corner */}
+          {/* Resize handle — bottom-right corner. */}
           <div
             className="context-card-float__resize"
             onPointerDown={startResize(card)}

@@ -140,6 +140,25 @@ export function MarginDecisions({ graphNode, wrapperRef }: MarginDecisionsProps)
             <span className="decision-tooltip__glyph">⧖</span>
             {hoveredDecision.label}
           </button>
+          <button
+            type="button"
+            className="decision-tooltip__pin"
+            title="Open as floating card"
+            onClick={(e) => {
+              document.dispatchEvent(
+                new CustomEvent('vellum:open-card', {
+                  detail: {
+                    content: { type: 'decision', decision: hoveredDecision },
+                    x: e.clientX,
+                    y: e.clientY,
+                  },
+                }),
+              );
+              scheduleClose();
+            }}
+          >
+            ⊞
+          </button>
           {hoveredDecision.selectedLabel && (
             <div className="decision-tooltip__selected">
               <span className="decision-tooltip__kicker">chose</span>{' '}
