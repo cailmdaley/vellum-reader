@@ -146,22 +146,6 @@ export function WorkspaceView({
 
   return (
     <div className="vellum-workspace">
-      <div className="workspace-parent">
-        <h1 className="workspace-parent__title">{currentNode.label}</h1>
-        {cleanVerdict(currentNode.verdict) && (
-          <p className="workspace-parent__verdict">{cleanVerdict(currentNode.verdict)}</p>
-        )}
-        {children.length > 0 && (
-          <div className="workspace-parent__counts">
-            <span>{counts.total} sub-fibers</span>
-            {counts.active > 0 && <span className="workspace-count--active">◐ {counts.active}</span>}
-            {counts.attention > 0 && <span className="workspace-count--open">◈ {counts.attention}</span>}
-            {counts.open > 0 && <span className="workspace-count--open">○ {counts.open}</span>}
-            {counts.closed > 0 && <span className="workspace-count--closed">● {counts.closed}</span>}
-          </div>
-        )}
-      </div>
-
       {children.length === 0 ? (
         <p className="workspace-empty">No sub-fibers. This fiber is a leaf.</p>
       ) : (

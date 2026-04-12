@@ -340,19 +340,14 @@ body {
 .thumb-index {
   position: fixed;
   top: 16px;
-  /* Left edge tracks the prose column's right edge. As the user drags
-     the prose wider, the thumb index narrows and scrolls. min() ensures
-     the thumb index never disappears entirely. */
-  left: min(
-    calc(var(--page-margin-left, 48px) + var(--prose-width, 720px) + 56px),
-    calc(100vw - var(--canvas-width, 0px) - 180px)
-  );
-  /* Thumb-index sits to the LEFT of the workspace canvas so it stays
-     inside the content area as the canvas widens. See
-     vellum-reader/workspace Gate 1. */
-  right: calc(var(--canvas-width, 0px) + 20px);
+  /* Thumb-index sits on the RIGHT of the divider — inside the canvas
+     area — and its width tracks the canvas width as the user drags the
+     divider. The chrome belongs to the canvas panel, not to the content
+     panel on the left. */
+  right: 12px;
+  width: calc(var(--canvas-width, 360px) - 24px);
   z-index: 500;
-  min-width: 120px;
+  min-width: 180px;
 
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
