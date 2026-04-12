@@ -13,6 +13,7 @@ import { CardQA } from './pages/CardQA';
 import { FiberPage } from './pages/FiberPage';
 import { PretextGate } from './pages/PretextGate';
 import { TweetEmbedRenderer } from './components/TweetEmbed';
+import { DecisionFlipProvider } from './contexts/DecisionFlipContext';
 
 // Custom renderer for the `tweetEmbed` node type produced by tweet-transform.
 // Standalone tweet-URL paragraphs are rewritten upstream so the embed is a
@@ -30,6 +31,7 @@ const vellumRenderers = mergeRenderers(
 export default function App() {
   return (
     <ThemeProvider theme={null} setTheme={() => {}} renderers={vellumRenderers}>
+      <DecisionFlipProvider>
       <Routes>
         {/* `/` renders the auto-generated index of all top-level fibers */}
         <Route path="/" element={<FiberPage />} />
@@ -45,6 +47,7 @@ export default function App() {
             mystra, so the alt route was no longer carrying its weight. */}
         <Route path="*" element={<FiberPage />} />
       </Routes>
+      </DecisionFlipProvider>
     </ThemeProvider>
   );
 }

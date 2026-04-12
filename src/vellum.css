@@ -3790,33 +3790,107 @@ body {
 }
 .card__close:hover { color: var(--gold); }
 
-/* Options list below a Decision Card's lockup. Each ✕ row reads as a
-   rejected alternative — glyph, label, optional reason. */
-.card__options {
-  list-style: none;
-  margin: 0;
+/* Options list below a Decision Card's lockup. Every option is a
+   click target: tapping one flips the Card to treat that option as
+   "selected" (override held in DecisionFlipContext, not written back
+   to the fiber). The selected row gets a filled ● glyph and a warm
+   background; others show an empty ○ and become selectable on hover. */
+.card__options-wrap {
   padding: 0 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+}
+.card__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .card__option {
+  margin: 0;
+  padding: 0;
+}
+.card__option-btn {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  padding: 4px 6px;
+  margin: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 14px;
   line-height: 1.45;
   color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+.card__option-btn:hover {
+  background: rgba(184, 134, 11, 0.06);
+  border-color: rgba(184, 134, 11, 0.18);
+  color: var(--text);
+}
+.card__option-btn:focus-visible {
+  outline: 2px solid var(--gold, #b8860b);
+  outline-offset: 1px;
+}
+.card__option--selected .card__option-btn {
+  background: rgba(45, 212, 191, 0.08);
+  border-color: rgba(45, 212, 191, 0.3);
+  color: var(--text);
+}
+.card--flipped.card--resolved {
+  border-left-color: var(--gold, #b8860b);
 }
 .card__option-glyph {
   margin-right: 6px;
-  color: var(--text-muted);
   opacity: 0.7;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.card__option--selected .card__option-glyph {
+  color: var(--teal, #2dd4bf);
+  opacity: 1;
 }
 .card__option-label {
-  color: var(--text);
+  color: inherit;
+}
+.card__option-tag {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: rgba(184, 134, 11, 0.1);
+  color: var(--gold, #b8860b);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+  flex-shrink: 0;
+  align-self: center;
 }
 .card__option-reason {
   color: var(--text-muted);
   font-style: italic;
+}
+.card__reset {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  margin-left: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--gold, #b8860b);
+  cursor: pointer;
+  opacity: 0.75;
+}
+.card__reset:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 

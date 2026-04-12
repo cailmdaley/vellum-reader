@@ -25,6 +25,7 @@ import { useEffect, useState } from 'react';
 import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
 import type { FiberContent, GraphDecision, GraphFinding, GraphNode } from '~/utils/content-types';
 import { cleanVerdict, normalizeStatus, statusGlyph } from '~/utils/fiber-status';
+import { useDecisionFlip } from '~/contexts/DecisionFlipContext';
 import { FiberCard } from './FiberCard';
 
 // ── Shared typography ──────────────────────────────────────────────────────
@@ -285,10 +286,22 @@ function CardShell({
 
 // ── Decision ─────────────────────────────────────────────────────────────
 // A decision is a choice point: label, currently-selected option (if
-// any), and the excluded alternatives with reasons. The options list
-// lives below the lockup in ordinary CSS flow — they're interactive in
-// the sense that a user can read them line-by-line, but flipping them
-// is not in scope for this gate. A later iteration wires clicks.
+// any), and the rejected alternatives with reasons. The Card unifies
+// both into a single clickable option list so the reader can flip which
+// option is "selected" — a visual thought experiment that persists in
+// DecisionFlipContext but does not write back to the fiber.
+
+function buildOptions(decision: GraphDecision): Array<{ key: string; label: string; reason?: string }> {
+  // Canonical option list: the fiber's authored selection (if any)
+  // first, then each excluded alternative in authored order. When a
+  // decision has no `selected`, every option lives in `excluded`.
+  const options: Array<{ key: string; label: string; reason?: string }> = [];
+  if (decision.selectedKey && decision.selectedLabel) {
+    options.push({ key: decision.selectedKey, label: decision.selectedLabel });
+  }
+  for (const ex of decision.excluded) options.push({ key: ex.key, label: ex.label, reason: ex.reason });
+  return options;
+}
 
 function DecisionCard({
   content,
@@ -296,23 +309,37 @@ function DecisionCard({
   onClose,
   className,
 }: CardProps & { content: Extract<CardContent, { type: 'decision' }> }) {
-  const { decision } = content;
+  const { decision, hostSlug } = content;
   const tier = tierForWidth(width);
+  const { effectiveKey, isFlipped, setEffective, reset } = useDecisionFlip(
+    hostSlug,
+    decision.key,
+    decision.selectedKey,
+  );
+
+  const options = buildOptions(decision);
+  const effectiveOption = options.find((o) => o.key === effectiveKey);
   const title = `⧖  ${decision.label}`;
-  // Summary body is a short synopsis — the selected option, or "open"
-  // if nothing has been chosen yet.
-  const body = decision.selectedLabel
-    ? `→ ${decision.selectedLabel}`
-    : decision.excluded.length > 0
-      ? 'open — alternatives below'
+  const body = effectiveOption
+    ? `→ ${effectiveOption.label}`
+    : options.length > 0
+      ? 'open — pick an option below'
       : null;
   const meta = decision.rationale ?? null;
+
+  const isResolved = !!effectiveKey;
+  const variantClass = [
+    isResolved ? 'card--resolved' : 'card--open',
+    isFlipped ? 'card--flipped' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <CardShell
       width={width}
       typeLabel="decision"
-      variantClass={decision.selectedKey ? 'card--resolved' : 'card--open'}
+      variantClass={variantClass}
       title={title}
       body={tier === 'compact' ? null : body}
       meta={tier === 'full' ? meta : null}
@@ -321,17 +348,56 @@ function DecisionCard({
       className={className}
       below={() => {
         if (tier === 'compact') return null;
-        if (!decision.excluded || decision.excluded.length === 0) return null;
+        if (options.length === 0) return null;
         return (
-          <ul className="card__options" aria-label="Excluded alternatives">
-            {decision.excluded.map((ex) => (
-              <li key={ex.key} className="card__option">
-                <span className="card__option-glyph" aria-hidden="true">✕</span>
-                <span className="card__option-label">{ex.label}</span>
-                {ex.reason && <span className="card__option-reason"> — {ex.reason}</span>}
-              </li>
-            ))}
-          </ul>
+          <div className="card__options-wrap">
+            <ul className="card__options" aria-label="Decision options">
+              {options.map((opt) => {
+                const selected = opt.key === effectiveKey;
+                const isAuthored = opt.key === decision.selectedKey;
+                return (
+                  <li
+                    key={opt.key}
+                    className={`card__option${selected ? ' card__option--selected' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="card__option-btn"
+                      aria-pressed={selected}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEffective(opt.key);
+                      }}
+                    >
+                      <span className="card__option-glyph" aria-hidden="true">
+                        {selected ? '●' : '○'}
+                      </span>
+                      <span className="card__option-label">{opt.label}</span>
+                      {isAuthored && !selected && (
+                        <span className="card__option-tag" title="Authored selection">authored</span>
+                      )}
+                      {opt.reason && (
+                        <span className="card__option-reason"> — {opt.reason}</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {isFlipped && (
+              <button
+                type="button"
+                className="card__reset"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  reset();
+                }}
+                title="Revert to the fiber's authored selection"
+              >
+                ↺ reset to authored
+              </button>
+            )}
+          </div>
         );
       }}
     />
