@@ -98,9 +98,8 @@ export function Card(props: CardProps) {
     case 'plot':
       return <PlotCard {...props} content={content} />;
     case 'input':
-      return <InputCard {...props} content={content} />;
     case 'output':
-      return <OutputCard {...props} content={content} />;
+      return <ProvenanceCard {...props} content={content} />;
     case 'myst':
       return <MystCard {...props} content={content} />;
   }
@@ -483,55 +482,33 @@ function filenameOf(src: string): string {
   return tail.split('?')[0] ?? tail;
 }
 
-// ── Input ────────────────────────────────────────────────────────────────
-// A data source the fiber depends on. Shows the label in the lockup and
-// a monospace provenance line ("from: catalog:data:build-mocks.galaxy-
-// catalog") below. The `from:` reference is the ASTRA data-flow primitive;
-// showing it raw is a feature — the reader can copy it into a query.
+// ── Input / Output ───────────────────────────────────────────────────────
+// A data source the fiber consumes (◂ input, "from: …") or an artifact it
+// produces (▸ output, "recipe: …"). Both show a label in the lockup and a
+// monospace provenance line below — the raw reference is a feature, the
+// reader can copy it into a query.
 
-function InputCard({
+function ProvenanceCard({
   content,
   width,
   onClose,
   className,
-}: CardProps & { content: Extract<CardContent, { type: 'input' }> }) {
+}: CardProps & {
+  content: Extract<CardContent, { type: 'input' | 'output' }>;
+}) {
   const tier = tierForWidth(width);
-  const title = `◂  ${content.label}`;
-  const meta = content.from ? `from: ${content.from}` : null;
+  const isInput = content.type === 'input';
+  const title = `${isInput ? '◂' : '▸'}  ${content.label}`;
+  const meta = isInput
+    ? content.from && `from: ${content.from}`
+    : content.recipe && `recipe: ${content.recipe}`;
   return (
     <CardShell
       width={width}
-      typeLabel="input"
+      typeLabel={content.type}
       title={title}
       body={null}
-      meta={meta}
-      tier={tier}
-      onClose={onClose}
-      className={className}
-    />
-  );
-}
-
-// ── Output ───────────────────────────────────────────────────────────────
-// An artifact the fiber produces. Symmetric with Input — the recipe
-// pointer (if any) is the provenance line readers can trace downstream.
-
-function OutputCard({
-  content,
-  width,
-  onClose,
-  className,
-}: CardProps & { content: Extract<CardContent, { type: 'output' }> }) {
-  const tier = tierForWidth(width);
-  const title = `▸  ${content.label}`;
-  const meta = content.recipe ? `recipe: ${content.recipe}` : null;
-  return (
-    <CardShell
-      width={width}
-      typeLabel="output"
-      title={title}
-      body={null}
-      meta={meta}
+      meta={meta || null}
       tier={tier}
       onClose={onClose}
       className={className}

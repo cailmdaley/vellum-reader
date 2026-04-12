@@ -1,9 +1,9 @@
 /**
  * MarginCardPreview — the hover-pop shell used by left-margin glyphs.
  *
- * Gate 3's uniformity hinges on hover-previews and pinned floating cards
- * sharing a single rendering path. This component is that path: the
- * unified Card primitive rendered at a constrained preview width, with a
+ * Hover-previews and pinned floating cards share a single rendering
+ * path. This component is that path: the unified Card primitive rendered
+ * at a constrained preview width, with a
  * positioning shell that anchors to the left-margin gutter and supplies
  * the interactive chrome margin hovers need — a grace period so the
  * cursor can cross the gap from glyph to preview, a ⊞ pin button that

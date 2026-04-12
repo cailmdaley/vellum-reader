@@ -35,16 +35,12 @@ export default function App() {
       <Routes>
         {/* `/` renders the auto-generated index of all top-level fibers */}
         <Route path="/" element={<FiberPage />} />
-        {/* Declared before the catch-all so the gate QA surface is reachable;
-            see vellum-vite-migration/pretext-refoundation Gate 0. */}
+        {/* QA surface for the pretext renderer at canonical widths.
+            Declared before the catch-all so the route wins over FiberPage. */}
         <Route path="/pretext-gate" element={<PretextGate />} />
-        {/* Gate 2 QA surface for the unified Card primitive. Declared
-            before the catch-all so the route wins over FiberPage. */}
+        {/* QA surface for the unified Card primitive — renders every
+            content type at three widths. */}
         <Route path="/card-qa" element={<CardQA />} />
-        {/* The `/pretext-narrative/*` alternate route from Gate 1 was deleted
-            in step 1 of the pretext refoundation: NarrativeView now hosts
-            pretext as the default renderer with a built-in toggle back to
-            mystra, so the alt route was no longer carrying its weight. */}
         <Route path="*" element={<FiberPage />} />
       </Routes>
       </DecisionFlipProvider>

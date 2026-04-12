@@ -14,8 +14,10 @@
  * without overlapping.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { GraphNode } from '~/utils/content-types';
+import { useHoverGrace } from '~/hooks/useHoverGrace';
+import { HOVER_GRACE_MS } from '~/utils/hover';
 import { MarginCardPreview } from './MarginCardPreview';
 
 interface MarginInsightsProps {
@@ -31,7 +33,6 @@ const FIRST_GLYPH_TOP = 60;
 // Extra gap between the end of the decision stack and the first insight
 // glyph, so the two clusters read as distinct groups.
 const GROUP_GAP = 12;
-const TOOLTIP_CLOSE_DELAY_MS = 180;
 
 const CLAIM_LABEL_MAX = 56;
 
@@ -43,38 +44,9 @@ function truncateClaim(claim: string): string {
 export function MarginInsights({ graphNode, wrapperRef: _wrapperRef }: MarginInsightsProps) {
   const findings = graphNode?.findings ?? [];
   const decisionCount = graphNode?.decisions?.length ?? 0;
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const { hoveredKey, openKey, cancelClose, scheduleClose } =
+    useHoverGrace(HOVER_GRACE_MS);
   const stackRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const cancelClose = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleClose = useCallback(() => {
-    cancelClose();
-    closeTimerRef.current = setTimeout(() => {
-      setHoveredKey(null);
-      closeTimerRef.current = null;
-    }, TOOLTIP_CLOSE_DELAY_MS);
-  }, [cancelClose]);
-
-  const openKey = useCallback(
-    (key: string) => {
-      cancelClose();
-      setHoveredKey(key);
-    },
-    [cancelClose],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
 
   if (findings.length === 0) return null;
 

@@ -13,9 +13,11 @@
  *   decision   → ⧖  (gold, hourglass)
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { GraphNode } from '~/utils/content-types';
+import { useHoverGrace } from '~/hooks/useHoverGrace';
+import { HOVER_GRACE_MS } from '~/utils/hover';
 import { glyphForNode, statusClass } from '~/utils/fiber-status';
 
 interface Glyph {
@@ -45,54 +47,12 @@ interface MarginCitationsProps {
 /** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
 const LINK_HOVER_DELAY_MS = 250;
 
-/**
- * Grace period after leaving the glyph (or tooltip) before the tooltip
- * actually closes. Long enough for the reader to cross the gap between
- * glyph and tooltip without losing the card, short enough that it doesn't
- * feel sticky when the user intentionally moves away.
- */
-const TOOLTIP_CLOSE_DELAY_MS = 180;
-
 export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: MarginCitationsProps) {
   const [glyphs, setGlyphs] = useState<Glyph[]>([]);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const { hoveredKey, openKey, cancelClose, scheduleClose } =
+    useHoverGrace(HOVER_GRACE_MS);
+  const hoveredIdx = hoveredKey != null ? Number(hoveredKey) : null;
   const navigate = useNavigate();
-
-  // Closing the tooltip is debounced so the reader can move from the glyph
-  // onto the tooltip body (and click things inside it) without the tooltip
-  // disappearing mid-gesture. Every enter clears the pending close; every
-  // leave schedules a new one; the tooltip's own mouseenter/leave share the
-  // same timer so glyph↔tooltip transitions don't re-open briefly.
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const cancelClose = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleClose = useCallback(() => {
-    cancelClose();
-    closeTimerRef.current = setTimeout(() => {
-      setHoveredIdx(null);
-      closeTimerRef.current = null;
-    }, TOOLTIP_CLOSE_DELAY_MS);
-  }, [cancelClose]);
-
-  const openAt = useCallback(
-    (idx: number) => {
-      cancelClose();
-      setHoveredIdx(idx);
-    },
-    [cancelClose],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
 
   // Measure positions after prose paints
   useEffect(() => {
@@ -214,7 +174,7 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
           setActive(true);
           if (hoverTimer) clearTimeout(hoverTimer);
           cancelClose();
-          hoverTimer = setTimeout(() => openAt(i), LINK_HOVER_DELAY_MS);
+          hoverTimer = setTimeout(() => openKey(String(i)), LINK_HOVER_DELAY_MS);
         };
         const onLeave = () => {
           setActive(false);
@@ -295,7 +255,7 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
           onClick={() => navigate(g.href)}
           onMouseEnter={() => {
             for (const el of g.linkEls) el.classList.add('margin-active');
-            openAt(i);
+            openKey(String(i));
           }}
           onMouseLeave={() => {
             for (const el of g.linkEls) el.classList.remove('margin-active');

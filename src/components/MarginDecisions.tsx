@@ -18,12 +18,16 @@
  * inside it.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { GraphNode } from '~/utils/content-types';
+import { useHoverGrace } from '~/hooks/useHoverGrace';
+import { HOVER_GRACE_MS } from '~/utils/hover';
 import { MarginCardPreview } from './MarginCardPreview';
 
 interface MarginDecisionsProps {
   graphNode?: GraphNode;
+  // Reserved — stack positioning is driven from CSS against this wrapper
+  // by the caller, but we currently don't read it here.
   wrapperRef: React.RefObject<HTMLElement>;
 }
 
@@ -36,43 +40,11 @@ const STACK_GAP = 28;
 // pinned to the top of the page chrome. Rough-cut; refine later.
 const FIRST_GLYPH_TOP = 60;
 
-/** See MarginCitations.TOOLTIP_CLOSE_DELAY_MS — same grace period. */
-const TOOLTIP_CLOSE_DELAY_MS = 180;
-
-export function MarginDecisions({ graphNode, wrapperRef }: MarginDecisionsProps) {
+export function MarginDecisions({ graphNode, wrapperRef: _wrapperRef }: MarginDecisionsProps) {
   const decisions = graphNode?.decisions ?? [];
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const { hoveredKey, openKey, cancelClose, scheduleClose } =
+    useHoverGrace(HOVER_GRACE_MS);
   const stackRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const cancelClose = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleClose = useCallback(() => {
-    cancelClose();
-    closeTimerRef.current = setTimeout(() => {
-      setHoveredKey(null);
-      closeTimerRef.current = null;
-    }, TOOLTIP_CLOSE_DELAY_MS);
-  }, [cancelClose]);
-
-  const openKey = useCallback(
-    (key: string) => {
-      cancelClose();
-      setHoveredKey(key);
-    },
-    [cancelClose],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
 
   // Scroll-to-block on click; uses smooth scroll so the journey from
   // margin glyph to AstraBlocks is visible (helps the reader build the
@@ -88,12 +60,6 @@ export function MarginDecisions({ graphNode, wrapperRef }: MarginDecisionsProps)
     e.preventDefault();
     scrollToDecision(key);
   };
-
-  // Hide when there's no wrapper yet or no decisions to show.
-  useEffect(() => {
-    // nothing to observe yet; intentionally empty — the component is
-    // pure-CSS-positioned relative to the wrapper from the outside.
-  }, [wrapperRef]);
 
   if (decisions.length === 0) return null;
 
