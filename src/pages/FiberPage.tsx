@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAstraGraph, getFiberContent } from '~/api';
 import { DeltaView } from '~/components/DeltaView';
@@ -26,7 +26,7 @@ export function FiberPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, setMode } = useMode();
-  const { deltaEvents, changedIds, since, acknowledge } = useDelta();
+  const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
   const slug = location.pathname.replace(/^\/+|\/+$/g, '');
   const [content, setContent] = useState<FiberContent | null>(null);
   const [graph, setGraph] = useState<AstraGraph>({ nodes: [], links: [] });
@@ -148,6 +148,18 @@ export function FiberPage() {
   useEffect(() => {
     setAnatomySlug(slug || null);
   }, [slug]);
+
+  // Carry the Workspace anatomy selection across mode switches: leaving
+  // Workspace, if the user picked a different fiber in the right panel than
+  // the URL points at, promote that selection to the URL so Narrative and Map
+  // focus on it too.
+  const prevMode = useRef(mode);
+  useEffect(() => {
+    if (prevMode.current === 'workspace' && mode !== 'workspace' && anatomySlug && anatomySlug !== slug) {
+      navigate(`/${anatomySlug}`);
+    }
+    prevMode.current = mode;
+  }, [mode, anatomySlug, slug, navigate]);
   const anatomyNode = useMemo(
     () => graph.nodes.find((n) => n.slug === (anatomySlug ?? slug)),
     [graph.nodes, anatomySlug, slug],
@@ -242,7 +254,8 @@ export function FiberPage() {
         <DeltaView
           events={deltaEvents}
           since={since}
-          onAcknowledge={acknowledge}
+          onDismissFiber={dismissFiber}
+          onRefresh={refreshDelta}
         />
       )}
     </div>

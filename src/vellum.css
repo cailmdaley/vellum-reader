@@ -30,9 +30,12 @@
   --mauve: #A87070;
   --border: #D4CCBF;
   --border-faint: rgba(212, 204, 191, 0.5);
+  --prose-shell-width: 720px;
   --prose-width: 720px;
   --margin-width: 160px;
   --margin-gap: 56px;
+  --canvas-overlay-left: calc(100vw - var(--canvas-width, 360px) + 12px);
+  --canvas-overlay-width: calc(var(--canvas-width, 360px) - 24px);
   --shadow: 0 2px 8px rgba(46, 42, 38, 0.07), 0 1px 3px rgba(46, 42, 38, 0.04);
   /* Portolan palette — colors from Mediterranean navigation charts */
   --portolan-verdigris: #4A7C6F;  /* aged copper-green, the sea */
@@ -70,15 +73,17 @@ body {
    Small left gutter, generous right margin for the thumb index and
    margin annotations. */
 .vellum-page {
-  max-width: var(--page-max-width, calc(var(--prose-width) + 64px));
-  /* Left-aligned with a comfortable gutter. --page-margin-left is set
-     by NarrativeView when the drag handle moves; fallback is 48px.
+  /* Left-aligned with a comfortable gutter on the inside (the reader
+     needs breathing room on the spine side) and a tight margin on the
+     divider side so the canvas panel reads as a true margin — mere
+     millimetres, not inches, between text and divider. --page-margin-left
+     is set by NarrativeView when the drag handle moves; fallback is 48px.
      --canvas-width reserves the right edge of the viewport for the
-     workspace canvas (Gate 1 of vellum-reader/workspace). The fallback
-     is 0 so the page still renders if the divider never mounts. */
+     workspace canvas. */
   margin-left: var(--page-margin-left, 48px);
-  margin-right: calc(var(--page-margin-right, 24px) + var(--canvas-width, 0px));
-  padding: 0 32px 8rem;
+  margin-right: calc(var(--page-margin-right, 4px) + var(--canvas-width, 0px));
+  padding: 0 4px 8rem 32px;
+  width: auto;
   overflow: visible;
 }
 
@@ -339,13 +344,13 @@ body {
 
 .thumb-index {
   position: fixed;
-  top: 16px;
+  top: 0;
   /* Thumb-index sits on the RIGHT of the divider — inside the canvas
      area — and its width tracks the canvas width as the user drags the
      divider. The chrome belongs to the canvas panel, not to the content
      panel on the left. */
-  right: 12px;
-  width: calc(var(--canvas-width, 360px) - 24px);
+  right: 0;
+  width: var(--canvas-width, 360px);
   z-index: 500;
   min-width: 180px;
 
@@ -358,11 +363,14 @@ body {
   background: var(--page-bg);
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
   background-size: 256px;
-  border: 1px solid var(--border-faint);
-  border-radius: 3px;
-  padding: 8px 10px;
-  box-shadow: 0 1px 4px rgba(46, 42, 38, 0.06);
-  max-height: calc(100vh - 32px);
+  /* Full-height panel anchored to the right edge — no rounded card
+     framing, just subtle borders so it reads as a column rather than
+     a floating tile. The bottom rule closes the panel when its
+     content is shorter than the viewport. */
+  border-left: 1px solid var(--border-faint);
+  border-bottom: 1px solid var(--border-faint);
+  padding: 16px 14px;
+  max-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
@@ -510,6 +518,16 @@ body {
   gap: 4px;
 }
 
+/* Parent + ASTRA summary share one row — keeps the back-link from
+   sitting isolated and uses the empty trailing space for a clickable
+   structural summary of the current fiber. */
+.thumb-index__parent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 /* Parent link */
 .thumb-index__parent {
   -webkit-appearance: none;
@@ -531,6 +549,42 @@ body {
 .thumb-index__arrow {
   margin-right: 3px;
   opacity: 0.5;
+}
+
+/* ASTRA summary chip — counts + tempered mark, jumps to appendix. */
+.thumb-index__astra-summary {
+  -webkit-appearance: none;
+  appearance: none;
+  background: none;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: #7A7368;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+.thumb-index__astra-summary:hover {
+  color: var(--gold, #b8860b);
+}
+.thumb-index__astra-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.thumb-index__astra-count {
+  font-variant-numeric: tabular-nums;
+}
+.thumb-index__astra-glyph {
+  opacity: 0.75;
+}
+.thumb-index__astra-pair--tempered .thumb-index__astra-glyph {
+  color: var(--teal, #2dd4bf);
+  opacity: 1;
 }
 
 /* Nav row — label + scrollable strip */
@@ -579,9 +633,14 @@ body {
 }
 .pretext-nav-frag--current {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--portolan-cinnabar);
-  font-weight: 500;
+  font-weight: 600;
+}
+.pretext-nav-glyph--current {
+  font-size: 11px;
+  opacity: 1;
+  color: var(--portolan-cinnabar);
 }
 .pretext-nav-frag--current:hover {
   color: var(--portolan-cinnabar);
@@ -718,46 +777,6 @@ body {
   width: 100%;
   overflow: visible;
   padding-top: 0.5rem;
-}
-
-/* Column-resize handles. Two grab zones sit just outside the prose
-   border — one on each edge — so the reader can widen or narrow the
-   column without reaching for a control in chrome. The handles span
-   the full column height so there's always a grabbable strip in view,
-   and they stay invisible at rest, showing a faint vertical rail only
-   on hover/active. `touch-action: none` keeps mobile from swallowing
-   the pointer sequence as a scroll gesture. */
-.vellum-prose-resize {
-  position: absolute;
-  top: 0.5rem;
-  bottom: 0;
-  width: 14px;
-  cursor: ew-resize;
-  touch-action: none;
-  user-select: none;
-  z-index: 5;
-  /* The rail is painted by ::after so the hit area can stay wide
-     while the visible line is hairline-thin. */
-}
-.vellum-prose-resize::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  background: var(--gold);
-  opacity: 0;
-  transition: opacity 120ms;
-}
-.vellum-prose-resize:hover::after,
-.vellum-prose-resize:active::after {
-  opacity: 0.35;
-}
-.vellum-prose-resize--left { left: -14px; }
-.vellum-prose-resize--right { right: -14px; }
-@media (max-width: 960px) {
-  .vellum-prose-resize { display: none; }
 }
 
 /* ── Prose Column ── */
@@ -1185,7 +1204,8 @@ body {
 /* Individual glyphs are absolutely positioned within the prose wrapper */
 .margin-glyph {
   position: absolute;
-  left: calc(var(--prose-width) + var(--margin-gap));
+  width: var(--canvas-overlay-width);
+  z-index: 450;
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -1197,8 +1217,12 @@ body {
   padding: 2px 4px;
   border-radius: 2px;
   transition: background 0.15s;
+  overflow: hidden;
 }
 .margin-glyph:hover {
+  background: var(--gold-faint);
+}
+.margin-glyph--active {
   background: var(--gold-faint);
 }
 
@@ -1208,19 +1232,24 @@ body {
   line-height: 1;
   transition: transform 0.15s;
 }
-.margin-glyph:hover .margin-glyph__dot { transform: scale(1.2); }
+.margin-glyph:hover .margin-glyph__dot,
+.margin-glyph--active .margin-glyph__dot { transform: scale(1.2); }
 
 .margin-glyph__label {
   color: var(--text-muted);
   font-size: 0.72rem;
   font-family: 'JetBrains Mono', monospace;
-  max-width: var(--margin-width);
+  max-width: calc(var(--canvas-overlay-width) - 28px);
   overflow: hidden;
   text-overflow: ellipsis;
   opacity: 0.75;
   transition: opacity 0.15s, color 0.15s;
 }
 .margin-glyph:hover .margin-glyph__label {
+  opacity: 1;
+  color: var(--text);
+}
+.margin-glyph--active .margin-glyph__label {
   opacity: 1;
   color: var(--text);
 }
@@ -1233,40 +1262,15 @@ body {
 .margin-glyph--unresolved .margin-glyph__dot { color: var(--amber); }
 .margin-glyph--blocked .margin-glyph__dot { color: var(--mauve); }
 
-/* ── Left Margin: Decision Glyphs ──
-   First-pass replacement for the mystra-emitted inline `<details>`
-   dropdowns that ASTRA decisions used to render as. Per user request
-   in the pretext-refoundation step 1 dogfood: inline dropdowns were
-   confusing and redundant with AstraBlocks at the bottom of the prose.
-   Now each decision gets a left-margin `⧖` glyph that scrolls to the
-   AstraBlocks block on click. The richer marginalia UI — decisions
-   placed opposite the paragraph they bear on, hover → evidence —
-   is future-stage work tracked in [[vellum-reader/margins]]. */
+/* ── Canvas-side marginalia: decisions and insights ── */
 .margin-decisions {
-  /* Do NOT establish a new containing block here. Decision children use
-     `right: calc(var(--prose-width) + var(--margin-gap))` to anchor
-     themselves 56 px beyond the left edge of the prose column, mirroring
-     the right-margin citation glyphs. That formula is measured relative
-     to the nearest positioned ancestor — which must be `.vellum-prose-
-     wrapper` (width: 720 px, position: relative), not a zero-width
-     `.margin-decisions` box. Keeping this element in normal flow with
-     `pointer-events: none` lets it carry the aria-label without
-     creating a containing block. Responsive hiding happens via the
-     per-child `.margin-decision { display: none }` rule in the ≤960px
-     media query below. */
   pointer-events: none;
 }
 .margin-decision {
-  position: absolute;
-  right: calc(var(--prose-width) + var(--margin-gap));
-  /* Cap total element width so the always-visible label can't extend
-     off the viewport's left edge in narrow left gutters. The decision's
-     right edge sits at viewport x = max(0, 50vw − 524px) (derived from
-     `.vellum-page.margin-left + padding-left − margin-gap`), and we
-     want the element to span from ~8px to that right edge. So the
-     max-width formula mirrors that calc, clamped at a 60 px floor so
-     the glyph is always at least visible. */
-  max-width: max(60px, calc(50vw - 532px));
+  position: fixed;
+  left: var(--canvas-overlay-left);
+  width: var(--canvas-overlay-width);
+  z-index: 450;
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -1280,14 +1284,6 @@ body {
   transition: background 0.15s;
   color: inherit;
   text-decoration: none;
-  /* Right-align the glyph against the prose column — labels grow
-     leftward into the left margin, matching the right margin's
-     left-aligned stretch pattern. */
-  flex-direction: row-reverse;
-  /* Protect the glyph from being clipped by the container's max-width
-     when the label fills its own max — the label shrinks via its own
-     overflow: hidden + text-overflow: ellipsis rather than consuming
-     the glyph's space. */
   overflow: hidden;
 }
 .margin-decision:hover {
@@ -1307,12 +1303,8 @@ body {
   color: var(--text-muted);
   font-size: 0.72rem;
   font-family: 'JetBrains Mono', monospace;
-  /* `min-width: 0` lets the label shrink below its intrinsic content
-     width so the parent's viewport-aware max-width can clamp the
-     whole element; `overflow: hidden` + `text-overflow: ellipsis`
-     truncates the visible portion. Full label always reachable via
-     the hover tooltip. */
   min-width: 0;
+  max-width: calc(var(--canvas-overlay-width) - 28px);
   flex-shrink: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1324,153 +1316,33 @@ body {
   color: var(--text);
 }
 
-/* ── Fiber Tooltip ── */
-/* Positioned absolutely in the right margin; stretches toward viewport edge.
-   `.fiber-tooltip--interactive` (applied when the card carries clickable
-   content) takes pointer events so the reader can move from the glyph onto
-   the card without dismissing it. */
-.fiber-tooltip {
-  position: absolute;
-  z-index: 500;
-  left: calc(var(--prose-width) + var(--margin-gap));
-  /* Stretch to viewport right edge minus 24px padding.
-     With recto layout (margin-left: 50vw-460px), wrapper right ≈ 50vw+252px.
-     Distance to viewport right = 50vw - 252px, minus 24px padding. */
-  right: calc(-50vw + 276px);
-  min-width: var(--margin-width);
-  background: var(--prose-bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 10px 14px;
-  box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
-  font-size: 0.82rem;
-  pointer-events: none;
-  /* Paper grain on the tooltip too */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
-}
-.fiber-tooltip--interactive {
-  pointer-events: auto;
-}
-
-.fiber-tooltip__title {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-.fiber-tooltip__title--link {
-  display: inline-block;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
-}
-.fiber-tooltip__title--link:hover {
-  color: var(--gold);
-  border-bottom-color: rgba(154, 123, 53, 0.5);
-}
-
-.fiber-tooltip__status {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-family: 'JetBrains Mono', monospace;
-  margin-bottom: 6px;
-}
-
-.fiber-tooltip__verdict {
-  color: var(--text);
-  font-size: 0.8rem;
-  border-top: 1px solid var(--border-faint);
-  padding-top: 6px;
-  margin-top: 2px;
-}
-
-.fiber-tooltip__decision {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border-faint);
-}
-
-.fiber-tooltip__decision-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 400;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.fiber-tooltip__pin {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 2px 4px;
-  line-height: 1;
-  opacity: 0.6;
-  transition: opacity 0.15s, color 0.15s;
-}
-.fiber-tooltip__pin:hover {
-  opacity: 1;
-  color: var(--gold);
-}
-
 /* ── Margin Card Preview ──
-   The hover-pop shell used by left-margin decision (`⧖`) and insight
-   (`●`) glyphs. Anchors the unified Card primitive in the left gutter
-   at a fixed preview width so hover previews and pinned floating cards
-   render through the same Card component — the tooltip is just
-   positioning + a pin affordance, not its own bespoke layout.
-
-   Anchor pattern mirrors `.margin-decision`: `right` is measured from
-   the stack's zero-width origin (`.margin-decisions` / `.margin-insights`),
-   so `var(--prose-width) + var(--margin-gap) - 4px` places the preview's
-   right edge a hair left of the glyph column. The preview has a fixed
-   JS-side width (see MarginCardPreview.tsx) because pretext needs a
-   concrete width to lay out into; `max-height` + `overflow-y` handles
-   the case where a decision's excluded list pushes the card tall. At
-   viewports narrow enough to squeeze the gutter, the 960 px media query
-   hides the whole margin substrate. */
+   Unified hover-pop for citations, decisions, and insights. The preview
+   sits in the canvas pane, aligned by prose line but spatially living on
+   the divider's right side. */
 .margin-card-preview {
   position: absolute;
-  z-index: 500;
-  right: calc(var(--prose-width) + var(--margin-gap) - 4px);
-  max-height: 60vh;
+  z-index: 490;
+  /* Start tall enough that typical summary content lands in the
+     visible region without the scroll bar appearing immediately.
+     Content that exceeds the cap scrolls within the preview. */
+  min-height: 180px;
+  max-height: 80vh;
   overflow-y: auto;
   pointer-events: auto;
   cursor: pointer;
   border-radius: 3px;
+  /* Solid substrate so prose behind doesn't bleed through. The Card
+     inside sets its own prose-bg, but this backstop guards against any
+     child (e.g. closed-fiber opacity) that might otherwise expose the
+     page. */
+  background: var(--prose-bg);
   box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
 }
 .margin-card-preview:focus { outline: none; }
 .margin-card-preview:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
-}
-.margin-card-preview__pin {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  z-index: 2;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 2px 4px;
-  line-height: 1;
-  opacity: 0.6;
-  transition: opacity 0.15s, color 0.15s;
-}
-.margin-card-preview__pin:hover {
-  opacity: 1;
-  color: var(--gold);
 }
 
 /* ── Left Margin: Insight Glyphs ──
@@ -1483,9 +1355,10 @@ body {
   pointer-events: none;
 }
 .margin-insight {
-  position: absolute;
-  right: calc(var(--prose-width) + var(--margin-gap));
-  max-width: max(60px, calc(50vw - 532px));
+  position: fixed;
+  left: var(--canvas-overlay-left);
+  width: var(--canvas-overlay-width);
+  z-index: 450;
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -1499,7 +1372,6 @@ body {
   transition: background 0.15s;
   color: inherit;
   text-decoration: none;
-  flex-direction: row-reverse;
   overflow: hidden;
 }
 .margin-insight:hover {
@@ -1524,6 +1396,7 @@ body {
   font-size: 0.72rem;
   font-family: 'JetBrains Mono', monospace;
   min-width: 0;
+  max-width: calc(var(--canvas-overlay-width) - 24px);
   flex-shrink: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1610,7 +1483,7 @@ body {
 
 /* ── Workspace View ── */
 .vellum-workspace {
-  width: var(--prose-width);
+  width: var(--prose-shell-width);
   max-width: 100%;
 }
 
@@ -1693,16 +1566,21 @@ body {
   gap: 0.5rem;
 }
 .workspace-anatomy__empty {
-  font-family: 'EB Garamond', Georgia, serif;
+  padding: 16px 18px;
+  border: 1px dashed var(--border);
+  border-radius: 3px;
+  background: rgba(250, 250, 247, 0.55);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  line-height: 1.7;
   color: var(--text-muted);
-  font-style: italic;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  padding: 1rem 4px;
 }
 .workspace-anatomy__empty em {
   font-style: normal;
   color: var(--text);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.98rem;
 }
 
 /* ── Workspace list (Gate 4): dense filterable issue-tracker rows ──
@@ -2110,11 +1988,18 @@ body {
   margin: 0;
 }
 
-/* ── Delta View (tab-based delta mode) ── */
+/* ── Delta inbox ──
+ * Rolling window of recent fiber events, newest first. Each card owns
+ * one event; Temper/Archive write to the underlying fiber and locally
+ * dismiss every other card from that fiber. Tetris-style resize/reflow
+ * on the pretext canvas is a later gate — this iteration lands the
+ * card-per-event shape. */
 .delta-view {
-  width: var(--prose-width);
-  max-width: 100%;
-  padding-top: 0.5rem;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.5rem 1rem 1.5rem;
+  box-sizing: border-box;
 }
 
 .delta-view--empty {
@@ -2154,87 +2039,168 @@ body {
   opacity: 0.7;
 }
 
-.delta-view__mark-read {
+.delta-view__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.delta-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--prose-bg, transparent);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  transition: border-color 0.15s;
+}
+.delta-card:hover {
+  border-color: var(--border-strong, var(--gold));
+}
+.delta-card[data-event-type='created']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10%;
+  bottom: 10%;
+  width: 3px;
+  background: var(--gold);
+  border-radius: 3px 0 0 3px;
+}
+
+.delta-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.delta-card__event {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.delta-card__event-glyph {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.delta-card__title-btn {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.delta-card__title-btn:hover .delta-card__title {
+  color: var(--gold);
+}
+.delta-card__status {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-size: 0.8rem;
+}
+.delta-card__title {
+  font-size: 0.95rem;
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.3;
+  transition: color 0.1s;
+}
+
+.delta-card__outcome {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text);
+  opacity: 0.82;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.delta-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+  min-width: 0;
+}
+.delta-card__fiberid {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.delta-card__tags {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.delta-card__tag {
+  padding: 0 5px;
+  border: 1px solid var(--border-faint, var(--border));
+  border-radius: 2px;
+}
+
+.delta-card__error {
+  font-size: 0.72rem;
+  color: #b4534a;
+  padding: 4px 6px;
+  background: rgba(180, 83, 74, 0.08);
+  border-radius: 2px;
+}
+
+.delta-card__actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-faint, var(--border));
+}
+.delta-card__action {
+  flex: 1;
+  padding: 4px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
   background: none;
   border: 1px solid var(--border);
   border-radius: 2px;
-  padding: 3px 10px;
-  font-size: 0.72rem;
-  font-family: 'JetBrains Mono', monospace;
   color: var(--text-muted);
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.delta-view__mark-read:hover {
-  border-color: var(--gold);
+.delta-card__action:hover:not(:disabled) {
   color: var(--gold);
-}
-
-.delta-view__list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.delta-view__item {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 8px 10px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  font-family: inherit;
-  width: 100%;
-  transition: background 0.1s, border-color 0.1s;
-}
-.delta-view__item:hover {
+  border-color: var(--gold);
   background: rgba(154, 123, 53, 0.06);
-  border-color: var(--border-faint);
 }
-
-.delta-view__item-glyph {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  width: 14px;
+.delta-card__action:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
-
-.delta-view__item-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.delta-view__item-title {
-  font-size: 0.92rem;
+.delta-card__action--archive:hover:not(:disabled) {
   color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.delta-view__item-meta {
-  font-size: 0.7rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--text-muted);
-  opacity: 0.6;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.delta-view__item-type {
-  font-size: 0.68rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--text-muted);
-  opacity: 0.6;
-  flex-shrink: 0;
+  border-color: var(--text);
+  background: transparent;
 }
 
 /* ── Tempered margin glyphs ── */
@@ -3713,23 +3679,53 @@ body {
 }
 
 .fiber-card--closed {
-  opacity: 0.82;
+  /* Dim closed-fiber content without wholesale element opacity — the
+     latter would let the page grain bleed through the card. */
+  color: rgba(46, 42, 38, 0.72);
 }
 
-.fiber-card__close {
+/* Chrome row — pin toggle + × close, top-right of any pinned card. */
+.fiber-card__chrome,
+.card__chrome {
   position: absolute;
   top: 4px;
   right: 6px;
-  background: none;
-  border: none;
-  color: var(--text-muted, rgba(212, 197, 169, 0.5));
-  font: 500 14px 'JetBrains Mono', monospace;
-  cursor: pointer;
-  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   z-index: 1;
 }
-.fiber-card__close:hover {
-  color: var(--gold, #b8860b);
+.fiber-card__pin,
+.fiber-card__close,
+.card__pin,
+.card__close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font: 500 14px 'JetBrains Mono', monospace;
+  cursor: pointer;
+  padding: 2px 5px;
+  line-height: 1;
+  border-radius: 2px;
+  transition: color 0.12s, background 0.12s;
+}
+.fiber-card__pin:hover,
+.fiber-card__close:hover,
+.card__pin:hover,
+.card__close:hover {
+  color: var(--gold);
+  background: rgba(154, 123, 53, 0.08);
+}
+/* Screen-pinned cards light the pin glyph in gold so the reader
+   can see at a glance that the card is floating above the page
+   rather than riding the canvas. */
+.fiber-card__pin--screen,
+.card__pin--screen {
+  color: var(--gold);
+}
+.fiber-card__pin--screen:hover,
+.card__pin--screen:hover {
+  color: var(--text);
 }
 
 .fiber-card__tags {
@@ -3746,10 +3742,10 @@ body {
 
 .fiber-card__prose {
   padding: 0 14px 14px;
-  max-height: 400px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(184, 134, 11, 0.2) transparent;
+  /* No inner max-height or scroll well — the card's outer wrapper
+     (margin-card-preview or context-card-float) caps height and
+     scrolls uniformly, so the whole card reads as one document
+     rather than a tile with a scroll well inside it. */
 }
 
 /* ── Unified Card primitive ───────────────────────────────────────────
@@ -3771,19 +3767,8 @@ body {
 .card--open { border-left: 2px solid var(--gold, #b8860b); }
 .card--resolved { border-left: 2px solid var(--teal, #2dd4bf); }
 
-.card__close {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font: 500 14px 'JetBrains Mono', monospace;
-  cursor: pointer;
-  padding: 2px 4px;
-  z-index: 1;
-}
-.card__close:hover { color: var(--gold); }
+/* .card__chrome + .card__pin + .card__close styles live alongside
+   .fiber-card__chrome above — a single ruleset covers both. */
 
 /* Options list below a Decision Card's lockup. Every option is a
    click target: tapping one flips the Card to treat that option as
@@ -4268,37 +4253,32 @@ a.pretext-prose-frag:hover {
   left: 0;
   /* Layer itself doesn't capture clicks — only individual cards do. */
   pointer-events: none;
-  z-index: 100;
+  /* Sits above prose and margin glyphs but below the thumb-index
+     (z-index 500) so navigation chrome is never covered by a pinned
+     card — particularly screen-pinned ones, which otherwise would
+     slide across the nav panel as the reader repositions them. */
+  z-index: 480;
 }
 
 .context-card-float {
   pointer-events: auto;
   border-radius: 4px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-}
-
-.context-card-float__handle {
-  height: 28px;
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-  background: rgba(26, 25, 21, 0.95);
-  border-bottom: 1px solid rgba(184, 134, 11, 0.1);
+  /* Pinned cards scroll internally when content exceeds their
+     height — they're a permanent version of the hover preview, not
+     a truncating tile. */
+  overflow-y: auto;
+  overflow-x: hidden;
   cursor: grab;
-  user-select: none;
+  /* Solid substrate so prose behind the pinned card doesn't show
+     through — the inner Card sets its own background but any child
+     applying opacity (e.g. closed-fiber dim) would otherwise leak. */
+  background: var(--prose-bg);
 }
-.context-card-float__handle:active {
+.context-card-float:active {
   cursor: grabbing;
 }
 
-.context-card-float__title {
-  font: 500 12px 'JetBrains Mono', monospace;
-  color: var(--text-muted, rgba(212, 197, 169, 0.5));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .context-card-float__resize {
   position: absolute;
@@ -4326,7 +4306,6 @@ a.pretext-prose-frag:hover {
 .card--plot { border-left: 2px solid var(--teal, #2dd4bf); }
 .card--input { border-left: 2px solid var(--text-muted, #6b6b6b); }
 .card--output { border-left: 2px solid var(--text-muted, #6b6b6b); }
-.card--myst { border-left: 2px solid var(--border, rgba(184, 134, 11, 0.2)); }
 
 .card__plot-img {
   border: 1px solid var(--border, rgba(184, 134, 11, 0.2));
@@ -4334,59 +4313,67 @@ a.pretext-prose-frag:hover {
   border-radius: 2px;
 }
 
-/* ── /card-qa — unified Card primitive gate surface ─────────────────── */
-.card-qa {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 4rem;
-  font-family: 'EB Garamond', Georgia, serif;
-  color: var(--text);
+/* ── ASTRA Appendix ────────────────────────────────────────────────────
+   Long-tail listing of every ASTRA entry a fiber carries, rendered at
+   the end of the narrative prose. Minimal chrome — Card carries the
+   visual weight; the appendix only contributes the section divider and
+   small uppercase JetBrains Mono subheadings matching the Weathered
+   Substrate aesthetic. */
+
+.astra-appendix {
+  margin-top: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
-.card-qa__header {
-  margin-bottom: 2rem;
+
+.astra-appendix__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0.5rem;
 }
-.card-qa__header h1 {
-  font-family: 'EB Garamond', Georgia, serif;
-  font-weight: 500;
-  font-size: 1.75rem;
-  margin: 0 0 0.5rem;
-  color: var(--text);
+
+.astra-appendix__divider::before,
+.astra-appendix__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border, rgba(184, 134, 11, 0.2));
 }
-.card-qa__header p {
-  font-size: 1rem;
-  line-height: 1.55;
+
+.astra-appendix__divider-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  max-width: 60ch;
-  margin: 0;
+  opacity: 0.5;
 }
-.card-qa__grid {
-  border-collapse: separate;
-  border-spacing: 0 1rem;
-  width: 100%;
+
+.astra-appendix__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
-.card-qa__grid thead th {
+
+.astra-appendix__heading {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  text-align: left;
-  padding: 0 1rem 0.25rem;
-  border-bottom: 1px solid var(--border, rgba(184, 134, 11, 0.2));
-}
-.card-qa__type {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-muted);
-  text-align: left;
-  vertical-align: top;
-  padding: 0.25rem 1rem 0 0;
-  width: 8rem;
-}
-.card-qa__cell {
-  vertical-align: top;
-  padding: 0 0.75rem 0 0;
+  margin: 0;
 }
 
+.astra-appendix__count {
+  color: var(--gold);
+  margin-left: 0.4em;
+}
+
+.astra-appendix__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}

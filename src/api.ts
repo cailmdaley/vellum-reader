@@ -30,8 +30,9 @@ export async function searchFibers(query: string): Promise<SearchHit[]> {
   return (data.hits ?? []) as SearchHit[];
 }
 
-export async function getDeltaSince(since: string): Promise<LogResponse> {
-  const res = await fetch(`/api/delta?since=${encodeURIComponent(since)}`).catch(() => null);
+export async function getDeltaSince(since: string, limit = 200): Promise<LogResponse> {
+  const params = new URLSearchParams({ since, limit: String(limit) });
+  const res = await fetch(`/api/log?${params}`).catch(() => null);
   if (!res || !res.ok) return { since, count: 0, events: [] };
   return res.json() as Promise<LogResponse>;
 }
@@ -95,6 +96,24 @@ export async function getRawFiber(slug: string): Promise<RawFiber | null> {
   const res = await fetch(`/content/${encodeSlug(slug)}.md`).catch(() => null);
   if (!res || !res.ok) return null;
   return res.json() as Promise<RawFiber>;
+}
+
+export interface FrontmatterPatch {
+  tempered?: boolean;
+  status?: 'open' | 'active' | 'closed' | 'unresolved' | 'blocked';
+}
+
+export async function patchFiberFrontmatter(slug: string, patch: FrontmatterPatch): Promise<void> {
+  const res = await fetch(`/content/${encodeSlug(slug)}.md`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ frontmatter: patch }),
+  }).catch(() => null);
+
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({})) as { error?: string } | undefined;
+    throw new Error(err?.error ?? `patch failed${res ? ` (${res.status})` : ''}`);
+  }
 }
 
 export async function putRawFiber(slug: string, body: string): Promise<void> {
