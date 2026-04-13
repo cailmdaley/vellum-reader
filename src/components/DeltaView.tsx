@@ -14,9 +14,9 @@
  * the same fiber is dismissed locally — one commit per fiber, not per
  * event.
  *
- * Today the log emits `created`, `active`, and `closed` events. Richer
- * event types (body edits, insight additions, decision flips) will land
- * when the log route learns to diff fiber history.
+ * Today the log emits `created`, `active`, `tempered`, and `closed`
+ * events. Richer event types (body edits, insight additions, decision
+ * flips) will land when the log route learns to diff fiber history.
  */
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -41,12 +41,14 @@ function formatTimeAgo(iso: string): string {
 const EVENT_GLYPH: Record<string, string> = {
   created: '+',
   active: '◐',
+  tempered: '⬡',
   closed: '●',
 };
 
 const EVENT_LABEL: Record<string, string> = {
   created: 'created',
   active: 'activated',
+  tempered: 'tempered',
   closed: 'closed',
 };
 
