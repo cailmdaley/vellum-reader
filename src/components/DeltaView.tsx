@@ -1,22 +1,29 @@
 /**
  * Delta inbox — every recent change to a fiber is one card.
  *
- * Cards are newest-first. Each carries two actions: Temper sets
- * `tempered: true` on the underlying fiber; Archive sets `status: closed`.
- * Both write directly to disk via PATCH /content/<slug>.md. After an
- * action lands, every other card from the same fiber is dismissed
- * locally — one commit per fiber, not per event.
+ * Each card wraps the unified Card primitive (fiber preview) with an
+ * event-type ribbon above and a Temper/Archive action bar below. The
+ * constitution is explicit: delta adds an action bar, it does not fork
+ * the renderer. Using the shared Card means delta cards wear the same
+ * Weathered Substrate palette and pretext lockup as margin previews,
+ * pinned floating cards, and workspace anatomy.
+ *
+ * Cards are newest-first. Temper sets `tempered: true` on the underlying
+ * fiber; Archive sets `status: closed`. Both write directly to disk via
+ * PATCH /content/<slug>.md. After an action lands, every other card from
+ * the same fiber is dismissed locally — one commit per fiber, not per
+ * event.
  *
  * Today the log emits `created`, `active`, and `closed` events. Richer
  * event types (body edits, insight additions, decision flips) will land
  * when the log route learns to diff fiber history.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { patchFiberFrontmatter } from '~/api';
+import { Card } from './Card';
 import { useMode } from '~/contexts/ModeContext';
-import type { LogEvent } from '~/utils/content-types';
-import { statusGlyph } from '~/utils/fiber-status';
+import type { GraphNode, LogEvent } from '~/utils/content-types';
 
 function formatTimeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -42,6 +49,20 @@ const EVENT_LABEL: Record<string, string> = {
   active: 'activated',
   closed: 'closed',
 };
+
+/** Shape a LogEvent into the minimal GraphNode the Card primitive needs
+ *  to render its preview mode. The log carries title/status/tags/outcome;
+ *  the rest of the node is left empty, which preview mode tolerates. */
+function eventToNode(event: LogEvent): GraphNode {
+  return {
+    id: event.fiberId,
+    label: event.title || event.fiberId,
+    slug: event.fiberId,
+    status: event.status,
+    tags: event.tags,
+    verdict: event.outcome,
+  };
+}
 
 interface DeltaViewProps {
   events: LogEvent[];
@@ -97,19 +118,46 @@ function DeltaCard({
   const [pending, setPending] = useState<'temper' | 'archive' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Pretext lockup inside Card needs a concrete pixel width to wrap into.
+  // The grid cell is auto-fill minmax, so the width changes with viewport;
+  // observe the wrapper and feed the measured width down.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState<number>(0);
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.round(entry.contentRect.width);
+        if (w > 0) setWidth(w);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   async function act(kind: 'temper' | 'archive') {
     setPending(kind);
     setError(null);
     try {
-      await patchFiberFrontmatter(event.fiberId, kind === 'temper' ? { tempered: true } : { status: 'closed' });
+      await patchFiberFrontmatter(
+        event.fiberId,
+        kind === 'temper' ? { tempered: true } : { status: 'closed' },
+      );
       onDismissFiber(event.fiberId);
-      // Refresh so the temper/archive event itself surfaces for other fibers
-      // too — the local dismissal will hide this fiber either way.
+      // Refresh so any temper/archive event that emerges from the write
+      // surfaces for other fibers. The local dismissal hides this fiber
+      // either way.
       onRefresh();
     } catch (err) {
       setError((err as Error).message);
       setPending(null);
     }
+  }
+
+  function openInNarrative() {
+    setMode('narrative');
+    navigate(`/${event.fiberId}`);
   }
 
   const eventGlyph = EVENT_GLYPH[event.type] ?? '·';
@@ -125,37 +173,34 @@ function DeltaCard({
         <span className="delta-card__time">{formatTimeAgo(event.at)}</span>
       </div>
 
-      <button
-        type="button"
-        className="delta-card__title-btn"
-        onClick={() => {
-          setMode('narrative');
-          navigate(`/${event.fiberId}`);
+      <div
+        className="delta-card__body"
+        ref={wrapperRef}
+        role="button"
+        tabIndex={0}
+        onClick={openInNarrative}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openInNarrative();
+          }
         }}
         title="Open in Narrative"
       >
-        <span className="delta-card__status" aria-hidden="true">
-          {statusGlyph(event.status)}
-        </span>
-        <span className="delta-card__title">{event.title || event.fiberId}</span>
-      </button>
-
-      {event.outcome && <p className="delta-card__outcome">{event.outcome}</p>}
-
-      <div className="delta-card__meta">
-        <span className="delta-card__fiberid">{event.fiberId}</span>
-        {event.tags.length > 0 && (
-          <span className="delta-card__tags">
-            {event.tags.slice(0, 4).map((tag) => (
-              <span key={tag} className="delta-card__tag">{tag}</span>
-            ))}
-          </span>
+        {width > 0 && (
+          <Card
+            content={{ type: 'fiber', node: eventToNode(event) }}
+            width={width}
+          />
         )}
       </div>
 
       {error && <div className="delta-card__error" role="alert">{error}</div>}
 
-      <div className="delta-card__actions">
+      <div
+        className="delta-card__actions"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           className="delta-card__action"

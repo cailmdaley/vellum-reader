@@ -80,9 +80,9 @@ body {
      is set by NarrativeView when the drag handle moves; fallback is 48px.
      --canvas-width reserves the right edge of the viewport for the
      workspace canvas. */
-  margin-left: var(--page-margin-left, 48px);
+  margin-left: var(--page-margin-left, 16px);
   margin-right: calc(var(--page-margin-right, 4px) + var(--canvas-width, 0px));
-  padding: 0 4px 8rem 32px;
+  padding: 0 4px 8rem 8px;
   width: auto;
   overflow: visible;
 }
@@ -1327,7 +1327,10 @@ body {
      visible region without the scroll bar appearing immediately.
      Content that exceeds the cap scrolls within the preview. */
   min-height: 180px;
-  max-height: 80vh;
+  /* Default to roughly two-fifths of the viewport so the hover card
+     lives in the margin as a comfortable card, not an almost-full-
+     height panel. Long content scrolls within the card. */
+  max-height: 40vh;
   overflow-y: auto;
   pointer-events: auto;
   cursor: pointer;
@@ -2051,7 +2054,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 12px;
+  padding: 8px 10px 10px;
   background: var(--prose-bg, transparent);
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -2076,6 +2079,7 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 6px;
+  padding: 0 4px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.68rem;
   color: var(--text-muted);
@@ -2092,72 +2096,19 @@ body {
   font-weight: 700;
 }
 
-.delta-card__title-btn {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  text-align: left;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
+/* The card body is the clickable surface; the unified Card primitive
+ * renders inside it. Pretext does the layout, so we keep no typography
+ * overrides here — just a cursor and a subtle hover accent on the
+ * surrounding card frame. */
+.delta-card__body {
+  position: relative;
   cursor: pointer;
+  outline: none;
+  /* Pretext measures into this box's width. Keep it full-bleed. */
+  margin: 0 -2px;
 }
-.delta-card__title-btn:hover .delta-card__title {
-  color: var(--gold);
-}
-.delta-card__status {
-  color: var(--text-muted);
-  flex-shrink: 0;
-  font-size: 0.8rem;
-}
-.delta-card__title {
-  font-size: 0.95rem;
-  color: var(--text);
-  font-weight: 500;
-  line-height: 1.3;
-  transition: color 0.1s;
-}
-
-.delta-card__outcome {
-  margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--text);
-  opacity: 0.82;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.delta-card__meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
-  color: var(--text-muted);
-  opacity: 0.7;
-  min-width: 0;
-}
-.delta-card__fiberid {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
-}
-.delta-card__tags {
-  display: inline-flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.delta-card__tag {
-  padding: 0 5px;
-  border: 1px solid var(--border-faint, var(--border));
+.delta-card__body:focus-visible {
+  box-shadow: 0 0 0 2px var(--gold) inset;
   border-radius: 2px;
 }
 
@@ -2173,7 +2124,7 @@ body {
   display: flex;
   gap: 6px;
   margin-top: 2px;
-  padding-top: 6px;
+  padding: 6px 4px 0;
   border-top: 1px dashed var(--border-faint, var(--border));
 }
 .delta-card__action {
