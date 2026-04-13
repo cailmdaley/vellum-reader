@@ -14,38 +14,67 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function useHoverGrace(delayMs: number) {
+export function useHoverGrace(delayMs: number, openDelayMs = 0) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+  }, []);
 
   const cancelClose = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
     }
   }, []);
 
   const scheduleClose = useCallback(() => {
-    cancelClose();
-    timerRef.current = setTimeout(() => {
+    // Leaving also cancels any pending open — a cursor that grazed
+    // a glyph and moved on shouldn't summon the preview after the fact.
+    clearTimers();
+    closeTimerRef.current = setTimeout(() => {
       setHoveredKey(null);
-      timerRef.current = null;
+      closeTimerRef.current = null;
     }, delayMs);
-  }, [cancelClose, delayMs]);
+  }, [clearTimers, delayMs]);
 
   const openKey = useCallback(
     (key: string) => {
-      cancelClose();
+      clearTimers();
       setHoveredKey(key);
     },
-    [cancelClose],
+    [clearTimers],
   );
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
+  // Delayed variant: the preview only appears after the cursor dwells
+  // on the trigger for `openDelayMs`. Reading through a text flecked
+  // with margin glyphs shouldn't flash previews mid-sentence. Falls
+  // through to the immediate path when the delay is zero.
+  const scheduleOpen = useCallback(
+    (key: string) => {
+      if (openDelayMs <= 0) {
+        openKey(key);
+        return;
+      }
+      clearTimers();
+      openTimerRef.current = setTimeout(() => {
+        setHoveredKey(key);
+        openTimerRef.current = null;
+      }, openDelayMs);
+    },
+    [clearTimers, openDelayMs, openKey],
+  );
 
-  return { hoveredKey, openKey, cancelClose, scheduleClose };
+  useEffect(() => () => clearTimers(), [clearTimers]);
+
+  return { hoveredKey, openKey, scheduleOpen, cancelClose, scheduleClose };
 }

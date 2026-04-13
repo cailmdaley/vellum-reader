@@ -537,10 +537,11 @@ body {
 }
 
 .thumb-index__search-results {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+  /* Top / right / position are set inline from the input's measured
+     rect — escapes the thumb-index overflow context so a long results
+     list runs all the way to the bottom of the viewport. */
   min-width: 280px;
+  z-index: 700;
 }
 
 /* ── Navigation section ── */
@@ -744,59 +745,49 @@ body {
   margin-right: 2px;
 }
 
-/* Backlinks */
-.thumb-index__backlinks {
-  position: relative;
-  margin-top: 2px;
-}
-
-.thumb-index__backlink-badge {
-  background: none;
-  border: none;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.55rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 1px 3px;
-  opacity: 0.5;
-  transition: opacity 0.12s, color 0.12s;
-}
-.thumb-index__backlink-badge:hover {
-  opacity: 1;
-  color: var(--gold);
-}
-
-.thumb-index__popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  min-width: 200px;
-  max-width: 320px;
-  background: var(--prose-bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  box-shadow: var(--shadow);
-  padding: 4px 0;
-  z-index: 600;
-}
-
-.thumb-index__popover-item {
+/* Backlinks — inline chip row. Reads as a marginal note ("referenced
+   by …"), not as UI chrome: the citing fibers are always visible. */
+.thumb-index__backlinks-row {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  width: 100%;
+  margin-top: 2px;
+}
+.thumb-index__backlinks-chips {
+  flex: 1;
+  min-width: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+.thumb-index__backlink-chip-wrap {
+  display: inline;
+  white-space: nowrap;
+}
+.thumb-index__backlink-chip {
+  -webkit-appearance: none;
+  appearance: none;
   background: none;
   border: none;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
-  color: var(--text);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 0;
+  font: inherit;
+  color: var(--gold);
   cursor: pointer;
-  padding: 4px 8px;
-  text-align: left;
-  transition: background 0.1s;
+  transition: color 0.12s;
 }
-.thumb-index__popover-item:hover {
-  background: var(--gold-faint);
+.thumb-index__backlink-chip:hover {
+  color: var(--text);
+}
+.thumb-index__backlink-chip-glyph {
+  font-size: 0.6rem;
+  opacity: 0.7;
+}
+.thumb-index__backlink-sep {
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 /* ── Progressive disclosure: hide nav details at narrow widths ── */
@@ -2038,10 +2029,13 @@ body {
  * card-per-event shape. */
 .delta-view {
   width: 100%;
-  /* No max-width in delta mode — the grid spills into the canvas column
-     and forms an L around the thumb-index. The thumb-index is fixed in
-     the top-right, and a reserved grid cell keeps cards from sliding
-     beneath it. */
+  /* No max-width in delta mode — the grid spans the full viewport. The
+     thumb-index floats fixed in the top-right; the delta header pads
+     itself to the thumb's height so the top band reads as a single
+     horizontal header (summary on the left, thumb-index on the right).
+     The grid below is a plain rectangle — no L-cutout, no reserved
+     cell. Cards never land beneath the thumb because the header clears
+     its footprint. */
   margin: 0;
   padding: 0.5rem 1rem 1.5rem;
   box-sizing: border-box;
@@ -2090,13 +2084,6 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
   align-items: start;
-}
-
-/* Invisible reserved cell matching the thumb-index footprint. Sized by
-   JS via inline grid-column / grid-row style, painted with nothing so
-   it reads as a hole in the grid rather than a tile. */
-.delta-view__thumb-spacer {
-  visibility: hidden;
 }
 
 .delta-card {
@@ -2329,33 +2316,62 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Left Margin: Annotation Dots ── */
-.ann-margin-dot {
+/* ── Right Margin: Annotation Notes ──
+   The reader's own words, rendered literally in the margin like a
+   scholar's handwritten note. Positioned in the canvas overlay strip
+   alongside decision and insight glyphs; clicking opens the popover
+   for editing / deleting. */
+.ann-margin-note {
   position: absolute;
-  left: -8px;
-  width: 5px;
-  height: 5px;
-  background: var(--gold);
-  border-radius: 50%;
+  left: calc(100% + 12px);
+  width: calc(var(--canvas-overlay-width, 320px));
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 2px 4px;
+  font: italic 0.85rem 'EB Garamond', Georgia, serif;
+  line-height: 1.4;
+  color: var(--text-muted);
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-  z-index: 10;
+  border-left: 2px solid var(--gold-faint);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  /* Sits above the canvas (z-index 400) so the note is actually
+     visible in the canvas-overlay strip alongside decisions and
+     insights. */
+  z-index: 450;
 }
-.ann-margin-dot:hover {
-  transform: scale(1.6);
-  box-shadow: 0 0 4px var(--gold-faint);
+.ann-margin-note:hover {
+  color: var(--text);
+  border-left-color: var(--gold);
+  background: rgba(154, 123, 53, 0.05);
+}
+.ann-margin-note__body {
+  min-width: 0;
+  /* Clamp to a handful of lines so a long note doesn't crowd the
+     decision/insight stack. The full text is always available via
+     the click-opens-popover interaction. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* ── Annotation Highlights ── */
+/* ── Annotation Highlights ──
+   Visible enough to read as "the reader marked this", not an
+   invisible rule. Pairs with .ann-margin-note in the right gutter:
+   either one going active raises emphasis on both so the reader
+   sees the link between passage and note. */
 .ann-highlight {
-  background: rgba(154, 123, 53, 0.12);
-  border-bottom: 1px solid rgba(154, 123, 53, 0.35);
+  background: rgba(154, 123, 53, 0.28);
+  border-bottom: 1px solid rgba(154, 123, 53, 0.65);
   cursor: pointer;
   border-radius: 1px;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
-.ann-highlight:hover {
-  background: rgba(154, 123, 53, 0.22);
+.ann-highlight:hover,
+.ann-highlight.ann-highlight--active {
+  background: rgba(154, 123, 53, 0.45);
+  border-bottom-color: var(--gold);
 }
 
 /* ── Selection Toolbar ── */
@@ -3308,7 +3324,7 @@ body {
   .margin-insight { display: none; }
   .fiber-tooltip { display: none !important; }
   .margin-card-preview { display: none !important; }
-  .ann-margin-dot { display: none; }
+  .ann-margin-note { display: none; }
 }
 
 @media (max-width: 740px) {

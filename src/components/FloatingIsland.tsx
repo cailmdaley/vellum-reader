@@ -25,7 +25,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMode, type Mode } from '~/contexts/ModeContext';
 import type { SearchHit, GraphNode, GraphLink } from '~/utils/content-types';
-import { searchFibers } from '~/api';
+import { searchFibers, getAnnotations } from '~/api';
 import { statusGlyph } from '~/utils/fiber-status';
 import { PretextNav, type NavItem } from './PretextNav';
 
@@ -57,6 +57,80 @@ const STATUS_PRIORITY: Record<string, number> = {
 function shortLabel(node: GraphNode): string {
   const tail = node.slug.split('/').pop() ?? node.slug;
   return tail.replace(/-/g, ' ');
+}
+
+/** Inline summary chip for the parent row: counts the fiber's ASTRA
+ *  entries (decisions, insights) and flags tempered state. Clicking
+ *  scrolls to the appendix section at the end of the narrative. Hides
+ *  when the fiber carries no structure worth summarizing. */
+function AstraSummaryChip({ node }: { node: GraphNode }) {
+  const decisions = node.decisions?.length ?? 0;
+  const insights = node.findings?.length ?? 0;
+  const tempered = !!node.tempered;
+  // Annotation count is fetched live — the count reflects notes the
+  // reader has left (and persisted via MySTRA), not anything baked
+  // into the graph. Refetches when the reader switches fibers.
+  const [noteCount, setNoteCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    getAnnotations(node.slug).then((anns) => {
+      if (!cancelled) setNoteCount(anns.length);
+    });
+    return () => { cancelled = true; };
+  }, [node.slug]);
+
+  if (decisions === 0 && insights === 0 && !tempered && noteCount === 0) return null;
+
+  const handleClick = () => {
+    const el = document.getElementById('astra-appendix');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  return (
+    <button
+      type="button"
+      className="thumb-index__astra-summary"
+      onClick={handleClick}
+      title="Jump to the ASTRA appendix"
+    >
+      {decisions > 0 && (
+        <span className="thumb-index__astra-pair">
+          <span className="thumb-index__astra-glyph">⧖</span>
+          <span className="thumb-index__astra-count">{decisions}</span>
+          <span className="thumb-index__astra-label">
+            {decisions === 1 ? 'decision' : 'decisions'}
+          </span>
+        </span>
+      )}
+      {insights > 0 && (
+        <span className="thumb-index__astra-pair">
+          <span className="thumb-index__astra-glyph">●</span>
+          <span className="thumb-index__astra-count">{insights}</span>
+          <span className="thumb-index__astra-label">
+            {insights === 1 ? 'insight' : 'insights'}
+          </span>
+        </span>
+      )}
+      {noteCount > 0 && (
+        <span className="thumb-index__astra-pair">
+          <span className="thumb-index__astra-glyph">¶</span>
+          <span className="thumb-index__astra-count">{noteCount}</span>
+          <span className="thumb-index__astra-label">
+            {noteCount === 1 ? 'note' : 'notes'}
+          </span>
+        </span>
+      )}
+      {tempered && (
+        <span
+          className="thumb-index__astra-pair thumb-index__astra-pair--tempered"
+          title="Tempered — built to rely on"
+        >
+          <span className="thumb-index__astra-glyph">✦</span>
+          <span className="thumb-index__astra-label">tempered</span>
+        </span>
+      )}
+    </button>
+  );
 }
 
 interface FloatingIslandProps {
@@ -127,11 +201,6 @@ export function FloatingIsland({
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-
-  /* ── Backlink popover ── */
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const backlinkBadgeRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   const nodeById = useMemo(
     () => new Map(graphNodes.map((n) => [n.id, n])),
@@ -239,40 +308,20 @@ export function FloatingIsland({
     }
   }, [searchExpanded]);
 
-  /* ── Backlink popover dismiss ── */
-  useEffect(() => {
-    if (!popoverOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPopoverOpen(false);
-    };
-    const onClick = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node) &&
-        backlinkBadgeRef.current &&
-        !backlinkBadgeRef.current.contains(e.target as Node)
-      ) {
-        setPopoverOpen(false);
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onClick);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onClick);
-    };
-  }, [popoverOpen]);
-
   const handleNav = useCallback(
     (slug: string) => {
-      setPopoverOpen(false);
       onNavigate(slug);
     },
     [onNavigate],
   );
 
   return (
-    <div className={`thumb-index thumb-index--${tier}`} ref={rootRef} role="navigation" aria-label="Vellum navigation">
+    <div
+      className={`thumb-index thumb-index--${tier}${mode === 'delta' ? ' thumb-index--compact' : ''}`}
+      ref={rootRef}
+      role="navigation"
+      aria-label="Vellum navigation"
+    >
       {/* ── Header row: modes · search ── */}
       <div className="thumb-index__header">
         <nav className="thumb-index__modes" aria-label="View mode">
@@ -317,8 +366,25 @@ export function FloatingIsland({
               ⌕
             </button>
           )}
-          {showResults && searchExpanded && results.length > 0 && (
-            <div className="search-results thumb-index__search-results">
+          {showResults && searchExpanded && results.length > 0 && (() => {
+            // Use viewport-fixed positioning so the dropdown escapes
+            // the thumb-index's own scroll/overflow context — otherwise
+            // long result lists get clipped at the panel's bottom edge.
+            const inputRect = searchInputRef.current?.getBoundingClientRect();
+            const top = inputRect ? inputRect.bottom + 4 : undefined;
+            const right = inputRect ? window.innerWidth - inputRect.right : undefined;
+            const maxHeight = inputRect ? Math.max(120, window.innerHeight - inputRect.bottom - 16) : undefined;
+            return (
+            <div
+              className="search-results thumb-index__search-results"
+              style={{
+                position: 'fixed',
+                top,
+                right,
+                maxHeight,
+                overflowY: 'auto',
+              }}
+            >
               {results.slice(0, 12).map((hit, i) => (
                 <a
                   key={hit.id}
@@ -342,32 +408,68 @@ export function FloatingIsland({
                 </a>
               ))}
             </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
       {/* ── Navigation: parent / siblings / children / backlinks ── */}
       {currentNode && (
         <div className="thumb-index__nav" ref={navRef}>
-          {/* Parent — up-link. Root fibers link to / (the index). */}
-          {parentNode ? (
-            <button
-              className="thumb-index__parent"
-              onClick={() => handleNav(parentNode.slug)}
-              title={parentNode.label}
-            >
-              <span className="thumb-index__arrow">←</span>
-              {shortLabel(parentNode)}
-            </button>
-          ) : (
-            <button
-              className="thumb-index__parent"
-              onClick={() => onNavigate('')}
-              title="Index — all top-level fibers"
-            >
-              <span className="thumb-index__arrow">←</span>
-              index
-            </button>
+          {/* Parent + ASTRA summary share one row so the back-link
+              isn't stranded on its own line. The summary chip counts
+              decisions/insights and flags tempered state; clicking it
+              scrolls to the ASTRA appendix at the bottom of the
+              narrative. The chip hides itself when the fiber has no
+              ASTRA entries at all. */}
+          <div className="thumb-index__parent-row">
+            {parentNode ? (
+              <button
+                className="thumb-index__parent"
+                onClick={() => handleNav(parentNode.slug)}
+                title={parentNode.label}
+              >
+                <span className="thumb-index__arrow">←</span>
+                {shortLabel(parentNode)}
+              </button>
+            ) : (
+              <button
+                className="thumb-index__parent"
+                onClick={() => onNavigate('')}
+                title="Index — all top-level fibers"
+              >
+                <span className="thumb-index__arrow">←</span>
+                index
+              </button>
+            )}
+            <AstraSummaryChip node={currentNode} />
+          </div>
+
+          {/* Backlinks — inline chip row. Reads like a marginal note
+              ("referenced by …") rather than UI chrome, with each
+              fiber linkable. Sits just under the breadcrumb so the
+              citing fibers are visible without scrolling past nav. */}
+          {backlinkCount > 0 && (
+            <div className="thumb-index__backlinks-row">
+              <span className="thumb-index__nav-label">referenced by</span>
+              <div className="thumb-index__backlinks-chips">
+                {backlinkNodes.map((node, i) => (
+                  <span key={node.id} className="thumb-index__backlink-chip-wrap">
+                    <button
+                      className="thumb-index__backlink-chip"
+                      onClick={() => handleNav(node.slug)}
+                      title={node.label}
+                    >
+                      <span className="thumb-index__backlink-chip-glyph">{statusGlyph(node.status)}</span>
+                      <span className="thumb-index__backlink-chip-label">{shortLabel(node)}</span>
+                    </button>
+                    {i < backlinkNodes.length - 1 && (
+                      <span className="thumb-index__backlink-sep" aria-hidden="true"> · </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Siblings — labeled scrollable line */}
@@ -407,34 +509,6 @@ export function FloatingIsland({
             </div>
           )}
 
-          {/* Backlinks */}
-          {backlinkCount > 0 && (
-            <div className="thumb-index__backlinks">
-              <button
-                ref={backlinkBadgeRef}
-                className="thumb-index__backlink-badge"
-                onClick={() => setPopoverOpen((v) => !v)}
-                aria-expanded={popoverOpen}
-                aria-haspopup="true"
-              >
-                {backlinkCount} ↩
-              </button>
-              {popoverOpen && (
-                <div ref={popoverRef} className="thumb-index__popover">
-                  {backlinkNodes.map((node) => (
-                    <button
-                      key={node.id}
-                      className="thumb-index__popover-item"
-                      onClick={() => handleNav(node.slug)}
-                    >
-                      <span className="thumb-index__status-dot">{statusGlyph(node.status)}</span>
-                      {node.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>

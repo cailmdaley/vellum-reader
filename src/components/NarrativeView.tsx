@@ -14,24 +14,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArticleProvider } from '@myst-theme/providers';
 import { FiberHeader } from './FiberHeader';
-import { AstraBlocks } from './AstraBlocks';
+import { AstraAppendix } from './AstraAppendix';
 import { MarginCitations } from './MarginCitations';
-import { MarginDecisions } from './MarginDecisions';
-import { MarginInsights } from './MarginInsights';
 import { PretextProse } from './PretextProse';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { Lightbox } from './Lightbox';
 import { GhostToc } from './GhostToc';
 import { BacklinkNodes } from './BacklinkNodes';
-import { ContextCardLayer } from './ContextCardLayer';
 import { FiberEditor } from './FiberEditor';
 import type { LightboxImage } from './Lightbox';
 import type { Annotation, FiberContent, GraphNode, GraphLink } from '~/utils/content-types';
 import { getAnnotations, getRawFiber, putRawFiber } from '~/api';
 import { transformTweetEmbeds } from '~/utils/tweet-transform';
-
-const MARGIN_LEFT_STORAGE_KEY = 'vellum:margin-left';
-const MARGIN_RIGHT_STORAGE_KEY = 'vellum:margin-right';
 
 /**
  * Initial content width used before the real `.vellum-prose` element has
@@ -41,23 +35,9 @@ const MARGIN_RIGHT_STORAGE_KEY = 'vellum:margin-right';
  */
 const INITIAL_CONTENT_WIDTH = 720 - 63 * 2;
 
-/**
- * Minimum margin on either side — keeps the column readable and prevents the
- * handle from being dragged completely off-screen.
- */
-const MIN_MARGIN = 24;
-
 /** Default left margin when no drag has occurred — leaves the right margin
  *  free for the thumb index and margin annotations. */
 const DEFAULT_MARGIN_LEFT = 48;
-
-function loadMargin(key: string): number {
-  if (typeof localStorage === 'undefined') return 0;
-  const stored = localStorage.getItem(key);
-  if (stored == null) return 0;
-  const n = Number(stored);
-  return Number.isFinite(n) ? n : 0;
-}
 
 interface NarrativeViewProps {
   content: FiberContent;
@@ -137,99 +117,20 @@ export function NarrativeView({
   const [editorBuffer, setEditorBuffer] = useState<string | null>(null);
   const [editorLoading, setEditorLoading] = useState(false);
   const [contentWidth, setContentWidth] = useState<number>(INITIAL_CONTENT_WIDTH);
-  const [marginLeft, setMarginLeft] = useState<number>(() => loadMargin(MARGIN_LEFT_STORAGE_KEY));
-  const [marginRight, setMarginRight] = useState<number>(() => loadMargin(MARGIN_RIGHT_STORAGE_KEY));
 
   const currentNode = graphNodes.find((n) => n.slug === content.slug);
 
-  // Push left/right margins onto :root as CSS custom properties so
-  // .vellum-page picks them up without any inline style surgery from a child
-  // component. When a margin is 0 (default, no drag yet), the CSS fallback
-  // in .vellum-page takes over — the old center formula — so first-load
-  // users see the same geometry as before. Once either handle is dragged the
-  // corresponding --page-margin-* value overrides the fallback and the column
-  // stretches to fill the space between the two margins. --prose-width is NOT
-  // touched here; it stays at the CSS-declared 720px default so all the
-  // marginalia position rules (MarginCitations, MarginDecisions, GhostToc,
-  // BacklinkNodes) read a correct anchor. Those components read the actual
-  // rendered width via the ResizeObserver below once the column reflows.
-  // Set explicit left margin so the prose is left-aligned. Only remove
-  // max-width (letting prose stretch) when the user has actively dragged
-  // a handle — otherwise the prose stays at its natural --prose-width so
-  // the right margin is free for the thumb index and annotations.
-  const hasDragged = marginLeft > 0 || marginRight > 0;
   useEffect(() => {
     const root = document.documentElement;
-    const left = hasDragged ? Math.max(MIN_MARGIN, marginLeft) : DEFAULT_MARGIN_LEFT;
-    root.style.setProperty('--page-margin-left', `${left}px`);
-    if (hasDragged) {
-      const right = Math.max(MIN_MARGIN, marginRight);
-      root.style.setProperty('--page-margin-right', `${right}px`);
-      root.style.setProperty('--page-max-width', 'none');
-    } else {
-      root.style.removeProperty('--page-margin-right');
-      root.style.removeProperty('--page-max-width');
-    }
+    root.style.setProperty('--page-margin-left', `${DEFAULT_MARGIN_LEFT}px`);
+    root.style.removeProperty('--page-margin-right');
+    root.style.removeProperty('--page-max-width');
     return () => {
       root.style.removeProperty('--page-margin-left');
       root.style.removeProperty('--page-margin-right');
       root.style.removeProperty('--page-max-width');
     };
-  }, [marginLeft, marginRight, hasDragged]);
-
-  // Persist both margins. State updates at pointermove frequency; each write
-  // is a single setItem of a small string — negligible.
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(MARGIN_LEFT_STORAGE_KEY, String(marginLeft));
-  }, [marginLeft]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(MARGIN_RIGHT_STORAGE_KEY, String(marginRight));
-  }, [marginRight]);
-
-  // Drag handler for the left and right resize handles.
-  // Left handle: dragging right increases marginLeft (column left edge moves right).
-  // Right handle: dragging left increases marginRight (column right edge moves left).
-  // Each margin is stored and dragged independently — no center coordinate, no
-  // derived widths.
-  const handleResizeStart = useCallback(
-    (side: 'left' | 'right') => (e: React.PointerEvent<HTMLDivElement>) => {
-      const el = e.currentTarget;
-      const startX = e.clientX;
-      const startMarginLeft = marginLeft;
-      const startMarginRight = marginRight;
-      const pointerId = e.pointerId;
-      el.setPointerCapture(pointerId);
-      e.preventDefault();
-
-      const onMove = (ev: PointerEvent) => {
-        const dx = ev.clientX - startX;
-        if (side === 'left') {
-          // Dragging right (positive dx) = larger left margin = left edge moves right
-          setMarginLeft(Math.max(MIN_MARGIN, startMarginLeft + dx));
-        } else {
-          // Dragging left (negative dx) = larger right margin = right edge moves left
-          setMarginRight(Math.max(MIN_MARGIN, startMarginRight - dx));
-        }
-      };
-      const onEnd = () => {
-        el.removeEventListener('pointermove', onMove);
-        el.removeEventListener('pointerup', onEnd);
-        el.removeEventListener('pointercancel', onEnd);
-        try {
-          el.releasePointerCapture(pointerId);
-        } catch {
-          // pointer already released — safe to ignore
-        }
-      };
-      el.addEventListener('pointermove', onMove);
-      el.addEventListener('pointerup', onEnd);
-      el.addEventListener('pointercancel', onEnd);
-    },
-    [marginLeft, marginRight],
-  );
+  }, []);
 
   // Measure `.vellum-prose`'s actual content box so pretext lays into the
   // exact inline size the column renders at — including the responsive CSS
@@ -281,8 +182,16 @@ export function NarrativeView({
   }, [editorBuffer, editorLoading]);
 
   useEffect(() => {
+    // Fetch every annotation in the project, not just those keyed to
+    // this slug. Annotations are anchored to the *text*; the layer's
+    // findAnnotationInDom decides which ones match the current prose
+    // by selectedText + surrounding context. This way a note travels
+    // wherever its passage appears (a quote that lives on two pages
+    // shows up on both) and the slug field is just a record of where
+    // the note was first written.
+    setAnnotations([]);
     let cancelled = false;
-    getAnnotations(content.slug).then((anns) => {
+    getAnnotations().then((anns) => {
       if (!cancelled) setAnnotations(anns);
     });
     return () => {
@@ -360,32 +269,31 @@ export function NarrativeView({
     if (!anchor) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
-    navigate(anchor.getAttribute('href')!);
-  }, [navigate]);
+    const slug = anchor.getAttribute('href')!.replace(/^\//, '');
+    const node = graphNodes.find((candidate) => candidate.slug === slug);
+    if (!node) {
+      navigate(anchor.getAttribute('href')!);
+      return;
+    }
+
+    const rawCanvasWidth = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'),
+    );
+    const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 360;
+    const rect = anchor.getBoundingClientRect();
+    document.dispatchEvent(
+      new CustomEvent('vellum:open-card', {
+        detail: {
+          content: { type: 'fiber', node },
+          x: window.innerWidth - canvasWidth + 16,
+          y: rect.top,
+        },
+      }),
+    );
+  }, [graphNodes, navigate]);
 
   return (
     <div className="vellum-prose-wrapper" ref={wrapperRef}>
-      {/* Two drag handles sit on the left/right edges of the prose column.
-          They span the full column height so the reader can grab the edge
-          anywhere along the page. Pointer capture inside
-          handleResizeStart keeps the drag alive through the column
-          body. Hidden on ≤960px viewports via CSS — the margin
-          substrate collapses there and a resizable column stops making
-          sense when there are no margins to trade off against. */}
-      <div
-        className="vellum-prose-resize vellum-prose-resize--left"
-        onPointerDown={handleResizeStart('left')}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize prose column from the left"
-      />
-      <div
-        className="vellum-prose-resize vellum-prose-resize--right"
-        onPointerDown={handleResizeStart('right')}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize prose column from the right"
-      />
       <article
         className="vellum-prose vellum-prose--pretext"
         ref={proseRef}
@@ -418,17 +326,11 @@ export function NarrativeView({
           </ArticleProvider>
         )}
 
-        {editorBuffer === null && <AstraBlocks graphNode={currentNode} />}
+        {editorBuffer === null && (
+          <AstraAppendix node={currentNode} width={contentWidth} />
+        )}
       </article>
 
-      <MarginDecisions
-        graphNode={currentNode}
-        wrapperRef={wrapperRef}
-      />
-      <MarginInsights
-        graphNode={currentNode}
-        wrapperRef={wrapperRef}
-      />
       <MarginCitations
         nodes={graphNodes}
         proseRef={proseRef}
@@ -440,13 +342,6 @@ export function NarrativeView({
         wrapperRef={wrapperRef}
       />
       <BacklinkNodes nodes={backlinkNodes} />
-      <ContextCardLayer
-        graphNodes={graphNodes}
-        graphLinks={graphLinks}
-        proseRef={proseRef}
-        wrapperRef={wrapperRef}
-        onNavigate={(slug) => navigate(`/${slug}`)}
-      />
       <TextAnnotationLayer
         slug={content.slug}
         annotations={annotations}

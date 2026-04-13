@@ -14,16 +14,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import type { GraphNode } from '~/utils/content-types';
 import { useHoverGrace } from '~/hooks/useHoverGrace';
-import { HOVER_GRACE_MS } from '~/utils/hover';
+import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
 import { glyphForNode, statusClass } from '~/utils/fiber-status';
+import { MarginCardPreview } from './MarginCardPreview';
 
 interface Glyph {
   slug: string;
   node: GraphNode;
-  top: number;       // px from top of prose wrapper
+  top: number;       // prose-wrapper px so the rail scrolls with the page
   href: string;
   label: string;
   /**
@@ -46,13 +46,15 @@ interface MarginCitationsProps {
 
 /** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
 const LINK_HOVER_DELAY_MS = 250;
+const CANVAS_RAIL_TOP = 172;
 
 export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: MarginCitationsProps) {
   const [glyphs, setGlyphs] = useState<Glyph[]>([]);
-  const { hoveredKey, openKey, cancelClose, scheduleClose } =
-    useHoverGrace(HOVER_GRACE_MS);
+  const [railLeft, setRailLeft] = useState(0);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const { hoveredKey, openKey, scheduleOpen, cancelClose, scheduleClose } =
+    useHoverGrace(HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS);
   const hoveredIdx = hoveredKey != null ? Number(hoveredKey) : null;
-  const navigate = useNavigate();
 
   // Measure positions after prose paints
   useEffect(() => {
@@ -61,6 +63,15 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
     const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
     const cleanups: Array<() => void> = [];
     let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+    let rafId = 0;
+
+    const scheduleMeasure = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        measure();
+      });
+    };
 
     const measure = () => {
       // Drop any listeners from the previous measurement — new glyph
@@ -72,7 +83,12 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       const prose = proseRef.current!;
       const wrapper = wrapperRef.current!;
       const wrapperRect = wrapper.getBoundingClientRect();
-
+      const rawCanvasWidth = Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'),
+      );
+      const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 0;
+      const canvasLeft = canvasWidth > 0 ? window.innerWidth - canvasWidth : window.innerWidth;
+      setRailLeft(Math.max(0, canvasLeft - wrapperRect.left + 12));
       // Search the subtree for an element whose positioning origin matches
       // pretext's own coordinate space — `.pretext-prose` is the relatively-
       // positioned box pretext lays its lines inside. We read its offset
@@ -84,7 +100,7 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       // updated line coordinates without a per-anchor CSS measurement pass.
       const pretextBox = prose.querySelector<HTMLElement>('.pretext-prose');
       const pretextOriginTop = pretextBox
-        ? pretextBox.getBoundingClientRect().top - wrapperRect.top + window.scrollY
+        ? pretextBox.getBoundingClientRect().top - wrapperRect.top
         : null;
 
       // All internal anchor tags in the prose
@@ -111,7 +127,7 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
           top = pretextOriginTop + Number(dataLineTop);
         } else {
           const rect = a.getBoundingClientRect();
-          top = rect.top - wrapperRect.top + window.scrollY;
+          top = rect.top - wrapperRect.top;
         }
 
         // Pretext emits one `<a>` per wrapped line fragment of a single
@@ -150,7 +166,7 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
 
       // Stack overlapping glyphs (within 14px of each other)
       const MIN_GAP = 16;
-      let lastTop = -999;
+      let lastTop = CANVAS_RAIL_TOP - MIN_GAP;
       const positioned = next.map((g) => {
         const t = Math.max(g.top, lastTop + MIN_GAP);
         lastTop = t;
@@ -172,12 +188,14 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
         };
         const onEnter = () => {
           setActive(true);
+          setActiveIdx(i);
           if (hoverTimer) clearTimeout(hoverTimer);
           cancelClose();
           hoverTimer = setTimeout(() => openKey(String(i)), LINK_HOVER_DELAY_MS);
         };
         const onLeave = () => {
           setActive(false);
+          setActiveIdx((current) => (current === i ? null : current));
           if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
           scheduleClose();
         };
@@ -232,10 +250,25 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       mutationObserver.observe(proseEl, { childList: true, subtree: true });
     }
 
+    const rootStyleObserver =
+      typeof MutationObserver !== 'undefined'
+        ? new MutationObserver(scheduleMeasure)
+        : null;
+    rootStyleObserver?.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+    window.addEventListener('resize', scheduleMeasure);
+    window.addEventListener('scroll', scheduleMeasure, { passive: true });
+
     return () => {
       cancelAnimationFrame(frame);
+      if (rafId) cancelAnimationFrame(rafId);
       observer.disconnect();
       mutationObserver?.disconnect();
+      rootStyleObserver?.disconnect();
+      window.removeEventListener('resize', scheduleMeasure);
+      window.removeEventListener('scroll', scheduleMeasure);
       if (hoverTimer) clearTimeout(hoverTimer);
       for (const fn of cleanups) fn();
     };
@@ -250,81 +283,39 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       {glyphs.map((g, i) => (
         <div
           key={`${g.slug}-${i}`}
-          className={`margin-glyph margin-glyph--${statusClass(g.node.status)}${changedIds?.has(g.slug) ? ' margin-glyph--changed' : ''}${g.node.tempered ? ' margin-glyph--tempered' : ''}`}
-          style={{ top: g.top }}
-          onClick={() => navigate(g.href)}
+          className={`margin-glyph margin-glyph--${statusClass(g.node.status)}${changedIds?.has(g.slug) ? ' margin-glyph--changed' : ''}${g.node.tempered ? ' margin-glyph--tempered' : ''}${activeIdx === i ? ' margin-glyph--active' : ''}`}
+          style={{ top: g.top, left: railLeft }}
+          onClick={() => openKey(String(i))}
           onMouseEnter={() => {
             for (const el of g.linkEls) el.classList.add('margin-active');
-            openKey(String(i));
+            setActiveIdx(i);
+            scheduleOpen(String(i));
           }}
           onMouseLeave={() => {
             for (const el of g.linkEls) el.classList.remove('margin-active');
+            setActiveIdx((current) => (current === i ? null : current));
             scheduleClose();
           }}
           role="link"
           tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && navigate(g.href)}
-          aria-label={`Navigate to ${g.label}`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') openKey(String(i));
+          }}
+          aria-label={`Open ${g.label} in marginalia`}
         >
           <span className="margin-glyph__dot">{glyphForNode(g.node)}</span>
           <span className="margin-glyph__label">{g.label}</span>
         </div>
       ))}
 
-      {/* Hover tooltip — positioned in the right margin below the glyph.
-          `pointer-events: auto` plus mirror-ed enter/leave handlers keep
-          the card open while the reader moves their cursor from the glyph
-          into the card body, so they can click the title, a tag, or a
-          decision row. */}
       {hoveredGlyph && (
-        <div
-          className="fiber-tooltip fiber-tooltip--interactive"
-          style={{ top: hoveredGlyph.top + 20 }}
+        <MarginCardPreview
+          content={{ type: 'fiber', node: hoveredGlyph.node }}
+          top={hoveredGlyph.top + 20}
+          left={railLeft}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
-        >
-          <Link
-            to={hoveredGlyph.href}
-            className="fiber-tooltip__title fiber-tooltip__title--link"
-          >
-            {hoveredGlyph.label}
-          </Link>
-          <div className="fiber-tooltip__status">
-            <span>{glyphForNode(hoveredGlyph.node)}</span>
-            <span>{hoveredGlyph.node.status}</span>
-            {hoveredGlyph.node.tempered && <span className="fiber-tooltip__tempered" title="Human-reviewed; load-bearing">⬡</span>}
-            {hoveredGlyph.node.tags?.map((t) => (
-              <span key={t} className="vellum-tag">{t}</span>
-            ))}
-          </div>
-          {hoveredGlyph.node.verdict && (
-            <div className="fiber-tooltip__verdict">{hoveredGlyph.node.verdict}</div>
-          )}
-          {hoveredGlyph.node.decisions?.map((d) => (
-            <div key={d.key} className="fiber-tooltip__decision">
-              <span className="fiber-tooltip__decision-label">decision</span>
-              {' '}{d.label}{d.selectedLabel ? `: ${d.selectedLabel}` : ''}
-            </div>
-          ))}
-          <button
-            className="fiber-tooltip__pin"
-            onClick={(e) => {
-              document.dispatchEvent(
-                new CustomEvent('vellum:open-context-card', {
-                  detail: {
-                    slug: hoveredGlyph.node.slug,
-                    x: e.clientX,
-                    y: e.clientY,
-                  },
-                }),
-              );
-              scheduleClose();
-            }}
-            title="Open as floating card"
-          >
-            ⊞
-          </button>
-        </div>
+        />
       )}
     </>
   );

@@ -54,6 +54,7 @@ export interface GraphNode {
   id: string;
   label: string;
   slug: string;
+  createdAt?: string;
   kind?: string;
   status: string;
   tags: string[];

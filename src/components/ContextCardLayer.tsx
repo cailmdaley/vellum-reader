@@ -1,105 +1,137 @@
 /**
- * ContextCardLayer — floating cards layer for the Narrative view.
+ * ContextCardLayer — floating pinned cards for the Narrative view.
  *
- * Renders a stack of viewport-fixed, draggable, resizable cards built on
- * the unified Card primitive (`Card.tsx`). Any surface can pop a card by
- * dispatching one of two custom events:
+ * Renders pinned Cards that were promoted from a hover preview. Each
+ * pinned card lives in one of two modes:
  *
- *   // Open any Card content directly — decision, insight, plot, input,
- *   // output, myst, or a fully-assembled fiber payload.
+ *   canvas — position tracks the document, so the card scrolls with
+ *            the prose it was pinned next to. This is the default
+ *            when promoting a hover preview: the card "stays put"
+ *            relative to the passage that summoned it.
+ *   screen — position tracks the viewport. Click the pin glyph once
+ *            on a canvas-mode card to promote it: now it hangs over
+ *            the reader and doesn't drift as they scroll.
+ *
+ * Click the pin glyph on a screen-mode card to unpin (close). Any
+ * surface can pin a card by dispatching `vellum:open-card`:
+ *
  *   document.dispatchEvent(new CustomEvent('vellum:open-card', {
- *     detail: { content: CardContent, x, y }
+ *     detail: {
+ *       content: CardContent,
+ *       x, y,               // viewport coordinates of the spawn point
+ *       width?: number,     // optional width override
+ *       exactPosition?: bool, // if true, spawn exactly at (x, y)
+ *     },
  *   }));
  *
- *   // Slug-based convenience: fetch the fiber's content and spawn a
- *   // fiber-typed Card. Historical API — MarginCitations still uses it.
- *   document.dispatchEvent(new CustomEvent('vellum:open-context-card', {
- *     detail: { slug, x, y }
- *   }));
- *
- * The layer owns drag/resize state, z-ordering, and ESC-to-dismiss. Each
- * card body is rendered through the shared `Card` component so a floating
- * DecisionCard looks and behaves like a Workspace-anatomy DecisionCard.
+ * The layer owns drag/resize state, z-ordering, and ESC-to-dismiss.
+ * The wrapper catches pointer-down for dragging; interactive children
+ * (buttons, links) stop propagation so they don't initiate a drag.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GraphLink, GraphNode } from '~/utils/content-types';
-import { getFiberContent } from '~/api';
 
 import { Card, type CardContent } from './Card';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type PinMode = 'canvas' | 'screen';
+
 interface FloatingCard {
   /** Unique id — timestamp-salted so duplicate contents are allowed. */
   id: string;
-  /** The actual Card payload to render. */
   content: CardContent;
-  /** Viewport-relative left position (px). */
+  mode: PinMode;
+  /**
+   * Position in the coordinate frame implied by `mode`:
+   *   canvas → document / page coords (x = clientX + scrollX)
+   *   screen → viewport coords
+   */
   x: number;
-  /** Viewport-relative top position (px). */
   y: number;
-  /** Card width (px). */
   width: number;
-  /** Card minimum height (px) — Card composes its real height from content. */
-  height: number;
+  /** Explicit height (px) once the user has resized or once spawned
+   *  from a preview with a known rendered height. `null` means
+   *  size-to-content — the card takes whatever height its children
+   *  compose to. */
+  height: number | null;
 }
 
 interface OpenCardEvent extends CustomEvent {
-  detail: { content: CardContent; x: number; y: number };
-}
-
-interface OpenContextCardEvent extends CustomEvent {
-  detail: { slug: string; x: number; y: number };
+  detail: {
+    content: CardContent;
+    x: number;
+    y: number;
+    /** Spawn width override — e.g. the hover preview's own width. */
+    width?: number;
+    /** Spawn height override so the pinned card matches the hover
+     *  preview's exact rendered size. When omitted the card sizes to
+     *  its content. */
+    height?: number;
+    /** When true, skip offset + clamp; treat (x, y) as the final spawn. */
+    exactPosition?: boolean;
+  };
 }
 
 export interface ContextCardLayerProps {
-  graphNodes: GraphNode[];
-  graphLinks?: GraphLink[];
-  proseRef: React.RefObject<HTMLElement>;
-  wrapperRef: React.RefObject<HTMLDivElement>;
   onNavigate: (slug: string) => void;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_WIDTH = 340;
-const DEFAULT_HEIGHT = 200;
+const MIN_WIDTH = 220;
+const MIN_HEIGHT = 100;
 
 /** Offset from the click point so the card doesn't cover its trigger. */
 const SPAWN_OFFSET_X = 16;
 const SPAWN_OFFSET_Y = 8;
 
-function clampSpawn(x: number, y: number): { x: number; y: number } {
+function readCanvasGeometry(): { canvasLeft: number; canvasWidth: number } {
   const vw = typeof window === 'undefined' ? 1200 : window.innerWidth;
-  const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
+  const rawCanvasWidth =
+    typeof document === 'undefined'
+      ? Number.NaN
+      : Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'));
+  const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 0;
   return {
-    x: Math.max(8, Math.min(x + SPAWN_OFFSET_X, vw - DEFAULT_WIDTH - 8)),
-    y: Math.max(8, Math.min(y + SPAWN_OFFSET_Y, vh - DEFAULT_HEIGHT - 8)),
+    canvasLeft: canvasWidth > 0 ? vw - canvasWidth : 8,
+    canvasWidth,
   };
 }
 
-function titleOf(content: CardContent): string {
-  switch (content.type) {
-    case 'fiber': return content.node.label;
-    case 'decision': return content.decision.label;
-    case 'insight': return 'Insight';
-    case 'plot': return content.caption ?? 'Figure';
-    case 'input': return content.label;
-    case 'output': return content.label;
-    case 'myst': return content.label;
-  }
+function initialCardWidth(): number {
+  const { canvasWidth } = readCanvasGeometry();
+  if (canvasWidth <= 0) return DEFAULT_WIDTH;
+  return Math.max(MIN_WIDTH, Math.min(DEFAULT_WIDTH, canvasWidth - 24));
+}
+
+function clampSpawn(x: number, y: number, width: number): { x: number; y: number } {
+  const vw = typeof window === 'undefined' ? 1200 : window.innerWidth;
+  const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
+  const { canvasLeft } = readCanvasGeometry();
+  return {
+    x: Math.max(canvasLeft + 12, Math.min(x + SPAWN_OFFSET_X, vw - width - 8)),
+    y: Math.max(8, Math.min(y + SPAWN_OFFSET_Y, vh - MIN_HEIGHT - 8)),
+  };
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ContextCardLayer({
-  graphNodes,
   onNavigate,
 }: ContextCardLayerProps) {
   const [cards, setCards] = useState<FloatingCard[]>([]);
-  // Drag/resize target tracked via ref to avoid stale closures in the
-  // window-level pointer move handler.
+  // Scroll offset drives canvas-mode rendering: a canvas-pinned card
+  // stores page coords and we subtract the current scroll to produce
+  // viewport coords for the fixed-position layer. On scroll, this
+  // state updates and the cards re-render with the new offset, which
+  // is how they "scroll with the document" while still living in a
+  // position:fixed layer.
+  const [scroll, setScroll] = useState(() => ({
+    x: typeof window === 'undefined' ? 0 : window.scrollX,
+    y: typeof window === 'undefined' ? 0 : window.scrollY,
+  }));
   const dragStateRef = useRef<{
     cardId: string;
     mode: 'drag' | 'resize';
@@ -115,6 +147,16 @@ export function ContextCardLayer({
     setCards((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  // ── Track window scroll for canvas-mode positioning ──────────────────────
+
+  useEffect(() => {
+    const onScroll = () => {
+      setScroll({ x: window.scrollX, y: window.scrollY });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   // ── open-card (generic) ───────────────────────────────────────────────────
   // Spawns a floating card for any CardContent. Callers provide the payload
   // directly; the layer doesn't fetch anything.
@@ -122,56 +164,43 @@ export function ContextCardLayer({
   useEffect(() => {
     const handler = (e: Event) => {
       const ev = e as OpenCardEvent;
-      const { content, x, y } = ev.detail;
+      const {
+        content,
+        x,
+        y,
+        width: widthOverride,
+        height: heightOverride,
+        exactPosition,
+      } = ev.detail;
       const id = `${content.type}__${Date.now()}__${Math.random().toString(36).slice(2, 6)}`;
-      const pos = clampSpawn(x, y);
+      const width = widthOverride ?? initialCardWidth();
+      // When pinning from a hover preview, the caller already has a
+      // validated on-screen rect — spawn exactly there so the pin feels
+      // like the preview staying put. Otherwise apply the offset + clamp
+      // used for fresh spawns from a click point.
+      const viewportPos = exactPosition ? { x, y } : clampSpawn(x, y, width);
+      // Promote viewport coords to page coords for canvas mode.
+      const pos = {
+        x: viewportPos.x + window.scrollX,
+        y: viewportPos.y + window.scrollY,
+      };
       setCards((prev) => [...prev, {
         id,
         content,
+        mode: 'canvas',
         x: pos.x,
         y: pos.y,
-        width: DEFAULT_WIDTH,
-        height: DEFAULT_HEIGHT,
+        width,
+        height: heightOverride ?? null,
       }]);
+
+      // The pinned card is intentionally the hover preview that stopped
+      // going away — no prose-body fetch, no header-duplicating swap.
+      // To read full prose the user navigates to the fiber itself.
     };
     document.addEventListener('vellum:open-card', handler);
     return () => document.removeEventListener('vellum:open-card', handler);
   }, []);
-
-  // ── open-context-card (slug-based, legacy) ────────────────────────────────
-  // Looks up the GraphNode, fetches FiberContent asynchronously, then
-  // assembles a {type:'fiber'} CardContent. The card appears immediately
-  // with whatever node metadata we have and upgrades once content lands.
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const ev = e as OpenContextCardEvent;
-      const { slug, x, y } = ev.detail;
-      const node = graphNodes.find((n) => n.slug === slug);
-      if (!node) return;
-
-      const id = `fiber:${slug}__${Date.now()}`;
-      const pos = clampSpawn(x, y);
-      setCards((prev) => [...prev, {
-        id,
-        content: { type: 'fiber', node },
-        x: pos.x,
-        y: pos.y,
-        width: DEFAULT_WIDTH,
-        height: DEFAULT_HEIGHT,
-      }]);
-
-      getFiberContent(slug).then((content) => {
-        setCards((prev) => prev.map((c) => (
-          c.id === id
-            ? { ...c, content: { type: 'fiber', node, content: content ?? undefined } }
-            : c
-        )));
-      });
-    };
-    document.addEventListener('vellum:open-context-card', handler);
-    return () => document.removeEventListener('vellum:open-context-card', handler);
-  }, [graphNodes]);
 
   // ── Escape: dismiss topmost card ─────────────────────────────────────────
 
@@ -206,8 +235,8 @@ export function ContextCardLayer({
           c.id === state.cardId
             ? {
                 ...c,
-                width: Math.max(200, state.startWidth + (e.clientX - state.startClientX)),
-                height: Math.max(100, state.startHeight + (e.clientY - state.startClientY)),
+                width: Math.max(MIN_WIDTH, state.startWidth + (e.clientX - state.startClientX)),
+                height: Math.max(MIN_HEIGHT, state.startHeight + (e.clientY - state.startClientY)),
               }
             : c
         )));
@@ -228,15 +257,32 @@ export function ContextCardLayer({
     };
   }, []);
 
+  const liftToFront = useCallback((id: string) => {
+    setCards((prev) => {
+      const without = prev.filter((c) => c.id !== id);
+      const target = prev.find((c) => c.id === id);
+      return target ? [...without, target] : prev;
+    });
+  }, []);
+
   const startDrag = useCallback(
     (card: FloatingCard) => (e: React.PointerEvent<HTMLDivElement>) => {
+      // Don't hijack clicks on interactive elements inside the card
+      // (buttons, links, inputs). Their own onClick handlers should
+      // fire; only "dead space" on the card initiates a drag.
+      const target = e.target as HTMLElement;
+      // Don't hijack pointer-down on interactive controls (buttons,
+      // links, option lists) or on selectable text — users should be
+      // able to click into the card and select its prose. Drag is
+      // initiated from the card's empty chrome (padding, tag row).
+      if (target.closest(
+        'button, a, input, textarea, [role="button"], ' +
+        '.context-card-float__resize, .pretext-line, .fiber-card__prose'
+      )) {
+        return;
+      }
       e.preventDefault();
-      // Lift to front by moving to the end of the list (highest z-index).
-      setCards((prev) => {
-        const without = prev.filter((c) => c.id !== card.id);
-        const target = prev.find((c) => c.id === card.id);
-        return target ? [...without, target] : prev;
-      });
+      liftToFront(card.id);
       dragStateRef.current = {
         cardId: card.id,
         mode: 'drag',
@@ -245,11 +291,16 @@ export function ContextCardLayer({
         startCardX: card.x,
         startCardY: card.y,
         startWidth: card.width,
-        startHeight: card.height,
+        // When height is null (size-to-content), seed the drag with
+        // the rendered height so the first resize tick doesn't jump.
+        startHeight: card.height ?? (
+          document.getElementById(`ctxcard-${card.id}`)?.getBoundingClientRect().height
+          ?? MIN_HEIGHT
+        ),
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [],
+    [liftToFront],
   );
 
   const startResize = useCallback(
@@ -264,12 +315,32 @@ export function ContextCardLayer({
         startCardX: card.x,
         startCardY: card.y,
         startWidth: card.width,
-        startHeight: card.height,
+        // When height is null (size-to-content), seed the drag with
+        // the rendered height so the first resize tick doesn't jump.
+        startHeight: card.height ?? (
+          document.getElementById(`ctxcard-${card.id}`)?.getBoundingClientRect().height
+          ?? MIN_HEIGHT
+        ),
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     },
     [],
   );
+
+  // Pin-glyph click toggles canvas ↔ screen. Canvas mode pins the
+  // card to the margin so it scrolls with the prose; screen mode
+  // floats it fixed over the viewport. Coordinates are translated on
+  // each switch so the card stays visually in place at the moment of
+  // the transition.
+  const handlePinToggle = useCallback((card: FloatingCard) => {
+    setCards((prev) => prev.map((c) => {
+      if (c.id !== card.id) return c;
+      if (c.mode === 'canvas') {
+        return { ...c, mode: 'screen', x: c.x - window.scrollX, y: c.y - window.scrollY };
+      }
+      return { ...c, mode: 'canvas', x: c.x + window.scrollX, y: c.y + window.scrollY };
+    }));
+  }, []);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -277,43 +348,60 @@ export function ContextCardLayer({
 
   return (
     <div className="context-card-layer">
-      {cards.map((card, index) => (
-        <div
-          key={card.id}
-          className="context-card-float"
-          style={{
-            position: 'fixed',
-            left: card.x,
-            top: card.y,
-            width: card.width,
-            minHeight: card.height,
-            zIndex: 100 + index,
-          }}
-        >
-          {/* Drag handle — the strip above the card chrome. Title echoes
-              the card's own title so the handle still reads when it
-              overflows or wraps the body. */}
+      {cards.map((card, index) => {
+        // Both modes use position: fixed (the layer is fixed); canvas
+        // mode subtracts scroll so the card rides the document.
+        const renderLeft = card.mode === 'canvas' ? card.x - scroll.x : card.x;
+        const renderTop = card.mode === 'canvas' ? card.y - scroll.y : card.y;
+        return (
           <div
-            className="context-card-float__handle"
+            key={card.id}
+            id={`ctxcard-${card.id}`}
+            className={`context-card-float context-card-float--${card.mode}`}
+            style={{
+              position: 'fixed',
+              left: renderLeft,
+              top: renderTop,
+              width: card.width,
+              // `height: null` means size-to-content; once the user
+              // resizes (or the card spawned with an explicit height
+              // from a preview rect) we apply it directly so the
+              // card matches the height the reader saw.
+              height: card.height ?? undefined,
+              zIndex: 100 + index,
+            }}
             onPointerDown={startDrag(card)}
+            onDoubleClick={(e) => {
+              // Double-click on dead space (chrome, padding, tag row)
+              // closes the card — a quick gesture that doesn't require
+              // aiming at the × button. Double-clicking selectable
+              // text still selects a word: the same exclusion list we
+              // use for drag-initiation keeps text-selection intact.
+              const target = e.target as HTMLElement;
+              if (target.closest(
+                'button, a, input, textarea, [role="button"], ' +
+                '.context-card-float__resize, .pretext-line, .fiber-card__prose'
+              )) return;
+              removeCard(card.id);
+            }}
           >
-            <span className="context-card-float__title">{titleOf(card.content)}</span>
+            <Card
+              content={card.content}
+              width={card.width}
+              onClose={() => removeCard(card.id)}
+              onPin={() => handlePinToggle(card)}
+              pinMode={card.mode}
+              onNavigate={onNavigate}
+            />
+
+            {/* Resize handle — bottom-right corner. */}
+            <div
+              className="context-card-float__resize"
+              onPointerDown={startResize(card)}
+            />
           </div>
-
-          <Card
-            content={card.content}
-            width={card.width}
-            onClose={() => removeCard(card.id)}
-            onNavigate={onNavigate}
-          />
-
-          {/* Resize handle — bottom-right corner. */}
-          <div
-            className="context-card-float__resize"
-            onPointerDown={startResize(card)}
-          />
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

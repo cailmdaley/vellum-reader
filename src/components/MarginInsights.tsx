@@ -17,7 +17,7 @@
 import { useRef } from 'react';
 import type { GraphNode } from '~/utils/content-types';
 import { useHoverGrace } from '~/hooks/useHoverGrace';
-import { HOVER_GRACE_MS } from '~/utils/hover';
+import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
 import { MarginCardPreview } from './MarginCardPreview';
 
 interface MarginInsightsProps {
@@ -29,10 +29,10 @@ interface MarginInsightsProps {
 const STACK_GAP = 28;
 // Starting top for the first glyph in isolation. When decisions also
 // exist the caller's gap pushes this down via DECISION_STACK_OFFSET.
-const FIRST_GLYPH_TOP = 60;
+const FIRST_GLYPH_TOP = 172;
 // Extra gap between the end of the decision stack and the first insight
 // glyph, so the two clusters read as distinct groups.
-const GROUP_GAP = 12;
+const GROUP_GAP = 28;
 
 const CLAIM_LABEL_MAX = 56;
 
@@ -44,8 +44,8 @@ function truncateClaim(claim: string): string {
 export function MarginInsights({ graphNode, wrapperRef: _wrapperRef }: MarginInsightsProps) {
   const findings = graphNode?.findings ?? [];
   const decisionCount = graphNode?.decisions?.length ?? 0;
-  const { hoveredKey, openKey, cancelClose, scheduleClose } =
-    useHoverGrace(HOVER_GRACE_MS);
+  const { hoveredKey, scheduleOpen, cancelClose, scheduleClose } =
+    useHoverGrace(HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS);
   const stackRef = useRef<HTMLDivElement>(null);
 
   if (findings.length === 0) return null;
@@ -84,7 +84,7 @@ export function MarginInsights({ graphNode, wrapperRef: _wrapperRef }: MarginIns
           className={`margin-insight${hoveredKey === f.key ? ' margin-insight--hovered' : ''}${f.hasEvidence ? ' margin-insight--evidence' : ''}`}
           style={{ top: baseTop + i * STACK_GAP }}
           onClick={(e) => handleClick(e, f.key)}
-          onMouseEnter={() => openKey(f.key)}
+          onMouseEnter={() => scheduleOpen(f.key)}
           onMouseLeave={scheduleClose}
           title={f.claim}
         >
@@ -99,7 +99,6 @@ export function MarginInsights({ graphNode, wrapperRef: _wrapperRef }: MarginIns
           top={baseTop + hoveredIdx * STACK_GAP + 20}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
-          onScrollToAnchor={() => scrollToFinding(hoveredFinding.key)}
         />
       )}
     </div>

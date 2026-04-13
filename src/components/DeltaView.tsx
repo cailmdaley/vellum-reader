@@ -75,15 +75,9 @@ interface DeltaViewProps {
 }
 
 /** Card min-width used in the CSS grid's auto-fill tracks. Keep in sync
- *  with `.delta-view__grid` in vellum.css — JS uses this to derive how
- *  many grid cells the thumb-index footprint occupies. */
+ *  with `.delta-view__grid` in vellum.css — JS clamps per-card col-spans
+ *  to the visible column count derived from this width. */
 const CARD_MIN_WIDTH = 280;
-/** Approximate card height + gap, for turning the thumb-index's pixel
- *  height into a row-span. Cards are content-sized in practice, so this
- *  is a heuristic; undershooting means the grid reserves an extra row,
- *  overshooting means the topmost right-column card overlaps the bottom
- *  of the thumb-index. Tuned for today's card variants. */
-const CARD_ROW_STEP = 210;
 
 /** Per-fiber column span persistence. A delta card defaults to one column
  *  of the auto-fill grid; the reader can drag the right edge to claim more
@@ -112,9 +106,11 @@ function writeSpanMap(map: SpanMap) {
   } catch { /* quota full or disabled — forget in memory */ }
 }
 
-/** Listen to the thumb-index's size so the delta grid can reserve a
- *  matching top-right cutout. The thumb-index lives outside the delta
- *  tree (FiberPage mounts it ambient), so we query it by class name. */
+/** Listen to the thumb-index's size so the delta view can reserve a
+ *  header band tall enough to clear it. The thumb-index floats fixed in
+ *  the top-right; we offset the delta header by its height so the first
+ *  row of cards never collides with it. The thumb-index lives outside
+ *  the delta tree (FiberPage mounts it ambient), so we query by class. */
 function useThumbIndexFootprint() {
   const [rect, setRect] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   useEffect(() => {
@@ -164,18 +160,15 @@ export function DeltaView({ events, onDismissFiber, onRefresh }: DeltaViewProps)
   }, []);
 
   // The CSS grid uses repeat(auto-fill, minmax(CARD_MIN_WIDTH, 1fr)) —
-  // compute the same column count here so the spacer lands in the
-  // correct last-N cells.
+  // compute the same column count here so per-card col-spans can clamp.
   const totalCols = Math.max(1, Math.floor(gridWidth / (CARD_MIN_WIDTH + 12)));
-  const spacerCols = Math.min(
-    totalCols,
-    Math.max(1, Math.ceil(thumb.width / (CARD_MIN_WIDTH + 12))),
-  );
-  const spacerRows = Math.max(1, Math.ceil(thumb.height / CARD_ROW_STEP));
 
   if (events.length === 0) {
     return (
-      <div className="delta-view delta-view--empty">
+      <div
+        className="delta-view delta-view--empty"
+        style={{ paddingTop: thumb.height } as React.CSSProperties}
+      >
         <p className="delta-view__empty-msg">Inbox clear — no recent changes.</p>
       </div>
     );
@@ -183,7 +176,18 @@ export function DeltaView({ events, onDismissFiber, onRefresh }: DeltaViewProps)
 
   return (
     <div className="delta-view">
-      <div className="delta-view__header">
+      {/* The thumb-index floats fixed in the top-right. We pad the header
+          so its baseline sits just under the thumb-index, turning the top
+          band into a single horizontal header: summary on the left,
+          thumb-index floating on the right, border-bottom unifying both.
+          The grid flows beneath as a simple rectangle — no L-cutout. */}
+      <div
+        className="delta-view__header"
+        style={{
+          paddingRight: thumb.width ? thumb.width + 16 : undefined,
+          minHeight: thumb.height || undefined,
+        } as React.CSSProperties}
+      >
         <span className="delta-view__summary">
           <span className="delta-view__count">{events.length}</span>{' '}
           event{events.length !== 1 ? 's' : ''} · newest first
@@ -195,21 +199,6 @@ export function DeltaView({ events, onDismissFiber, onRefresh }: DeltaViewProps)
         ref={gridRef}
         style={{ gridAutoFlow: 'row dense' } as React.CSSProperties}
       >
-        {/* Reserved top-right cell — matches the thumb-index footprint
-            so the grid forms an L around it instead of sliding cards
-            under the fixed panel. Sized from ResizeObserver on the
-            thumb-index root; on small viewports where the index is
-            hidden entirely the rect is zero and the spacer collapses. */}
-        {thumb.width > 0 && thumb.height > 0 && (
-          <div
-            className="delta-view__thumb-spacer"
-            aria-hidden="true"
-            style={{
-              gridColumn: `${totalCols - spacerCols + 1} / span ${spacerCols}`,
-              gridRow: `1 / span ${spacerRows}`,
-            }}
-          />
-        )}
         {events.map((event) => (
           <DeltaCard
             key={`${event.fiberId}:${event.type}:${event.at}`}

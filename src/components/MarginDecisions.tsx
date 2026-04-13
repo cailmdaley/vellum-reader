@@ -21,7 +21,7 @@
 import { useRef } from 'react';
 import type { GraphNode } from '~/utils/content-types';
 import { useHoverGrace } from '~/hooks/useHoverGrace';
-import { HOVER_GRACE_MS } from '~/utils/hover';
+import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
 import { MarginCardPreview } from './MarginCardPreview';
 
 interface MarginDecisionsProps {
@@ -36,14 +36,14 @@ interface MarginDecisionsProps {
 const STACK_GAP = 28;
 
 // Starting y (distance down from the top of the wrapper) for the first
-// glyph. Puts the stack opposite the fiber header's title rather than
-// pinned to the top of the page chrome. Rough-cut; refine later.
-const FIRST_GLYPH_TOP = 60;
+// glyph. Start below the fixed thumb index so the canvas-side rail reads
+// as subordinate marginalia, not competing chrome.
+const FIRST_GLYPH_TOP = 172;
 
 export function MarginDecisions({ graphNode, wrapperRef: _wrapperRef }: MarginDecisionsProps) {
   const decisions = graphNode?.decisions ?? [];
-  const { hoveredKey, openKey, cancelClose, scheduleClose } =
-    useHoverGrace(HOVER_GRACE_MS);
+  const { hoveredKey, openKey, scheduleOpen, cancelClose, scheduleClose } =
+    useHoverGrace(HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS);
   const stackRef = useRef<HTMLDivElement>(null);
 
   // Scroll-to-block on click; uses smooth scroll so the journey from
@@ -83,7 +83,7 @@ export function MarginDecisions({ graphNode, wrapperRef: _wrapperRef }: MarginDe
           className={`margin-decision${hoveredKey === d.key ? ' margin-decision--hovered' : ''}`}
           style={{ top: FIRST_GLYPH_TOP + i * STACK_GAP }}
           onClick={(e) => handleClick(e, d.key)}
-          onMouseEnter={() => openKey(d.key)}
+          onMouseEnter={() => scheduleOpen(d.key)}
           onMouseLeave={scheduleClose}
           title={d.label}
         >
@@ -98,7 +98,6 @@ export function MarginDecisions({ graphNode, wrapperRef: _wrapperRef }: MarginDe
           top={FIRST_GLYPH_TOP + hoveredIdx * STACK_GAP + 20}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
-          onScrollToAnchor={() => scrollToDecision(hoveredDecision.key)}
         />
       )}
     </div>

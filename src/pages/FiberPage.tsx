@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAstraGraph, getFiberContent } from '~/api';
+import { ContextCardLayer } from '~/components/ContextCardLayer';
 import { DeltaView } from '~/components/DeltaView';
 import { FloatingIsland } from '~/components/FloatingIsland';
 import { HotReloadListener, type ReloadEvent } from '~/components/HotReloadListener';
@@ -175,7 +176,7 @@ export function FiberPage() {
   }, [currentNode, graph.links, graph.nodes]);
 
   return (
-    <div className="vellum-page">
+    <div className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}`}>
       <HotReloadListener onReload={reloadCurrentFiber} />
       <CanvasDivider />
       {/* The right side of every tab. The draggable divider and this aside
@@ -249,6 +250,12 @@ export function FiberPage() {
           changedIds={changedIds}
         />
       )}
+
+      {/* Ambient floating cards — available across all modes, not just
+          Narrative. Delta cards pin into this layer when the reader wants
+          to keep reading a change while triaging siblings; Narrative
+          margins pin hover previews here too. */}
+      <ContextCardLayer onNavigate={(s) => navigate(`/${s}`)} />
 
       {mode === 'delta' && (
         <DeltaView

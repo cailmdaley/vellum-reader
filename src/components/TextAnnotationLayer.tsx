@@ -223,7 +223,7 @@ export function TextAnnotationLayer({
       const target = e.target as HTMLElement;
       if (target.closest('.ann-toolbar') || target.closest('.ann-popover')) return;
       if (target.closest('.ann-highlight')) return;
-      if (target.closest('.ann-margin-dot')) return;
+      if (target.closest('.ann-margin-note')) return;
       setSelectionRect(null);
       setShowCommentBox(false);
       setActivePopover(null);
@@ -243,6 +243,25 @@ export function TextAnnotationLayer({
     const newMarks: AnnotationMark[] = [];
     const allMarkEls: HTMLElement[] = [];
 
+    // Same approach as MarginCitations: read each mark's enclosing
+    // pretext line and use its `data-pretext-line-top` attribute as
+    // the authoritative y. Pretext lays out lines at exact pixel
+    // coordinates inside .pretext-prose; reading those coords beats
+    // measuring DOM rects (which can drift under reflow, scroll, or
+    // partial layout) and matches the strategy used by every other
+    // marginalia stack so glyphs and notes stay aligned the same way.
+    const pretextBox = prose.querySelector<HTMLElement>('.pretext-prose');
+    const pretextOriginTop = pretextBox
+      ? pretextBox.getBoundingClientRect().top - wrapperRect.top
+      : null;
+    const topForMark = (mark: HTMLElement): number => {
+      const line = mark.closest<HTMLElement>('[data-pretext-line-top]');
+      if (line && pretextOriginTop != null) {
+        return pretextOriginTop + Number(line.dataset['pretextLineTop']);
+      }
+      return mark.getBoundingClientRect().top - wrapperRect.top;
+    };
+
     for (const ann of annotations) {
       const range = findAnnotationInDom(prose, ann);
       if (!range) continue;
@@ -258,9 +277,7 @@ export function TextAnnotationLayer({
         try {
           range.surroundContents(mark);
           allMarkEls.push(mark);
-          const markRect = mark.getBoundingClientRect();
-          const top = markRect.top - wrapperRect.top + window.scrollY;
-          newMarks.push({ annotation: ann, top, markEls: [mark] });
+          newMarks.push({ annotation: ann, top: topForMark(mark), markEls: [mark] });
         } catch {
           const startContainer = range.startContainer;
           const endContainer = range.endContainer;
@@ -308,9 +325,7 @@ export function TextAnnotationLayer({
           }
 
           if (markEls.length > 0) {
-            const firstRect = markEls[0]!.getBoundingClientRect();
-            const top = firstRect.top - wrapperRect.top + window.scrollY;
-            newMarks.push({ annotation: ann, top, markEls });
+            newMarks.push({ annotation: ann, top: topForMark(markEls[0]!), markEls });
           }
         }
       } catch {
@@ -473,18 +488,33 @@ export function TextAnnotationLayer({
         </div>
       )}
 
-      {positionedMarks.map((mark) => (
-        <div
-          key={mark.annotation.id}
-          className="ann-margin-dot"
-          style={{ top: mark.displayTop }}
-          onClick={() => handleDotClick(mark.annotation, mark)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && handleDotClick(mark.annotation, mark)}
-          title={mark.annotation.comment}
-        />
-      ))}
+      {positionedMarks.map((mark) => {
+        // Hovering a margin note flashes the highlighted passage so
+        // the reader sees the link between the note and what it
+        // annotates — addresses the "where in the text is this?"
+        // question without forcing them to scan.
+        const setActive = (active: boolean) => {
+          for (const el of mark.markEls) {
+            el.classList.toggle('ann-highlight--active', active);
+          }
+        };
+        return (
+          <div
+            key={mark.annotation.id}
+            className="ann-margin-note"
+            style={{ top: mark.displayTop }}
+            onClick={() => handleDotClick(mark.annotation, mark)}
+            onMouseEnter={() => setActive(true)}
+            onMouseLeave={() => setActive(false)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && handleDotClick(mark.annotation, mark)}
+            title={mark.annotation.comment}
+          >
+            <span className="ann-margin-note__body">{mark.annotation.comment}</span>
+          </div>
+        );
+      })}
 
       {activePopover && (
         <div

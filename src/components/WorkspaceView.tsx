@@ -75,12 +75,20 @@ export function WorkspaceView({
   const { currentNode, children } = useMemo(() => {
     const nodeBySlug = new Map(nodes.map((node) => [node.slug, node]));
     const current = nodeBySlug.get(currentSlug);
+    if (!current) return { currentNode: undefined, children: [] };
+    const parentedIds = new Set(
+      links.filter((link) => link.kind === 'contains').map((link) => link.target),
+    );
     const childSlugs = new Set(
       links
-        .filter((link) => link.kind === 'contains' && link.source === currentSlug)
+        .filter((link) => link.kind === 'contains' && link.source === current.id)
         .map((link) => link.target),
     );
-    const kids = nodes.filter((node) => childSlugs.has(node.slug));
+    const directChildren = nodes.filter((node) => childSlugs.has(node.id));
+    const kids =
+      directChildren.length > 0 || parentedIds.has(current.id)
+        ? directChildren
+        : nodes.filter((node) => !parentedIds.has(node.id));
     return { currentNode: current, children: kids };
   }, [nodes, links, currentSlug]);
 

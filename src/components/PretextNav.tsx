@@ -19,10 +19,14 @@ import {
 
 const MONO = "'JetBrains Mono', 'Courier New', monospace";
 const NAV_SIZE = 11;
+const NAV_SIZE_CURRENT = 14;
 const GLYPH_SIZE = 9;
-const LINE_HEIGHT = 18;
+const GLYPH_SIZE_CURRENT = 11;
+const LINE_HEIGHT = 20;
 const NAV_FONT = `500 ${NAV_SIZE}px ${MONO}`;
+const NAV_FONT_CURRENT = `600 ${NAV_SIZE_CURRENT}px ${MONO}`;
 const GLYPH_FONT = `500 ${GLYPH_SIZE}px ${MONO}`;
+const GLYPH_FONT_CURRENT = `600 ${GLYPH_SIZE_CURRENT}px ${MONO}`;
 const SEP_FONT = `400 ${NAV_SIZE}px ${MONO}`;
 
 // ───────────────────── Types ─────────────────────
@@ -62,20 +66,23 @@ function buildNavPieces(items: NavItem[]): NavPiece[] {
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const cls = item.isCurrent ? 'pretext-nav-frag--current' : 'pretext-nav-frag';
+    const glyphCls = item.isCurrent ? 'pretext-nav-glyph pretext-nav-glyph--current' : 'pretext-nav-glyph';
+    const labelFont = item.isCurrent ? NAV_FONT_CURRENT : NAV_FONT;
+    const glyphFont = item.isCurrent ? GLYPH_FONT_CURRENT : GLYPH_FONT;
 
     // Status glyph (smaller font, no-break with label)
     if (item.statusGlyph) {
       pieces.push({
         text: item.statusGlyph,
-        font: GLYPH_FONT,
+        font: glyphFont,
         breakMode: 'never',
-        className: 'pretext-nav-glyph',
+        className: glyphCls,
         slug: item.slug,
       });
       // Space between glyph and label — never break here
       pieces.push({
         text: ' ',
-        font: NAV_FONT,
+        font: labelFont,
         breakMode: 'never',
         className: cls,
         slug: item.slug,
@@ -85,7 +92,7 @@ function buildNavPieces(items: NavItem[]): NavPiece[] {
     // Label text
     pieces.push({
       text: item.label,
-      font: NAV_FONT,
+      font: labelFont,
       breakMode: 'normal',
       className: cls,
       slug: item.slug,

@@ -3,7 +3,7 @@
  *
  * Renders at `/` as the virtual root of the fiber tree. Every
  * top-level fiber can navigate here via `← index` in the thumb index.
- * Sorted by status (active first), then alphabetically.
+ * Sorted by status bucket, then reverse chronological within each bucket.
  */
 
 import { useMemo } from 'react';
@@ -30,6 +30,12 @@ export function IndexView({ nodes, links, onNavigate }: IndexViewProps) {
       .sort((a, b) => {
         const sp = (STATUS_PRIORITY[a.status] ?? 99) - (STATUS_PRIORITY[b.status] ?? 99);
         if (sp !== 0) return sp;
+        const ta = a.createdAt ? Date.parse(a.createdAt) : Number.NaN;
+        const tb = b.createdAt ? Date.parse(b.createdAt) : Number.NaN;
+        const aHasTime = Number.isFinite(ta);
+        const bHasTime = Number.isFinite(tb);
+        if (aHasTime && bHasTime && ta !== tb) return tb - ta;
+        if (aHasTime !== bHasTime) return aHasTime ? -1 : 1;
         return a.label.localeCompare(b.label);
       });
   }, [nodes, links]);

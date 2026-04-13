@@ -7,4 +7,12 @@
  * insights, citations) and any other surface that pops an interactive
  * hover preview.
  */
-export const HOVER_GRACE_MS = 180;
+export const HOVER_GRACE_MS = 400;
+
+/**
+ * HOVER_OPEN_DELAY_MS — dwell time before a hover-activated preview
+ * appears. Scrolling the eye across a passage studded with margin
+ * glyphs shouldn't flash previews mid-sentence; the reader has to
+ * actually pause on a glyph to summon its card.
+ */
+export const HOVER_OPEN_DELAY_MS = 350;

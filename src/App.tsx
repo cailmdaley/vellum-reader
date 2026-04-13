@@ -9,7 +9,6 @@ import { ThemeProvider, mergeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS } from 'myst-to-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import 'react-tweet/theme.css';
-import { CardQA } from './pages/CardQA';
 import { FiberPage } from './pages/FiberPage';
 import { PretextGate } from './pages/PretextGate';
 import { TweetEmbedRenderer } from './components/TweetEmbed';
@@ -38,9 +37,6 @@ export default function App() {
         {/* QA surface for the pretext renderer at canonical widths.
             Declared before the catch-all so the route wins over FiberPage. */}
         <Route path="/pretext-gate" element={<PretextGate />} />
-        {/* QA surface for the unified Card primitive — renders every
-            content type at three widths. */}
-        <Route path="/card-qa" element={<CardQA />} />
         <Route path="*" element={<FiberPage />} />
       </Routes>
       </DecisionFlipProvider>
