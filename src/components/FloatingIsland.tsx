@@ -24,8 +24,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMode, type Mode } from '~/contexts/ModeContext';
+import { useAdapter } from '~/contexts/AdapterContext';
 import type { SearchHit, GraphNode, GraphLink } from '~/utils/content-types';
-import { searchFibers, getAnnotations } from '~/api';
 import { statusGlyph } from '~/utils/fiber-status';
 import { PretextNav, type NavItem } from './PretextNav';
 
@@ -64,6 +64,7 @@ function shortLabel(node: GraphNode): string {
  *  scrolls to the appendix section at the end of the narrative. Hides
  *  when the fiber carries no structure worth summarizing. */
 function AstraSummaryChip({ node }: { node: GraphNode }) {
+  const adapter = useAdapter();
   const decisions = node.decisions?.length ?? 0;
   const insights = node.findings?.length ?? 0;
   const tempered = !!node.tempered;
@@ -73,11 +74,11 @@ function AstraSummaryChip({ node }: { node: GraphNode }) {
   const [noteCount, setNoteCount] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    getAnnotations(node.slug).then((anns) => {
+    adapter.getAnnotations(node.slug).then((anns) => {
       if (!cancelled) setNoteCount(anns.length);
     });
     return () => { cancelled = true; };
-  }, [node.slug]);
+  }, [adapter, node.slug]);
 
   if (decisions === 0 && insights === 0 && !tempered && noteCount === 0) return null;
 
@@ -153,6 +154,7 @@ export function FloatingIsland({
   onNavigate,
 }: FloatingIslandProps) {
   const { mode, setMode } = useMode();
+  const adapter = useAdapter();
   const navigate = useNavigate();
 
   /* ── Width tier (progressive disclosure) + raw pixel width ── */
@@ -249,12 +251,12 @@ export function FloatingIsland({
   const doSearch = useCallback((q: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      const hits = await searchFibers(q);
+      const hits = await adapter.searchFibers(q);
       setResults(hits);
       setShowResults(true);
       setSelectedIdx(-1);
     }, q ? 200 : 0);
-  }, []);
+  }, [adapter]);
 
   function handleSearchInput(e: React.ChangeEvent<HTMLInputElement>) {
     const q = e.target.value;

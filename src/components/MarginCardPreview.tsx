@@ -17,7 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Card, type CardContent } from './Card';
-import { getFiberContent } from '~/api';
+import { useAdapter } from '~/contexts/AdapterContext';
 
 const MIN_PREVIEW_WIDTH = 220;
 /** Small inset from the canvas edge so the card doesn't butt against the
@@ -54,6 +54,7 @@ export function MarginCardPreview({
   onMouseEnter,
   onMouseLeave,
 }: MarginCardPreviewProps) {
+  const adapter = useAdapter();
   const [previewWidth, setPreviewWidth] = useState<number>(() => readPreviewWidth());
   const rootRef = useRef<HTMLDivElement>(null);
   // Fiber hovers fetch their prose body so the preview has something
@@ -64,12 +65,12 @@ export function MarginCardPreview({
     setResolved(content);
     if (content.type !== 'fiber' || content.content) return;
     let cancelled = false;
-    getFiberContent(content.node.slug).then((fiberContent) => {
+    adapter.getFiberContent(content.node.slug).then((fiberContent) => {
       if (cancelled || !fiberContent) return;
       setResolved({ type: 'fiber', node: content.node, content: fiberContent });
     });
     return () => { cancelled = true; };
-  }, [content]);
+  }, [adapter, content]);
 
   useEffect(() => {
     const update = () => setPreviewWidth(readPreviewWidth());

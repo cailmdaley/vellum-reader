@@ -24,7 +24,7 @@ import { BacklinkNodes } from './BacklinkNodes';
 import { FiberEditor } from './FiberEditor';
 import type { LightboxImage } from './Lightbox';
 import type { Annotation, FiberContent, GraphNode, GraphLink } from '~/utils/content-types';
-import { getAnnotations, getRawFiber, putRawFiber } from '~/api';
+import { useAdapter } from '~/contexts/AdapterContext';
 import { transformTweetEmbeds } from '~/utils/tweet-transform';
 
 /**
@@ -111,6 +111,7 @@ export function NarrativeView({
   const proseRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const adapter = useAdapter();
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -191,13 +192,13 @@ export function NarrativeView({
     // the note was first written.
     setAnnotations([]);
     let cancelled = false;
-    getAnnotations().then((anns) => {
+    adapter.getAnnotations('').then((anns) => {
       if (!cancelled) setAnnotations(anns);
     });
     return () => {
       cancelled = true;
     };
-  }, [content.slug]);
+  }, [adapter, content.slug]);
 
   const backlinkNodes = useMemo(() => {
     if (!currentNode || !graphLinks) return [];
@@ -235,7 +236,7 @@ export function NarrativeView({
       window.getSelection()?.removeAllRanges();
 
       setEditorLoading(true);
-      getRawFiber(content.slug)
+      adapter.getRawFiber(content.slug)
         .then((raw) => {
           if (raw) setEditorBuffer(raw.body);
         })
@@ -248,7 +249,7 @@ export function NarrativeView({
     return () => {
       prose.removeEventListener('dblclick', onDblClick);
     };
-  }, [content.slug, editorBuffer, editorLoading]);
+  }, [adapter, content.slug, editorBuffer, editorLoading]);
 
   const handleProseClick = useCallback((e: React.MouseEvent<HTMLElement>) => {
     const img = (e.target as HTMLElement).closest<HTMLImageElement>('img');
@@ -310,7 +311,7 @@ export function NarrativeView({
         {editorBuffer !== null ? (
           <FiberEditor
             initialValue={editorBuffer}
-            onSave={(value) => putRawFiber(content.slug, value)}
+            onSave={(value) => adapter.putRawFiber(content.slug, value)}
             onCancel={() => setEditorBuffer(null)}
           />
         ) : (

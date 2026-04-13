@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Annotation } from '~/utils/content-types';
-import { createAnnotation, deleteAnnotation, updateAnnotation } from '~/api';
+import { useAdapter } from '~/contexts/AdapterContext';
 
 interface TextAnnotationLayerProps {
   slug: string;
@@ -176,6 +176,7 @@ export function TextAnnotationLayer({
   wrapperRef,
   onAnnotationsChange,
 }: TextAnnotationLayerProps) {
+  const adapter = useAdapter();
   const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -365,7 +366,7 @@ export function TextAnnotationLayer({
 
   const handleSubmit = useCallback(async () => {
     if (!selectionContext || !commentText.trim()) return;
-    const ann = await createAnnotation({
+    const ann = await adapter.createAnnotation({
       slug,
       selectedText: selectionContext.selectedText,
       contextBefore: selectionContext.contextBefore,
@@ -380,23 +381,23 @@ export function TextAnnotationLayer({
       setSelectionContext(null);
       window.getSelection()?.removeAllRanges();
     }
-  }, [slug, selectionContext, commentText, annotations, onAnnotationsChange]);
+  }, [adapter, slug, selectionContext, commentText, annotations, onAnnotationsChange]);
 
   const handleUpdate = useCallback(async (id: string, comment: string) => {
-    const ann = await updateAnnotation(id, comment);
+    const ann = await adapter.updateAnnotation(id, comment);
     if (ann) {
       onAnnotationsChange(annotations.map((annotation) => (annotation.id === id ? ann : annotation)));
       setActivePopover(null);
       setEditingComment(null);
     }
-  }, [annotations, onAnnotationsChange]);
+  }, [adapter, annotations, onAnnotationsChange]);
 
   const handleDelete = useCallback(async (id: string) => {
-    if (await deleteAnnotation(id)) {
+    if (await adapter.deleteAnnotation(id)) {
       onAnnotationsChange(annotations.filter((annotation) => annotation.id !== id));
       setActivePopover(null);
     }
-  }, [annotations, onAnnotationsChange]);
+  }, [adapter, annotations, onAnnotationsChange]);
 
   const handleDotClick = useCallback((ann: Annotation, mark: AnnotationMark) => {
     const el = mark.markEls[0];

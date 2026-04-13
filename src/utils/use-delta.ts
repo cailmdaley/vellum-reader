@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getDeltaSince } from '~/api';
+import { useAdapter } from '~/contexts/AdapterContext';
 import type { LogEvent } from './content-types';
 
 const STORAGE_KEY = 'vellum:lastVisit';
@@ -30,6 +30,7 @@ const EMPTY_STATE: DeltaState = {
  * session-local; a reload re-fetches and shows whatever is newest.
  */
 export function useDelta() {
+  const adapter = useAdapter();
   const [state, setState] = useState<DeltaState>(EMPTY_STATE);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
@@ -39,7 +40,7 @@ export function useDelta() {
       localStorage.setItem(STORAGE_KEY, new Date().toISOString());
     }
     const since = lastVisit ?? new Date(0).toISOString();
-    getDeltaSince(since).then(({ events }) => {
+    adapter.getDeltaSince(since).then(({ events }) => {
       // The server already sorts newest-first; cap at INBOX_LIMIT for the
       // rolling window regardless of how much history it returned.
       const inbox = events.slice(0, INBOX_LIMIT);
@@ -52,7 +53,7 @@ export function useDelta() {
         : new Set<string>();
       setState({ events: inbox, changedIds: changed, since: lastVisit });
     });
-  }, []);
+  }, [adapter]);
 
   useEffect(() => {
     fetchEvents();

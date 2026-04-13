@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getAstraGraph, getFiberContent } from '~/api';
+import { useAdapter } from '~/contexts/AdapterContext';
 import { ContextCardLayer } from '~/components/ContextCardLayer';
 import { DeltaView } from '~/components/DeltaView';
 import { FloatingIsland } from '~/components/FloatingIsland';
@@ -27,6 +27,7 @@ export function FiberPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, setMode } = useMode();
+  const adapter = useAdapter();
   const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
   const slug = location.pathname.replace(/^\/+|\/+$/g, '');
   const [content, setContent] = useState<FiberContent | null>(null);
@@ -53,7 +54,7 @@ export function FiberPage() {
     let cancelled = false;
     setContentLoading(true);
 
-    (slug ? getFiberContent(slug) : Promise.resolve(null)).then((nextContent) => {
+    (slug ? adapter.getFiberContent(slug) : Promise.resolve(null)).then((nextContent) => {
       if (cancelled) return;
       setContent(nextContent);
       setContentLoading(false);
@@ -62,12 +63,12 @@ export function FiberPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug, contentVersion]);
+  }, [adapter, slug, contentVersion]);
 
   useEffect(() => {
     let cancelled = false;
 
-    getAstraGraph().then((nextGraph) => {
+    adapter.getAstraGraph().then((nextGraph) => {
       if (cancelled) return;
       setGraph(nextGraph);
     });
@@ -75,7 +76,7 @@ export function FiberPage() {
     return () => {
       cancelled = true;
     };
-  }, [graphVersion]);
+  }, [adapter, graphVersion]);
 
   useEffect(() => {
     if (isEditing || !pendingContentReload) return;

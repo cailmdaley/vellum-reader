@@ -20,8 +20,8 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getFiberContent, patchFiberFrontmatter } from '~/api';
 import { Card } from './Card';
+import { useAdapter } from '~/contexts/AdapterContext';
 import { useMode } from '~/contexts/ModeContext';
 import type { FiberContent, GraphNode, LogEvent } from '~/utils/content-types';
 
@@ -234,6 +234,7 @@ function DeltaCard({
 }) {
   const navigate = useNavigate();
   const { setMode } = useMode();
+  const adapter = useAdapter();
   const [pending, setPending] = useState<'temper' | 'archive' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -250,11 +251,11 @@ function DeltaCard({
   useEffect(() => {
     if (!expanded || fiberContent || fetching) return;
     setFetching(true);
-    getFiberContent(event.fiberId)
+    adapter.getFiberContent(event.fiberId)
       .then((c) => setFiberContent(c))
       .catch(() => { /* expansion without prose falls back to preview */ })
       .finally(() => setFetching(false));
-  }, [expanded, fiberContent, fetching, event.fiberId]);
+  }, [adapter, expanded, fiberContent, fetching, event.fiberId]);
 
   // Pretext lockup inside Card needs a concrete pixel width to wrap into.
   // The grid cell is auto-fill minmax, so the width changes with viewport;
@@ -278,7 +279,7 @@ function DeltaCard({
     setPending(kind);
     setError(null);
     try {
-      await patchFiberFrontmatter(
+      await adapter.patchFiberFrontmatter(
         event.fiberId,
         kind === 'temper' ? { tempered: true } : { status: 'closed' },
       );

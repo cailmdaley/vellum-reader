@@ -42,7 +42,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getAstraGraph, getFiberContent } from '~/api';
+import { useAdapter } from '~/contexts/AdapterContext';
 import { FiberCardWithMedia, type MediaPane } from '~/components/FiberCardWithMedia';
 import { PretextFiberCard } from '~/components/PretextFiberCard';
 import type {
@@ -189,29 +189,30 @@ function Sparkline({ width, height }: { width: number; height: number }) {
 export function PretextGate() {
   const [searchParams, setSearchParams] = useSearchParams();
   const slug = searchParams.get('slug') || DEFAULT_SLUG;
+  const adapter = useAdapter();
 
   const [content, setContent] = useState<FiberContent | null>(null);
   const [graph, setGraph] = useState<AstraGraph>({ nodes: [], links: [] });
 
   useEffect(() => {
     let cancelled = false;
-    getFiberContent(slug).then((next) => {
+    adapter.getFiberContent(slug).then((next) => {
       if (!cancelled) setContent(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [adapter, slug]);
 
   useEffect(() => {
     let cancelled = false;
-    getAstraGraph().then((next) => {
+    adapter.getAstraGraph().then((next) => {
       if (!cancelled) setGraph(next);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [adapter]);
 
   const node = useMemo(
     () => nodeFromGraph(graph, slug) ?? synthesizeNode(slug, content),

@@ -8,8 +8,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMode, type Mode } from '~/contexts/ModeContext';
+import { useAdapter } from '~/contexts/AdapterContext';
 import type { SearchHit } from '~/utils/content-types';
-import { searchFibers } from '~/api';
 import { statusGlyph } from '~/utils/fiber-status';
 
 // Note: the `/` → focus-search shortcut is installed by the global
@@ -26,6 +26,7 @@ const MODES: { id: Mode; label: string }[] = [
 
 export function ColumnHeader({ deltaCount = 0, children }: { deltaCount?: number; children?: React.ReactNode }) {
   const { mode, setMode } = useMode();
+  const adapter = useAdapter();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchHit[]>([]);
@@ -40,12 +41,12 @@ export function ColumnHeader({ deltaCount = 0, children }: { deltaCount?: number
     if (debounceRef.current) clearTimeout(debounceRef.current);
     // No debounce for preload (empty query), 200ms for typed queries
     debounceRef.current = setTimeout(async () => {
-      const hits = await searchFibers(q);
+      const hits = await adapter.searchFibers(q);
       setResults(hits);
       setShowResults(true);
       setSelectedIdx(-1);
     }, q ? 200 : 0);
-  }, []);
+  }, [adapter]);
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
     const q = e.target.value;

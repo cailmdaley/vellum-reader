@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Annotation, GraphLink, GraphNode } from '~/utils/content-types';
-import { createAnnotation, deleteAnnotation, getAnnotations, updateAnnotation } from '~/api';
+import { useAdapter } from '~/contexts/AdapterContext';
 
 export interface LightboxImage {
   src: string;
@@ -46,6 +46,7 @@ export function Lightbox({
   graphLinks,
   onNavigateToFiber,
 }: LightboxProps) {
+  const adapter = useAdapter();
   const imgRef = useRef<HTMLImageElement>(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const [markers, setMarkers] = useState<ImageMarker[]>([]);
@@ -111,13 +112,13 @@ export function Lightbox({
 
     const src = imageKey(currentImage.src);
     let cancelled = false;
-    getAnnotations(currentImage.fiberSlug, { kind: 'image', imageSrc: src }).then((anns) => {
+    adapter.getAnnotations(currentImage.fiberSlug, { kind: 'image', imageSrc: src }).then((anns) => {
       if (!cancelled) setMarkers(anns.map(annotationToMarker));
     });
     return () => {
       cancelled = true;
     };
-  }, [currentIndex, images]);
+  }, [adapter, currentIndex, images]);
 
   useEffect(() => {
     if (pendingMark && commentRef.current) commentRef.current.focus();
@@ -141,7 +142,7 @@ export function Lightbox({
     if (!pendingMark || !commentText.trim() || !image?.fiberSlug) return;
     setSaving(true);
     try {
-      const ann = await createAnnotation({
+      const ann = await adapter.createAnnotation({
         slug: image.fiberSlug,
         kind: 'image',
         x: pendingMark.x,
@@ -158,10 +159,10 @@ export function Lightbox({
       setPendingMark(null);
       setCommentText('');
     }
-  }, [pendingMark, commentText, image]);
+  }, [adapter, pendingMark, commentText, image]);
 
   const handleDeleteMarker = useCallback(async (id: string) => {
-    const ok = await deleteAnnotation(id);
+    const ok = await adapter.deleteAnnotation(id);
     if (ok) {
       setMarkers((prev) => prev.filter((marker) => marker.id !== id));
       if (activeMarkerId === id) {
@@ -169,15 +170,15 @@ export function Lightbox({
         setEditingComment(null);
       }
     }
-  }, [activeMarkerId]);
+  }, [adapter, activeMarkerId]);
 
   const handleSaveEdit = useCallback(async (id: string) => {
     if (editingComment === null) return;
-    const ann = await updateAnnotation(id, editingComment.trim());
+    const ann = await adapter.updateAnnotation(id, editingComment.trim());
     if (ann) setMarkers((prev) => prev.map((marker) => (marker.id === id ? { ...marker, comment: ann.comment } : marker)));
     setEditingComment(null);
     setActiveMarkerId(null);
-  }, [editingComment]);
+  }, [adapter, editingComment]);
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).classList.contains('vellum-lightbox')) {
