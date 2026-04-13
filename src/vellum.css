@@ -87,6 +87,19 @@ body {
   overflow: visible;
 }
 
+/* Delta mode: the inbox grid spills under and around the thumb-index
+   instead of sitting in a narrow middle column. The page drops its
+   canvas reservation; the grid fills the viewport and reserves only
+   the thumb-index footprint in its top-right corner. Canvas divider
+   and the (mostly empty) Canvas panel don't apply in delta mode. */
+.vellum-page--delta {
+  margin-right: 0;
+}
+.vellum-page--delta .vellum-canvas,
+.vellum-page--delta .vellum-canvas-divider {
+  display: none;
+}
+
 /* ── Canvas: shared right-side panel (vellum-reader/workspace) ── */
 .vellum-canvas {
   position: fixed;
@@ -377,6 +390,18 @@ body {
   scrollbar-color: var(--border-faint) transparent;
 }
 
+/* Compact form for delta mode: the thumb-index shrinks to its natural
+   content height so the delta grid can form an L around it. Border-left
+   drops too — there's no canvas column to delimit from. */
+.thumb-index--compact {
+  max-height: none;
+  overflow-y: visible;
+  border-left: none;
+  /* Nudge in from the edge so the right-most card column has a gutter. */
+  right: 8px;
+  padding: 12px 12px;
+}
+
 /* ── Header row ── */
 .thumb-index__header {
   display: flex;
@@ -473,32 +498,42 @@ body {
 }
 
 .thumb-index__search-btn {
-  background: none;
-  border: none;
-  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--prose-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 0.95rem;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 2px 4px;
-  opacity: 0.5;
-  transition: opacity 0.12s;
+  /* Keep a square-ish hit area that scans as a button, not a decoration. */
+  padding: 4px 8px;
+  min-width: 32px;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.thumb-index__search-btn:hover { opacity: 1; }
+.thumb-index__search-btn:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: rgba(154, 123, 53, 0.06);
+}
 
 .thumb-index__search-input {
-  background: rgba(255, 255, 255, 0.3);
-  border: 1px solid var(--border-faint);
-  border-radius: 2px;
+  background: var(--prose-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
   font-family: 'EB Garamond', Georgia, serif;
-  font-size: 0.75rem;
+  font-size: 0.95rem;
   color: var(--text);
-  padding: 2px 6px;
+  padding: 4px 8px;
   width: 100%;
-  min-width: 80px;
+  min-width: 140px;
   outline: none;
 }
 .thumb-index__search-input:focus {
   border-color: var(--gold);
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(154, 123, 53, 0.12);
 }
 
 .thumb-index__search-results {
@@ -573,14 +608,18 @@ body {
 }
 .thumb-index__astra-pair {
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  align-items: baseline;
+  gap: 4px;
 }
 .thumb-index__astra-count {
   font-variant-numeric: tabular-nums;
 }
 .thumb-index__astra-glyph {
   opacity: 0.75;
+}
+.thumb-index__astra-label {
+  opacity: 0.75;
+  letter-spacing: 0.01em;
 }
 .thumb-index__astra-pair--tempered .thumb-index__astra-glyph {
   color: var(--teal, #2dd4bf);
@@ -1999,8 +2038,11 @@ body {
  * card-per-event shape. */
 .delta-view {
   width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
+  /* No max-width in delta mode — the grid spills into the canvas column
+     and forms an L around the thumb-index. The thumb-index is fixed in
+     the top-right, and a reserved grid cell keeps cards from sliding
+     beneath it. */
+  margin: 0;
   padding: 0.5rem 1rem 1.5rem;
   box-sizing: border-box;
 }
@@ -2044,9 +2086,17 @@ body {
 
 .delta-view__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 10px;
+  /* Keep column min-width in sync with DeltaView.tsx CARD_MIN_WIDTH. */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
   align-items: start;
+}
+
+/* Invisible reserved cell matching the thumb-index footprint. Sized by
+   JS via inline grid-column / grid-row style, painted with nothing so
+   it reads as a hole in the grid rather than a tile. */
+.delta-view__thumb-spacer {
+  visibility: hidden;
 }
 
 .delta-card {
@@ -2086,14 +2136,51 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.delta-card__event {
+.delta-card__title-link {
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.delta-card__title-link:hover {
+  color: var(--gold);
 }
 .delta-card__event-glyph {
   color: var(--gold);
   font-weight: 700;
+}
+.delta-card__pin {
+  margin-left: auto;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.95em;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.12s, color 0.12s;
+}
+.delta-card__pin:hover {
+  opacity: 1;
+  color: var(--gold);
+}
+.delta-card__loading {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  opacity: 0.7;
+}
+.delta-card--expanded .delta-card__body {
+  padding-bottom: 4px;
 }
 
 /* The card body is the clickable surface; the unified Card primitive
@@ -2152,6 +2239,43 @@ body {
   color: var(--text);
   border-color: var(--text);
   background: transparent;
+}
+
+/* Right-edge resize handle. A thin hit area that widens on hover into a
+ * visible grip; dragging rightward adds grid tracks, leftward drops them.
+ * cursor: col-resize is the system convention for horizontal width edits. */
+.delta-card__resize {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  right: -4px;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    transparent 3px,
+    var(--border-strong, var(--gold)) 3px,
+    var(--border-strong, var(--gold)) 5px,
+    transparent 5px
+  );
+  border-radius: 2px;
+  z-index: 2;
+}
+.delta-card:hover .delta-card__resize,
+.delta-card__resize:active {
+  opacity: 0.6;
+}
+.delta-card__resize:hover {
+  opacity: 1;
+}
+.delta-card--wide {
+  /* When a card claims more than one track, keep the inner pretext column
+   * visually centered so long titles don't push against the frame edge. */
+  background: var(--prose-bg, transparent);
 }
 
 /* ── Tempered margin glyphs ── */
