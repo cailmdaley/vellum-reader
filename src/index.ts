@@ -21,3 +21,7 @@ export {
   useReadOnlyAdapter,
 } from './contexts/AdapterContext';
 export { createLightconeAdapter } from './api';
+export { FileReader } from './components/FileReader';
+export type { FileReaderProps } from './components/FileReader';
+export { FileViewerPage } from './pages/FileViewerPage';
+export type { FileViewerPageProps } from './pages/FileViewerPage';
