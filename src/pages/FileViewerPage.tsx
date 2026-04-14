@@ -28,6 +28,8 @@ export interface FileViewerPageProps {
   cacheBust?: boolean;
   /** When true, text/markdown files open in an editor with save toolbar. */
   editable?: boolean;
+  /** 1-indexed line to select and scroll into view once the file loads. */
+  jumpToLine?: number;
 }
 
 type FetchState =
@@ -38,7 +40,7 @@ type FetchState =
 
 type SaveState = 'idle' | 'saving' | 'saved' | { error: string };
 
-export function FileViewerPage({ path, originId, cacheBust, editable }: FileViewerPageProps) {
+export function FileViewerPage({ path, originId, cacheBust, editable, jumpToLine }: FileViewerPageProps) {
   const adapter = useAdapter();
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [dirty, setDirty] = useState(false);
@@ -143,6 +145,7 @@ export function FileViewerPage({ path, originId, cacheBust, editable }: FileView
       <FileReader
         file={state.file}
         editable={editable}
+        jumpToLine={jumpToLine}
         onDocChange={(content) => {
           draftRef.current = content;
           setDirty(content !== state.file.content);

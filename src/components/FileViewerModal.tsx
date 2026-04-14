@@ -23,6 +23,8 @@ export interface FileViewerModalProps {
   originId?: string;
   cityId?: string;
   editable?: boolean;
+  /** 1-indexed line to jump to when the file opens. */
+  jumpToLine?: number;
   /** Fires when the user dismisses the modal (× / Esc / scrim click). */
   onClose: () => void;
 }
@@ -31,6 +33,7 @@ export function FileViewerModal({
   path,
   originId,
   editable,
+  jumpToLine,
   onClose,
 }: FileViewerModalProps) {
   const [cacheBustKey, setCacheBustKey] = useState(0);
@@ -90,6 +93,7 @@ export function FileViewerModal({
             originId={originId}
             cacheBust={cacheBustKey > 0}
             editable={editable}
+            jumpToLine={jumpToLine}
           />
         </div>
       </div>

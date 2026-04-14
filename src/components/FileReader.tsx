@@ -60,6 +60,8 @@ export interface FileReaderProps {
   onDocChange?: (content: string) => void;
   /** Fires on Mod-s and vim `:w` while `editable`. */
   onSave?: () => void;
+  /** 1-indexed line to select and scroll into view on mount (text/markdown only). */
+  jumpToLine?: number;
 }
 
 function languageExtension(lang: string): Extension | null {
@@ -97,7 +99,7 @@ function registerVimSave() {
   });
 }
 
-function TextReader({ file, editable, onDocChange, onSave }: FileReaderProps) {
+function TextReader({ file, editable, onDocChange, onSave, jumpToLine }: FileReaderProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onDocChangeRef = useRef(onDocChange);
@@ -161,11 +163,21 @@ function TextReader({ file, editable, onDocChange, onSave }: FileReaderProps) {
     const state = EditorState.create({ doc: file.content, extensions });
     const view = new EditorView({ state, parent: hostRef.current });
     viewRef.current = view;
+    if (jumpToLine && jumpToLine > 0) {
+      const lineCount = view.state.doc.lines;
+      const targetLine = Math.min(Math.max(1, jumpToLine), lineCount);
+      const line = view.state.doc.line(targetLine);
+      view.dispatch({
+        selection: { anchor: line.from, head: line.from },
+        effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
+      });
+      if (editable) view.focus();
+    }
     return () => {
       view.destroy();
       viewRef.current = null;
     };
-  }, [file.path, file.content, file.language, editable]);
+  }, [file.path, file.content, file.language, editable, jumpToLine]);
 
   return (
     <div
