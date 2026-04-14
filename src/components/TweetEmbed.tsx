@@ -19,16 +19,19 @@ import type { Tweet } from 'react-tweet/api';
 
 const TWIMG_VIDEO_HOST = 'https://video.twimg.com';
 
+interface VideoVariant { url: string; content_type?: string; bitrate?: number }
+interface VideoInfo { variants?: VideoVariant[] }
 function rewriteVideoUrls(tweet: Tweet): Tweet {
   if (!tweet.mediaDetails) return tweet;
   const mediaDetails = tweet.mediaDetails.map((media) => {
-    if (!media.video_info?.variants) return media;
-    const variants = media.video_info.variants.map((v) =>
+    const info = (media as { video_info?: VideoInfo }).video_info;
+    if (!info?.variants) return media;
+    const variants = info.variants.map((v) =>
       v.url.startsWith(TWIMG_VIDEO_HOST)
         ? { ...v, url: '/twimg-video' + v.url.slice(TWIMG_VIDEO_HOST.length) }
         : v,
     );
-    return { ...media, video_info: { ...media.video_info, variants } };
+    return { ...media, video_info: { ...info, variants } } as typeof media;
   });
   return { ...tweet, mediaDetails };
 }

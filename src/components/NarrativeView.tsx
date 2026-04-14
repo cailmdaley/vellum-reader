@@ -104,7 +104,7 @@ export function NarrativeView({
   content,
   graphNodes,
   graphLinks,
-  breadcrumb,
+  breadcrumb: _breadcrumb,
   changedIds,
   onEditingChange,
 }: NarrativeViewProps) {

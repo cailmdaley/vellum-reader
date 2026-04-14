@@ -152,7 +152,7 @@ interface PretextNavProps {
   onNavigate: (slug: string) => void;
 }
 
-export function PretextNav({ items, width, onNavigate }: PretextNavProps) {
+export function PretextNav({ items, width: _width, onNavigate }: PretextNavProps) {
   const pieces = useMemo(() => buildNavPieces(items), [items]);
 
   const flow = useMemo(

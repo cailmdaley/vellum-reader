@@ -27,3 +27,5 @@ export { FileViewerPage } from './pages/FileViewerPage';
 export type { FileViewerPageProps } from './pages/FileViewerPage';
 export { FileViewerModal } from './components/FileViewerModal';
 export type { FileViewerModalProps } from './components/FileViewerModal';
+export { WorkspaceMount } from './WorkspaceMount';
+export type { WorkspaceMountProps } from './WorkspaceMount';
