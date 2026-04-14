@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAdapter } from '../contexts/AdapterContext';
-import type { FileContent } from '../utils/content-types';
+import type { Annotation, FileContent } from '../utils/content-types';
 import { FileReader } from '../components/FileReader';
 
 export interface FileViewerPageProps {
@@ -45,6 +45,7 @@ export function FileViewerPage({ path, originId, cacheBust, editable, jumpToLine
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const draftRef = useRef<string>('');
   const savedToastRef = useRef<number | null>(null);
 
@@ -53,6 +54,7 @@ export function FileViewerPage({ path, originId, cacheBust, editable, jumpToLine
     setState({ status: 'loading' });
     setDirty(false);
     setSaveState('idle');
+    setAnnotations([]);
     adapter
       .getFile(path, { originId, cacheBust })
       .then((file) => {
@@ -73,6 +75,25 @@ export function FileViewerPage({ path, originId, cacheBust, editable, jumpToLine
       cancelled = true;
     };
   }, [adapter, path, originId, cacheBust]);
+
+  // Fetch file-anchored annotations alongside the file content. Adapters that
+  // don't file-anchor (lightcone) return [] and this becomes a no-op.
+  useEffect(() => {
+    let cancelled = false;
+    adapter
+      .getAnnotations(path, { kind: 'text' })
+      .then((rows) => {
+        if (cancelled) return;
+        setAnnotations(rows.filter((a) => typeof a.from === 'number' && typeof a.to === 'number'));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAnnotations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [adapter, path, cacheBust]);
 
   const doSave = useCallback(async () => {
     if (state.status !== 'ready') return;
@@ -146,6 +167,7 @@ export function FileViewerPage({ path, originId, cacheBust, editable, jumpToLine
         file={state.file}
         editable={editable}
         jumpToLine={jumpToLine}
+        annotations={annotations}
         onDocChange={(content) => {
           draftRef.current = content;
           setDirty(content !== state.file.content);

@@ -50,6 +50,16 @@ export interface CreateAnnotationInput {
   x?: number;
   y?: number;
   imageSrc?: string;
+  // File-anchoring fields (portolan code-file annotations). Hosts that
+  // anchor by fiber paragraph leave these undefined; portolan sets them
+  // when the user selects code inside FileReader.
+  filePath?: string;
+  originId?: string;
+  from?: number;
+  to?: number;
+  line?: number;
+  endLine?: number;
+  originalText?: string;
 }
 
 export interface FrontmatterPatch {

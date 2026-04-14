@@ -26,8 +26,10 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { EditorState, StateEffect, type Extension } from '@codemirror/state';
+import { EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
+  Decoration,
+  type DecorationSet,
   EditorView,
   drawSelection,
   highlightActiveLine,
@@ -50,7 +52,7 @@ import { html as htmlLang } from '@codemirror/lang-html';
 import { vim, Vim } from '@replit/codemirror-vim';
 import { ArticleProvider, ThemeProvider, mergeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
-import type { FileContent } from '../utils/content-types';
+import type { Annotation, FileContent } from '../utils/content-types';
 
 export interface FileReaderProps {
   file: FileContent;
@@ -62,6 +64,8 @@ export interface FileReaderProps {
   onSave?: () => void;
   /** 1-indexed line to select and scroll into view on mount (text/markdown only). */
   jumpToLine?: number;
+  /** File-anchored annotations to highlight in the text view (read-only). */
+  annotations?: Annotation[];
 }
 
 function languageExtension(lang: string): Extension | null {
@@ -88,6 +92,53 @@ function languageExtension(lang: string): Extension | null {
 
 const saveEffect = StateEffect.define<null>();
 
+/**
+ * Annotation decorations.
+ *
+ * Portolan annotations carry CodeMirror char offsets (`from`, `to`) and
+ * 1-indexed line numbers (`line`, `endLine`). We render each as a range
+ * highlight (Decoration.mark) with a `title` tooltip showing the comment.
+ * Gutter markers and a dedicated side panel are deliberate follow-ups.
+ */
+const setAnnotationsEffect = StateEffect.define<Annotation[]>();
+
+const annotationField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(value, tr) {
+    let next = value.map(tr.changes);
+    for (const eff of tr.effects) {
+      if (eff.is(setAnnotationsEffect)) {
+        next = buildAnnotationDecorations(tr.state.doc.length, eff.value);
+      }
+    }
+    return next;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+function buildAnnotationDecorations(docLength: number, annotations: Annotation[]): DecorationSet {
+  const sorted = [...annotations]
+    .filter((a) => typeof a.from === 'number' && typeof a.to === 'number')
+    .sort((a, b) => (a.from ?? 0) - (b.from ?? 0) || (a.to ?? 0) - (b.to ?? 0));
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const a of sorted) {
+    const from = Math.max(0, Math.min(docLength, a.from ?? 0));
+    const to = Math.max(from, Math.min(docLength, a.to ?? from));
+    if (from === to) continue;
+    builder.add(
+      from,
+      to,
+      Decoration.mark({
+        class: 'vellum-annotation-mark',
+        attributes: { title: a.comment, 'data-annotation-id': a.id },
+      }),
+    );
+  }
+  return builder.finish();
+}
+
 let vimSaveRegistered = false;
 function registerVimSave() {
   if (vimSaveRegistered) return;
@@ -99,7 +150,7 @@ function registerVimSave() {
   });
 }
 
-function TextReader({ file, editable, onDocChange, onSave, jumpToLine }: FileReaderProps) {
+function TextReader({ file, editable, onDocChange, onSave, jumpToLine, annotations }: FileReaderProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onDocChangeRef = useRef(onDocChange);
@@ -118,10 +169,16 @@ function TextReader({ file, editable, onDocChange, onSave, jumpToLine }: FileRea
       drawSelection(),
       bracketMatching(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      annotationField,
       EditorView.theme({
         '&': { height: '100%', fontSize: '14px' },
         '.cm-content': { fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, monospace)' },
         '.cm-scroller': { overflow: 'auto' },
+        '.vellum-annotation-mark': {
+          backgroundColor: 'rgba(154, 123, 53, 0.18)',
+          borderBottom: '1px dashed rgba(154, 123, 53, 0.6)',
+          cursor: 'help',
+        },
       }),
     ];
 
@@ -163,6 +220,11 @@ function TextReader({ file, editable, onDocChange, onSave, jumpToLine }: FileRea
     const state = EditorState.create({ doc: file.content, extensions });
     const view = new EditorView({ state, parent: hostRef.current });
     viewRef.current = view;
+    // Seed annotation decorations once the view is mounted (and the doc has a
+    // final length to clamp to).
+    if (annotations && annotations.length) {
+      view.dispatch({ effects: setAnnotationsEffect.of(annotations) });
+    }
     if (jumpToLine && jumpToLine > 0) {
       const lineCount = view.state.doc.lines;
       const targetLine = Math.min(Math.max(1, jumpToLine), lineCount);
@@ -178,6 +240,14 @@ function TextReader({ file, editable, onDocChange, onSave, jumpToLine }: FileRea
       viewRef.current = null;
     };
   }, [file.path, file.content, file.language, editable, jumpToLine]);
+
+  // Keep decorations in sync with incoming annotations without rebuilding the
+  // whole editor (which would throw away cursor state on every fetch).
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setAnnotationsEffect.of(annotations ?? []) });
+  }, [annotations]);
 
   return (
     <div

@@ -92,7 +92,18 @@ export interface SearchHit {
   score: number;
 }
 
-/** Annotation shape from the content server. */
+/** Annotation shape from the content server.
+ *
+ * Two anchoring surfaces coexist:
+ *
+ *   - Fiber anchoring (lightcone, vellum's original model): `slug` identifies
+ *     the fiber, `paragraphIndex` the paragraph within the MyST-rendered body.
+ *   - File anchoring (portolan code files): `filePath` + `originId` identify
+ *     the file on disk, `from`/`to` are CodeMirror char offsets, `line`/
+ *     `endLine` are 1-indexed line numbers for gutter rendering, and
+ *     `originalText` is the captured selection. Hosts that don't anchor to
+ *     files simply leave these undefined.
+ */
 export interface Annotation {
   id: string;
   slug: string;
@@ -109,6 +120,15 @@ export interface Annotation {
   x?: number;
   y?: number;
   imageSrc?: string;
+  // File-anchoring fields (portolan code-file annotations)
+  filePath?: string;
+  originId?: string;
+  from?: number;
+  to?: number;
+  line?: number;
+  endLine?: number;
+  /** Captured selection text at the moment the annotation was created. */
+  originalText?: string;
 }
 
 export interface RawFiber {
