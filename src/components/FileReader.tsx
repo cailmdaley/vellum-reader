@@ -40,6 +40,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { json } from '@codemirror/lang-json';
 import { css } from '@codemirror/lang-css';
 import { html as htmlLang } from '@codemirror/lang-html';
+import { ArticleProvider, ThemeProvider, mergeRenderers } from '@myst-theme/providers';
+import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
 import type { FileContent } from '../utils/content-types';
 
 export interface FileReaderProps {
@@ -102,6 +104,27 @@ function TextReader({ file }: FileReaderProps) {
   }, [file.path, file.content, file.language]);
 
   return <div ref={hostRef} className="vellum-file-reader vellum-file-reader--text" />;
+}
+
+const MARKDOWN_RENDERERS = mergeRenderers([DEFAULT_RENDERERS], true);
+
+function MarkdownReader({ file }: FileReaderProps) {
+  // Standalone markdown bodies do not come with a ThemeProvider in scope (the
+  // portolan seam only wraps AdapterProvider). We install one here so MyST can
+  // resolve its renderer context without the host app having to opt in.
+  return (
+    <ThemeProvider theme={null} setTheme={() => {}} renderers={MARKDOWN_RENDERERS}>
+      <ArticleProvider
+        kind={'Article' as any}
+        frontmatter={{} as any}
+        references={{ cite: {}, footnotes: {} } as any}
+      >
+        <div className="vellum-file-reader vellum-file-reader--markdown">
+          <MyST ast={file.mdast} />
+        </div>
+      </ArticleProvider>
+    </ThemeProvider>
+  );
 }
 
 function ImageReader({ file }: FileReaderProps) {
@@ -214,8 +237,13 @@ export function FileReader({ file }: FileReaderProps) {
       return <HtmlReader file={file} />;
     case 'pdf':
       return <PdfReader file={file} />;
-    case 'text':
     case 'markdown':
+      // Prefer MyST rendering when the adapter has supplied a parsed tree;
+      // otherwise fall through to the source-view text reader so headless
+      // adapters still display something useful.
+      if (file.mdast) return <MarkdownReader file={file} />;
+      return <TextReader file={file} />;
+    case 'text':
     default:
       return <TextReader file={file} />;
   }

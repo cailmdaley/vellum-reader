@@ -155,4 +155,11 @@ export interface FileContent {
   content: string;
   /** Raw-bytes URL for binary kinds (pdf, image, html). */
   url?: string;
+  /**
+   * Parsed mdast for `kind: 'markdown'` files. When present, the reader renders
+   * via myst-to-react; when absent (or when the host is a pre-parse adapter),
+   * the markdown body falls back to the source-view text reader. Opaque type
+   * to match FiberContent.mdast.
+   */
+  mdast?: any;
 }
