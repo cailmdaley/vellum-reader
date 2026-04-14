@@ -4522,9 +4522,22 @@ a.pretext-prose-frag:hover {
   cursor: default;
 }
 
-.vellum-file-viewer-page > .vellum-file-reader {
+.vellum-file-viewer-page > .vellum-file-reader,
+.vellum-file-viewer-page > .vellum-text-reader-wrapper {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* Wrapper hosts the CodeMirror editor plus absolute-positioned
+ * annotation toolbars/popovers. position:relative anchors the overlays. */
+.vellum-text-reader-wrapper {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.vellum-text-reader-wrapper > .vellum-file-reader--text {
+  height: 100%;
 }
 
 .vellum-file-reader--text,

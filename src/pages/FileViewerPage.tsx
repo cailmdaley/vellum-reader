@@ -168,6 +168,9 @@ export function FileViewerPage({ path, originId, cacheBust, editable, jumpToLine
         editable={editable}
         jumpToLine={jumpToLine}
         annotations={annotations}
+        annotationSlug={path}
+        annotationOriginId={originId}
+        onAnnotationsChange={setAnnotations}
         onDocChange={(content) => {
           draftRef.current = content;
           setDirty(content !== state.file.content);

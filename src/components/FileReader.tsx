@@ -25,8 +25,8 @@
  * follow once the edit path is proven.
  */
 
-import { useEffect, useRef } from 'react';
-import { EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { EditorSelection, EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
   Decoration,
   type DecorationSet,
@@ -52,6 +52,7 @@ import { html as htmlLang } from '@codemirror/lang-html';
 import { vim, Vim } from '@replit/codemirror-vim';
 import { ArticleProvider, ThemeProvider, mergeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
+import { useAdapter } from '../contexts/AdapterContext';
 import type { Annotation, FileContent } from '../utils/content-types';
 
 export interface FileReaderProps {
@@ -64,8 +65,19 @@ export interface FileReaderProps {
   onSave?: () => void;
   /** 1-indexed line to select and scroll into view on mount (text/markdown only). */
   jumpToLine?: number;
-  /** File-anchored annotations to highlight in the text view (read-only). */
+  /** File-anchored annotations to highlight in the text view. */
   annotations?: Annotation[];
+  /**
+   * Annotation anchor key (portolan: file path). When provided alongside
+   * `onAnnotationsChange`, the text reader enables selection → comment UI
+   * and a click-to-edit popover backed by `adapter.createAnnotation` /
+   * `updateAnnotation` / `deleteAnnotation`.
+   */
+  annotationSlug?: string;
+  /** Origin forwarded verbatim onto created annotations (portolan: 'local' or remote). */
+  annotationOriginId?: string;
+  /** Fires after create/update/delete mutations with the new annotation array. */
+  onAnnotationsChange?: (next: Annotation[]) => void;
 }
 
 function languageExtension(lang: string): Extension | null {
@@ -150,13 +162,71 @@ function registerVimSave() {
   });
 }
 
-function TextReader({ file, editable, onDocChange, onSave, jumpToLine, annotations }: FileReaderProps) {
+interface SelectionInfo {
+  from: number;
+  to: number;
+  text: string;
+  top: number;
+  left: number;
+}
+
+interface PopoverInfo {
+  annotation: Annotation;
+  top: number;
+  left: number;
+}
+
+function TextReader({
+  file,
+  editable,
+  onDocChange,
+  onSave,
+  jumpToLine,
+  annotations,
+  annotationSlug,
+  annotationOriginId,
+  onAnnotationsChange,
+}: FileReaderProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onDocChangeRef = useRef(onDocChange);
   const onSaveRef = useRef(onSave);
   onDocChangeRef.current = onDocChange;
   onSaveRef.current = onSave;
+
+  const adapter = useAdapter();
+  const canAnnotate = !!(annotationSlug && onAnnotationsChange);
+  const annotationsRef = useRef<Annotation[]>(annotations ?? []);
+  annotationsRef.current = annotations ?? [];
+  const onAnnotationsChangeRef = useRef(onAnnotationsChange);
+  onAnnotationsChangeRef.current = onAnnotationsChange;
+
+  const [selection, setSelection] = useState<SelectionInfo | null>(null);
+  const [commentDraft, setCommentDraft] = useState('');
+  const [showCommentBox, setShowCommentBox] = useState(false);
+  const [popover, setPopover] = useState<PopoverInfo | null>(null);
+  const [editingComment, setEditingComment] = useState<string | null>(null);
+  const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const dismissAll = useCallback(() => {
+    setSelection(null);
+    setShowCommentBox(false);
+    setCommentDraft('');
+    setPopover(null);
+    setEditingComment(null);
+  }, []);
+
+  const coordsRelativeToWrapper = useCallback(
+    (view: EditorView, pos: number): { top: number; left: number } | null => {
+      const c = view.coordsAtPos(pos);
+      const wrap = wrapperRef.current;
+      if (!c || !wrap) return null;
+      const rect = wrap.getBoundingClientRect();
+      return { top: c.top - rect.top, left: c.left - rect.left };
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -214,6 +284,30 @@ function TextReader({ file, editable, onDocChange, onSave, jumpToLine, annotatio
       extensions.push(EditorView.editable.of(false), EditorState.readOnly.of(true));
     }
 
+    if (canAnnotate) {
+      extensions.push(
+        EditorView.updateListener.of((update) => {
+          if (!update.selectionSet && !update.docChanged) return;
+          const sel = update.state.selection.main;
+          if (sel.empty) {
+            setSelection(null);
+            setShowCommentBox(false);
+            return;
+          }
+          const text = update.state.doc.sliceString(sel.from, sel.to);
+          if (text.trim().length < 2) {
+            setSelection(null);
+            setShowCommentBox(false);
+            return;
+          }
+          const coords = coordsRelativeToWrapper(update.view, sel.from);
+          if (!coords) return;
+          setSelection({ from: sel.from, to: sel.to, text, top: coords.top, left: coords.left });
+          setPopover(null);
+        }),
+      );
+    }
+
     const langExt = languageExtension(file.language);
     if (langExt) extensions.push(langExt);
 
@@ -239,7 +333,7 @@ function TextReader({ file, editable, onDocChange, onSave, jumpToLine, annotatio
       view.destroy();
       viewRef.current = null;
     };
-  }, [file.path, file.content, file.language, editable, jumpToLine]);
+  }, [file.path, file.content, file.language, editable, jumpToLine, canAnnotate, coordsRelativeToWrapper]);
 
   // Keep decorations in sync with incoming annotations without rebuilding the
   // whole editor (which would throw away cursor state on every fetch).
@@ -249,11 +343,258 @@ function TextReader({ file, editable, onDocChange, onSave, jumpToLine, annotatio
     view.dispatch({ effects: setAnnotationsEffect.of(annotations ?? []) });
   }, [annotations]);
 
+  // Open the popover when the user clicks on an existing annotation mark.
+  useEffect(() => {
+    if (!canAnnotate) return;
+    const host = hostRef.current;
+    if (!host) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const mark = target?.closest('.vellum-annotation-mark') as HTMLElement | null;
+      if (!mark) return;
+      const id = mark.dataset.annotationId;
+      const ann = annotationsRef.current.find((a) => a.id === id);
+      if (!ann) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const wrap = wrapperRef.current;
+      if (!wrap) return;
+      const rect = mark.getBoundingClientRect();
+      const wrapRect = wrap.getBoundingClientRect();
+      setPopover({
+        annotation: ann,
+        top: rect.bottom - wrapRect.top + 4,
+        left: rect.left - wrapRect.left,
+      });
+      setSelection(null);
+      setEditingComment(null);
+    };
+    host.addEventListener('click', onClick, true);
+    return () => host.removeEventListener('click', onClick, true);
+  }, [canAnnotate]);
+
+  // Dismiss popover / toolbar on background mousedown (outside annotation UI).
+  useEffect(() => {
+    if (!canAnnotate) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('.ann-toolbar') || target.closest('.ann-popover')) return;
+      if (target.closest('.vellum-annotation-mark')) return;
+      // Click inside the editor that's not on a mark — let the selection
+      // listener refresh the toolbar, but close any open popover.
+      setPopover(null);
+      setEditingComment(null);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [canAnnotate]);
+
+  useEffect(() => {
+    if (showCommentBox) commentInputRef.current?.focus();
+  }, [showCommentBox]);
+
+  const submitNew = useCallback(async () => {
+    if (!selection || !annotationSlug) return;
+    const comment = commentDraft.trim();
+    if (!comment) return;
+    const view = viewRef.current;
+    const doc = view?.state.doc;
+    const line = doc ? doc.lineAt(selection.from).number : 1;
+    const endLine = doc ? doc.lineAt(selection.to).number : line;
+    const content = doc?.toString() ?? '';
+    const contextBefore = content.slice(Math.max(0, selection.from - 30), selection.from);
+    const contextAfter = content.slice(selection.to, Math.min(content.length, selection.to + 30));
+    try {
+      const created = await adapter.createAnnotation({
+        slug: annotationSlug,
+        kind: 'text',
+        filePath: annotationSlug,
+        originId: annotationOriginId,
+        selectedText: selection.text,
+        originalText: selection.text,
+        contextBefore,
+        contextAfter,
+        comment,
+        from: selection.from,
+        to: selection.to,
+        line,
+        endLine,
+      });
+      if (!created) return;
+      onAnnotationsChangeRef.current?.([...annotationsRef.current, created]);
+      dismissAll();
+      view?.dispatch({ selection: EditorSelection.cursor(selection.to) });
+    } catch (err) {
+      console.error('createAnnotation failed', err);
+    }
+  }, [adapter, annotationSlug, annotationOriginId, commentDraft, dismissAll, selection]);
+
+  const submitEdit = useCallback(async () => {
+    if (!popover || editingComment == null) return;
+    const next = editingComment.trim();
+    if (!next) return;
+    try {
+      const updated = await adapter.updateAnnotation(popover.annotation.id, next);
+      if (!updated) return;
+      const list = annotationsRef.current.map((a) => (a.id === updated.id ? updated : a));
+      onAnnotationsChangeRef.current?.(list);
+      setPopover({ ...popover, annotation: updated });
+      setEditingComment(null);
+    } catch (err) {
+      console.error('updateAnnotation failed', err);
+    }
+  }, [adapter, editingComment, popover]);
+
+  const submitDelete = useCallback(async () => {
+    if (!popover) return;
+    try {
+      const ok = await adapter.deleteAnnotation(popover.annotation.id);
+      if (!ok) return;
+      onAnnotationsChangeRef.current?.(annotationsRef.current.filter((a) => a.id !== popover.annotation.id));
+      setPopover(null);
+      setEditingComment(null);
+    } catch (err) {
+      console.error('deleteAnnotation failed', err);
+    }
+  }, [adapter, popover]);
+
   return (
-    <div
-      ref={hostRef}
-      className={`vellum-file-reader vellum-file-reader--text${editable ? ' vellum-file-reader--editable' : ''}`}
-    />
+    <div ref={wrapperRef} className="vellum-text-reader-wrapper">
+      <div
+        ref={hostRef}
+        className={`vellum-file-reader vellum-file-reader--text${editable ? ' vellum-file-reader--editable' : ''}`}
+      />
+      {canAnnotate && selection && !showCommentBox && (
+        <div
+          className="ann-toolbar"
+          style={{ position: 'absolute', top: Math.max(0, selection.top - 36), left: selection.left }}
+        >
+          <button
+            type="button"
+            className="ann-toolbar__btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowCommentBox(true);
+              setCommentDraft('');
+            }}
+          >
+            + Note
+          </button>
+        </div>
+      )}
+      {canAnnotate && selection && showCommentBox && (
+        <div
+          className="ann-toolbar ann-toolbar--comment"
+          style={{ position: 'absolute', top: selection.top + 24, left: selection.left }}
+        >
+          <textarea
+            ref={commentInputRef}
+            className="ann-toolbar__input"
+            placeholder="Add a note..."
+            value={commentDraft}
+            onChange={(e) => setCommentDraft(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void submitNew();
+              } else if (e.key === 'Escape') {
+                dismissAll();
+              }
+            }}
+            rows={2}
+          />
+          <div className="ann-toolbar__actions">
+            <button
+              type="button"
+              className="ann-toolbar__submit"
+              disabled={!commentDraft.trim()}
+              onClick={() => void submitNew()}
+            >
+              Save
+            </button>
+            <button type="button" className="ann-toolbar__cancel" onClick={dismissAll}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {canAnnotate && popover && (
+        <div
+          className="ann-popover"
+          style={{ position: 'absolute', top: popover.top, left: popover.left }}
+        >
+          <div className="ann-popover__selected">
+            "{popover.annotation.selectedText.length > 60
+              ? `${popover.annotation.selectedText.slice(0, 60)}…`
+              : popover.annotation.selectedText}"
+          </div>
+          {editingComment !== null ? (
+            <div className="ann-popover__edit">
+              <textarea
+                className="ann-popover__input"
+                value={editingComment}
+                onChange={(e) => setEditingComment(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void submitEdit();
+                  } else if (e.key === 'Escape') {
+                    setEditingComment(null);
+                  }
+                }}
+                rows={2}
+                autoFocus
+              />
+              <div className="ann-toolbar__actions">
+                <button type="button" className="ann-toolbar__submit" onClick={() => void submitEdit()}>
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="ann-toolbar__cancel"
+                  onClick={() => setEditingComment(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="ann-popover__comment">{popover.annotation.comment}</div>
+          )}
+          <div className="ann-popover__actions">
+            {editingComment === null && (
+              <button
+                type="button"
+                className="ann-popover__btn"
+                onClick={() => setEditingComment(popover.annotation.comment)}
+              >
+                Edit
+              </button>
+            )}
+            <button
+              type="button"
+              className="ann-popover__btn ann-popover__btn--delete"
+              onClick={() => void submitDelete()}
+            >
+              Delete
+            </button>
+          </div>
+          {popover.annotation.createdAt ? (
+            <div className="ann-popover__time">
+              {new Date(popover.annotation.createdAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
   );
 }
 
