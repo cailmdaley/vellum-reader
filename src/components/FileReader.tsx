@@ -11,9 +11,13 @@
  *     fiber reader).
  *   - `image` — <img src={url}>.
  *   - `html` — <iframe src={url}> in a sandboxed frame.
- *   - `pdf` — placeholder with an "open externally" link; a pdfjs-dist
- *     renderer lands in a follow-up iteration (PDF.js is bigger than the rest
- *     of the reader combined).
+ *   - `pdf` — all pages rendered to canvas via pdfjs-dist, lazy-loaded on
+ *     first use so lightcone (fiber-only) does not pay for it.
+ *
+ * PDF worker note: vellum resolves the worker URL via
+ * `pdfjs-dist/build/pdf.worker.min.mjs?url`, which relies on a Vite-style
+ * `?url` asset import. Non-Vite hosts will need to supply their own
+ * `GlobalWorkerOptions.workerSrc` before mounting.
  *
  * This is the read half of the portolan FileViewerModal absorption. Editing,
  * annotations, and vim keymap are deliberately NOT here yet — they follow
@@ -119,19 +123,87 @@ function HtmlReader({ file }: FileReaderProps) {
   );
 }
 
+type PdfJsModule = typeof import('pdfjs-dist');
+let pdfJsPromise: Promise<PdfJsModule> | null = null;
+
+async function loadPdfJs(): Promise<PdfJsModule> {
+  if (!pdfJsPromise) {
+    pdfJsPromise = (async () => {
+      const [pdfjs, workerUrlMod] = await Promise.all([
+        import('pdfjs-dist'),
+        import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+      ]);
+      const workerSrc = (workerUrlMod as { default: string }).default;
+      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+      }
+      return pdfjs;
+    })();
+  }
+  return pdfJsPromise;
+}
+
 function PdfReader({ file }: FileReaderProps) {
-  return (
-    <div className="vellum-file-reader vellum-file-reader--pdf">
-      <p>PDF rendering is not yet wired in vellum.</p>
-      {file.url ? (
-        <p>
-          <a href={file.url} target="_blank" rel="noreferrer">
-            Open {file.path} externally
-          </a>
-        </p>
-      ) : null}
-    </div>
-  );
+  const hostRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!hostRef.current || !file.url) return;
+    const container = hostRef.current;
+    container.innerHTML = '';
+    let cancelled = false;
+    let loadingTask: { destroy: () => void } | null = null;
+
+    (async () => {
+      const pdfjs = await loadPdfJs();
+      if (cancelled) return;
+      const task = pdfjs.getDocument(file.url!);
+      loadingTask = task;
+      const doc = await task.promise;
+      if (cancelled) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const containerWidth = container.clientWidth || 800;
+      for (let i = 1; i <= doc.numPages; i++) {
+        if (cancelled) break;
+        const page = await doc.getPage(i);
+        const unscaledViewport = page.getViewport({ scale: 1 });
+        const scale = (containerWidth * dpr) / unscaledViewport.width;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = '100%';
+        canvas.style.display = 'block';
+        container.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+      }
+    })().catch((err) => {
+      if (cancelled) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      const errEl = document.createElement('div');
+      errEl.className = 'vellum-file-reader--pdf-error';
+      errEl.textContent = `Failed to render PDF: ${msg}`;
+      container.appendChild(errEl);
+    });
+
+    return () => {
+      cancelled = true;
+      try {
+        loadingTask?.destroy();
+      } catch {}
+      container.innerHTML = '';
+    };
+  }, [file.url]);
+
+  if (!file.url) {
+    return (
+      <div className="vellum-file-reader vellum-file-reader--pdf">
+        <p>No URL supplied for {file.path}.</p>
+      </div>
+    );
+  }
+  return <div ref={hostRef} className="vellum-file-reader vellum-file-reader--pdf" />;
 }
 
 export function FileReader({ file }: FileReaderProps) {
