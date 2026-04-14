@@ -1,14 +1,15 @@
 /**
- * FileReader — renders a `FileContent` payload as read-only prose or code.
+ * FileReader — renders a `FileContent` payload as prose or code.
  *
  * Vellum's read surface for arbitrary project files. The host supplies content
  * via `adapter.getFile(path)` and hands the resulting `FileContent` here.
  * Kinds are dispatched to distinct renderers:
  *
- *   - `text`/`markdown` — CodeMirror editor, readonly, language-selected from
- *     `FileContent.language`. Markdown bodies currently display as source; a
- *     myst-rendered mode is a follow-up (will re-use myst-to-react like the
- *     fiber reader).
+ *   - `text`/`markdown` — CodeMirror editor. Readonly by default; pass
+ *     `editable` to enable writes. When editable, `onDocChange` fires on every
+ *     doc change and `onSave` fires on `Mod-s` / `:w`. Markdown with a parsed
+ *     `mdast` tree renders via myst-to-react in readonly mode; editable mode
+ *     always uses the CodeMirror source view.
  *   - `image` — <img src={url}>.
  *   - `html` — <iframe src={url}> in a sandboxed frame.
  *   - `pdf` — all pages rendered to canvas via pdfjs-dist, lazy-loaded on
@@ -19,33 +20,46 @@
  * `?url` asset import. Non-Vite hosts will need to supply their own
  * `GlobalWorkerOptions.workerSrc` before mounting.
  *
- * This is the read half of the portolan FileViewerModal absorption. Editing,
- * annotations, and vim keymap are deliberately NOT here yet — they follow
- * once the read path is proven.
+ * This is the read + edit surface of the portolan FileViewerModal absorption.
+ * Annotations and split markdown preview are deliberately NOT here yet — they
+ * follow once the edit path is proven.
  */
 
 import { useEffect, useRef } from 'react';
-import { EditorState, type Extension } from '@codemirror/state';
+import { EditorState, StateEffect, type Extension } from '@codemirror/state';
 import {
   EditorView,
   drawSelection,
   highlightActiveLine,
   highlightActiveLineGutter,
+  keymap,
   lineNumbers,
 } from '@codemirror/view';
-import { bracketMatching, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  syntaxHighlighting,
+} from '@codemirror/language';
 import { javascript } from '@codemirror/lang-javascript';
 import { python } from '@codemirror/lang-python';
 import { markdown } from '@codemirror/lang-markdown';
 import { json } from '@codemirror/lang-json';
 import { css } from '@codemirror/lang-css';
 import { html as htmlLang } from '@codemirror/lang-html';
+import { vim, Vim } from '@replit/codemirror-vim';
 import { ArticleProvider, ThemeProvider, mergeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
 import type { FileContent } from '../utils/content-types';
 
 export interface FileReaderProps {
   file: FileContent;
+  /** When true, the text/markdown renderer is a mutable editor (vim + history). */
+  editable?: boolean;
+  /** Fires on every doc change while `editable`. */
+  onDocChange?: (content: string) => void;
+  /** Fires on Mod-s and vim `:w` while `editable`. */
+  onSave?: () => void;
 }
 
 function languageExtension(lang: string): Extension | null {
@@ -70,12 +84,31 @@ function languageExtension(lang: string): Extension | null {
   }
 }
 
-function TextReader({ file }: FileReaderProps) {
+const saveEffect = StateEffect.define<null>();
+
+let vimSaveRegistered = false;
+function registerVimSave() {
+  if (vimSaveRegistered) return;
+  vimSaveRegistered = true;
+  Vim.defineEx('write', 'w', (cm: unknown) => {
+    const view = (cm as { cm6?: EditorView }).cm6;
+    if (!view) return;
+    view.dispatch({ effects: saveEffect.of(null) });
+  });
+}
+
+function TextReader({ file, editable, onDocChange, onSave }: FileReaderProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const onDocChangeRef = useRef(onDocChange);
+  const onSaveRef = useRef(onSave);
+  onDocChangeRef.current = onDocChange;
+  onSaveRef.current = onSave;
 
   useEffect(() => {
     if (!hostRef.current) return;
+    if (editable) registerVimSave();
+
     const extensions: Extension[] = [
       lineNumbers(),
       highlightActiveLineGutter(),
@@ -83,14 +116,45 @@ function TextReader({ file }: FileReaderProps) {
       drawSelection(),
       bracketMatching(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-      EditorView.editable.of(false),
-      EditorState.readOnly.of(true),
       EditorView.theme({
         '&': { height: '100%', fontSize: '14px' },
         '.cm-content': { fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, monospace)' },
         '.cm-scroller': { overflow: 'auto' },
       }),
     ];
+
+    if (editable) {
+      extensions.push(
+        vim(),
+        history(),
+        EditorView.lineWrapping,
+        EditorState.allowMultipleSelections.of(true),
+        keymap.of([
+          ...defaultKeymap,
+          ...historyKeymap,
+          {
+            key: 'Mod-s',
+            run: () => {
+              onSaveRef.current?.();
+              return true;
+            },
+          },
+        ]),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onDocChangeRef.current?.(update.state.doc.toString());
+          }
+          for (const tr of update.transactions) {
+            for (const eff of tr.effects) {
+              if (eff.is(saveEffect)) onSaveRef.current?.();
+            }
+          }
+        }),
+      );
+    } else {
+      extensions.push(EditorView.editable.of(false), EditorState.readOnly.of(true));
+    }
+
     const langExt = languageExtension(file.language);
     if (langExt) extensions.push(langExt);
 
@@ -101,9 +165,14 @@ function TextReader({ file }: FileReaderProps) {
       view.destroy();
       viewRef.current = null;
     };
-  }, [file.path, file.content, file.language]);
+  }, [file.path, file.content, file.language, editable]);
 
-  return <div ref={hostRef} className="vellum-file-reader vellum-file-reader--text" />;
+  return (
+    <div
+      ref={hostRef}
+      className={`vellum-file-reader vellum-file-reader--text${editable ? ' vellum-file-reader--editable' : ''}`}
+    />
+  );
 }
 
 const MARKDOWN_RENDERERS = mergeRenderers([DEFAULT_RENDERERS], true);
@@ -229,7 +298,8 @@ function PdfReader({ file }: FileReaderProps) {
   return <div ref={hostRef} className="vellum-file-reader vellum-file-reader--pdf" />;
 }
 
-export function FileReader({ file }: FileReaderProps) {
+export function FileReader(props: FileReaderProps) {
+  const { file, editable } = props;
   switch (file.kind) {
     case 'image':
       return <ImageReader file={file} />;
@@ -238,13 +308,12 @@ export function FileReader({ file }: FileReaderProps) {
     case 'pdf':
       return <PdfReader file={file} />;
     case 'markdown':
-      // Prefer MyST rendering when the adapter has supplied a parsed tree;
-      // otherwise fall through to the source-view text reader so headless
-      // adapters still display something useful.
-      if (file.mdast) return <MarkdownReader file={file} />;
-      return <TextReader file={file} />;
+      // Editable mode always uses the source-view text reader so the user can
+      // actually type. Readonly mode prefers MyST when an mdast is available.
+      if (!editable && file.mdast) return <MarkdownReader file={file} />;
+      return <TextReader {...props} />;
     case 'text':
     default:
-      return <TextReader file={file} />;
+      return <TextReader {...props} />;
   }
 }

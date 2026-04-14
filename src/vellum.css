@@ -4468,3 +4468,66 @@ a.pretext-prose-frag:hover {
   flex-direction: column;
   gap: 0.75rem;
 }
+
+/* File viewer page — read and edit surface */
+.vellum-file-viewer-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.vellum-file-viewer-page__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 12px;
+  color: var(--text-muted, #7A7368);
+  flex: 0 0 auto;
+}
+
+.vellum-file-viewer-page__path {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vellum-file-viewer-page__dirty {
+  color: var(--gold, #9A7B35);
+  font-weight: 600;
+}
+
+.vellum-file-viewer-page__status {
+  flex: 0 0 auto;
+  opacity: 0.75;
+}
+
+.vellum-file-viewer-page__save {
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: transparent;
+  padding: 2px 10px;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+  color: inherit;
+}
+
+.vellum-file-viewer-page__save:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.vellum-file-viewer-page > .vellum-file-reader {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vellum-file-reader--text,
+.vellum-file-reader--editable {
+  height: 100%;
+}

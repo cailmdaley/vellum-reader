@@ -118,6 +118,11 @@ export function createLightconeAdapter(): Adapter {
       }
     },
 
+    async saveFile(): Promise<void> {
+      // Lightcone serves read-only fiber content, not editable project files.
+      throw new Error('saveFile: lightcone adapter is read-only for project files');
+    },
+
     async putRawFiber(slug: string, body: string): Promise<void> {
       const res = await fetch(`/content/${encodeSlug(slug)}.md`, {
         method: 'PUT',

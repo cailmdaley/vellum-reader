@@ -69,6 +69,11 @@ export interface GetFileOptions {
   cacheBust?: boolean;
 }
 
+export interface SaveFileOptions {
+  /** Origin the file lives under (portolan: local vs remote-hostname). */
+  originId?: string;
+}
+
 export interface ReadOnlyAdapter {
   getFiberContent(slug: string): Promise<FiberContent | null>;
   getAstraGraph(): Promise<AstraGraph>;
@@ -90,6 +95,12 @@ export interface Adapter extends ReadOnlyAdapter {
   deleteAnnotation(id: string): Promise<boolean>;
   patchFiberFrontmatter(slug: string, patch: FrontmatterPatch): Promise<void>;
   putRawFiber(slug: string, body: string): Promise<void>;
+  /**
+   * Write an arbitrary project file. Distinct from `putRawFiber`, which is
+   * slug-keyed. Hosts that do not expose file writes (e.g. lightcone) should
+   * throw `ReadOnlyAdapterError`.
+   */
+  saveFile(path: string, content: string, opts?: SaveFileOptions): Promise<void>;
 }
 
 export class ReadOnlyAdapterError extends Error {
@@ -121,6 +132,9 @@ export function asReadOnlyAdapter(ro: ReadOnlyAdapter): Adapter {
     },
     putRawFiber: () => {
       throw new ReadOnlyAdapterError('putRawFiber');
+    },
+    saveFile: () => {
+      throw new ReadOnlyAdapterError('saveFile');
     },
   };
 }
