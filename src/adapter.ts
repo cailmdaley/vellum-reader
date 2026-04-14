@@ -33,6 +33,7 @@ import type {
   Annotation,
   AstraGraph,
   FiberContent,
+  FileContent,
   LogResponse,
   RawFiber,
   SearchHit,
@@ -61,6 +62,13 @@ export interface GetAnnotationsOptions {
   imageSrc?: string;
 }
 
+export interface GetFileOptions {
+  /** Origin the file lives under (portolan: local vs remote-hostname). */
+  originId?: string;
+  /** Bust upstream caches when true (e.g. after a save elsewhere). */
+  cacheBust?: boolean;
+}
+
 export interface ReadOnlyAdapter {
   getFiberContent(slug: string): Promise<FiberContent | null>;
   getAstraGraph(): Promise<AstraGraph>;
@@ -68,6 +76,12 @@ export interface ReadOnlyAdapter {
   getAnnotations(slug: string, opts?: GetAnnotationsOptions): Promise<Annotation[]>;
   searchFibers(query: string): Promise<SearchHit[]>;
   getDeltaSince(since: string, limit?: number): Promise<LogResponse>;
+  /**
+   * Load an arbitrary project file by path. Distinct from `getFiberContent`,
+   * which is slug-keyed and myst-rendered. Hosts that expose no generic file
+   * surface (e.g. lightcone) return `null`.
+   */
+  getFile(path: string, opts?: GetFileOptions): Promise<FileContent | null>;
 }
 
 export interface Adapter extends ReadOnlyAdapter {

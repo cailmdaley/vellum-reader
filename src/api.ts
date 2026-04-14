@@ -10,6 +10,7 @@ import type {
   Annotation,
   AstraGraph,
   FiberContent,
+  FileContent,
   LogResponse,
   RawFiber,
   SearchHit,
@@ -67,6 +68,12 @@ export function createLightconeAdapter(): Adapter {
       const res = await fetch(`/content/${encodeSlug(slug)}.md`).catch(() => null);
       if (!res || !res.ok) return null;
       return res.json() as Promise<RawFiber>;
+    },
+
+    async getFile(_path: string): Promise<FileContent | null> {
+      // Lightcone serves fibers, not arbitrary project files. Portolan adapters
+      // implement this against /project-file/ and /raw-file/.
+      return null;
     },
 
     async createAnnotation(input: CreateAnnotationInput): Promise<Annotation | null> {

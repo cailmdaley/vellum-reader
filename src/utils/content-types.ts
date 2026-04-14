@@ -132,3 +132,27 @@ export interface LogResponse {
   count: number;
   events: LogEvent[];
 }
+
+/**
+ * A project file served through the adapter's `getFile` surface.
+ *
+ * Represents an arbitrary file the reader can display (code, markdown, pdf,
+ * image, html). Distinct from `FiberContent`, which is myst-rendered.
+ *
+ * `kind` is a coarse classifier so consumers can pick a renderer without
+ * sniffing the path. `language` is the CodeMirror language identifier for
+ * text kinds; empty for non-text kinds. For binary kinds (`pdf`, `image`,
+ * `html`) `content` is an empty string and `url` points to the bytes.
+ */
+export interface FileContent {
+  /** Path as provided by the host (may be absolute or origin-relative). */
+  path: string;
+  /** Coarse renderer selector. */
+  kind: 'text' | 'markdown' | 'pdf' | 'image' | 'html';
+  /** CodeMirror language id for text/markdown; '' otherwise. */
+  language: string;
+  /** File body for text/markdown; '' for binary kinds. */
+  content: string;
+  /** Raw-bytes URL for binary kinds (pdf, image, html). */
+  url?: string;
+}
