@@ -180,9 +180,10 @@ function pickHighlight(node: GraphNode): string | null {
       : firstFinding.claim;
     return `✦ ${trimmed}`;
   }
-  if (node.tags.length > 0) {
-    return node.tags.slice(0, 4).join(' · ');
-  }
+  // No tags fallback here: FiberCard renders its own fiber-card__tags row,
+  // so a tags-joined highlight would duplicate that line. PretextFiberCard
+  // and FiberCardWithMedia keep the tags fallback because they have no
+  // dedicated tags row.
   return null;
 }
 
