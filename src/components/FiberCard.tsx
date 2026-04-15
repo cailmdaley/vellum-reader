@@ -194,7 +194,11 @@ export function FiberCard({
   const proseRef = useRef<HTMLDivElement>(null);
 
   const status = normalizeStatus(node.status);
-  const hasProse = !!content?.mdast;
+  // A fiber whose body is just frontmatter comes back with an mdast that has
+  // zero children. Treat that as "no prose" so the preview shape (title +
+  // outcome + highlight + tags) renders instead of a blank body. See
+  // fiber-card-empty-body.
+  const hasProse = !!content?.mdast && (content.mdast.children?.length ?? 0) > 0;
 
   const titleText = `${statusGlyph(node.status)}  ${node.label}`;
   // The pretext header always carries the same summary: title,
