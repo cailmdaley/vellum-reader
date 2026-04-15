@@ -187,6 +187,43 @@ function pickHighlight(node: GraphNode): string | null {
   return null;
 }
 
+// FiberCard can be mounted standalone (e.g. portolan's floating pin cards) where
+// no ThemeProvider wraps the tree — without one, `useNodeRenderers()` returns
+// `{}`, myst-to-react falls through to its DefaultComponent (div/span), and the
+// prose renders as block-div wikilinks mid-paragraph + generic spans for every
+// semantic node. Wrap the MyST subtree in ThemeProvider with DEFAULT_RENDERERS
+// when none is in scope; inherit the host's renderers when one already is (so
+// vellum App.tsx's extensions like tweetEmbed keep working).
+//
+// Declared above FiberCard (not below) because react-refresh's HMR transform
+// doesn't preserve function-declaration hoisting across the FiberCard boundary
+// — editing this file blew up every FiberCard render with
+// `ReferenceError: FiberProseRoot is not defined` until a full reload.
+function FiberProseRoot({
+  kind,
+  references,
+  frontmatter,
+  mdast,
+}: {
+  kind: any;
+  references: any;
+  frontmatter: any;
+  mdast: any;
+}) {
+  const existing = useNodeRenderers();
+  const body = (
+    <ArticleProvider kind={kind} references={references} frontmatter={frontmatter}>
+      <MyST ast={mdast} />
+    </ArticleProvider>
+  );
+  if (existing && Object.keys(existing).length > 0) return body;
+  return (
+    <ThemeProvider theme={null} setTheme={() => {}} renderers={DEFAULT_RENDERERS}>
+      {body}
+    </ThemeProvider>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FiberCard({
@@ -399,34 +436,3 @@ export function FiberCard({
   );
 }
 
-// FiberCard can be mounted standalone (e.g. portolan's floating pin cards) where
-// no ThemeProvider wraps the tree — without one, `useNodeRenderers()` returns
-// `{}`, myst-to-react falls through to its DefaultComponent (div/span), and the
-// prose renders as block-div wikilinks mid-paragraph + generic spans for every
-// semantic node. Wrap the MyST subtree in ThemeProvider with DEFAULT_RENDERERS
-// when none is in scope; inherit the host's renderers when one already is (so
-// vellum App.tsx's extensions like tweetEmbed keep working).
-function FiberProseRoot({
-  kind,
-  references,
-  frontmatter,
-  mdast,
-}: {
-  kind: any;
-  references: any;
-  frontmatter: any;
-  mdast: any;
-}) {
-  const existing = useNodeRenderers();
-  const body = (
-    <ArticleProvider kind={kind} references={references} frontmatter={frontmatter}>
-      <MyST ast={mdast} />
-    </ArticleProvider>
-  );
-  if (existing && Object.keys(existing).length > 0) return body;
-  return (
-    <ThemeProvider theme={null} setTheme={() => {}} renderers={DEFAULT_RENDERERS}>
-      {body}
-    </ThemeProvider>
-  );
-}
