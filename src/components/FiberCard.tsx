@@ -151,6 +151,13 @@ export interface FiberCardProps {
   /** Visual state for the pin glyph — highlighted in gold when the
    *  card floats above the page rather than riding the canvas. */
   pinMode?: 'canvas' | 'screen';
+  /** When true, the title line is omitted from the pretext lockup.
+   *  The card still lays out outcome / highlight / tags / prose as
+   *  before. Used when an enclosing chrome (e.g. a pinned-card title
+   *  bar on the portolan map) already carries the fiber's name and
+   *  status glyph, so repeating it in the card body is pure
+   *  duplication. See fiber-pin-title-duplication. */
+  hideTitle?: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -189,6 +196,7 @@ export function FiberCard({
   onClose,
   onPin,
   pinMode,
+  hideTitle = false,
 }: FiberCardProps) {
   const [layout, setLayout] = useState<SummaryLayout | null>(null);
   const proseRef = useRef<HTMLDivElement>(null);
@@ -221,19 +229,20 @@ export function FiberCard({
     function doLayout() {
       const innerWidth = Math.max(1, width - PAD_X * 2);
 
-      const titlePrepared = prepareWithSegments(titleText, TITLE_FONT);
-      const titleResult = layoutWithLines(titlePrepared, innerWidth, TITLE_LINE_HEIGHT);
-
       const lines: LaidOutLine[] = [];
       let y = PAD_Y;
 
-      for (const line of titleResult.lines) {
-        lines.push({ text: line.text, x: PAD_X, y, font: TITLE_FONT, lineHeight: TITLE_LINE_HEIGHT, role: 'title' });
-        y += TITLE_LINE_HEIGHT;
+      if (!hideTitle) {
+        const titlePrepared = prepareWithSegments(titleText, TITLE_FONT);
+        const titleResult = layoutWithLines(titlePrepared, innerWidth, TITLE_LINE_HEIGHT);
+        for (const line of titleResult.lines) {
+          lines.push({ text: line.text, x: PAD_X, y, font: TITLE_FONT, lineHeight: TITLE_LINE_HEIGHT, role: 'title' });
+          y += TITLE_LINE_HEIGHT;
+        }
       }
 
       if (outcomeText) {
-        y += TITLE_TO_OUTCOME_GAP;
+        if (!hideTitle) y += TITLE_TO_OUTCOME_GAP;
         const outcomePrepared = prepareWithSegments(outcomeText, OUTCOME_FONT);
         const outcomeResult = layoutWithLines(outcomePrepared, innerWidth, OUTCOME_LINE_HEIGHT);
         for (const line of outcomeResult.lines) {
@@ -273,7 +282,7 @@ export function FiberCard({
     return () => {
       cancelled = true;
     };
-  }, [titleText, outcomeText, highlightText, width, hasTags]);
+  }, [titleText, outcomeText, highlightText, width, hasTags, hideTitle]);
 
   // ── Click interception for wikilinks ────────────────────────────────────────
   const handleProseClick = useCallback(
