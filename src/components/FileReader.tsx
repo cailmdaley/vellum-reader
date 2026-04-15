@@ -54,6 +54,7 @@ import { ArticleProvider, ThemeProvider, mergeRenderers } from '@myst-theme/prov
 import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
 import { useAdapter } from '../contexts/AdapterContext';
 import type { Annotation, FileContent } from '../utils/content-types';
+import { assignMdastKeys } from '../utils/mdast-keys';
 
 export interface FileReaderProps {
   file: FileContent;
@@ -604,6 +605,7 @@ function MarkdownReader({ file }: FileReaderProps) {
   // Standalone markdown bodies do not come with a ThemeProvider in scope (the
   // portolan seam only wraps AdapterProvider). We install one here so MyST can
   // resolve its renderer context without the host app having to opt in.
+  const keyedMdast = file.mdast ? assignMdastKeys(file.mdast, `file:${file.path}`) : file.mdast;
   return (
     <ThemeProvider theme={null} setTheme={() => {}} renderers={MARKDOWN_RENDERERS}>
       <ArticleProvider
@@ -612,7 +614,7 @@ function MarkdownReader({ file }: FileReaderProps) {
         references={{ cite: {}, footnotes: {} } as any}
       >
         <div className="vellum-file-reader vellum-file-reader--markdown">
-          <MyST ast={file.mdast} />
+          <MyST ast={keyedMdast} />
         </div>
       </ArticleProvider>
     </ThemeProvider>

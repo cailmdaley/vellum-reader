@@ -24,6 +24,7 @@ import { ArticleProvider } from '@myst-theme/providers';
 import { MyST } from 'myst-to-react';
 import type { FiberContent, GraphNode } from '~/utils/content-types';
 import { cleanVerdict, normalizeStatus, statusGlyph } from '~/utils/fiber-status';
+import { assignMdastKeys } from '~/utils/mdast-keys';
 
 // The card already renders the fiber's title and (when prose is
 // absent) its outcome. When the prose body is rendered, the first few
@@ -219,7 +220,8 @@ export function FiberCard({
 
   const strippedMdast = useMemo(() => {
     if (!content?.mdast) return null;
-    return stripLeadingRestatement(content.mdast, node.label, outcomeText);
+    const stripped = stripLeadingRestatement(content.mdast, node.label, outcomeText);
+    return assignMdastKeys(stripped, `fiber:${node.label}`);
   }, [content?.mdast, node.label, outcomeText]);
 
   // ── Layout effect ───────────────────────────────────────────────────────────
