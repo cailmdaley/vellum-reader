@@ -20,8 +20,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
-import { ArticleProvider } from '@myst-theme/providers';
-import { MyST } from 'myst-to-react';
+import { ArticleProvider, ThemeProvider, useNodeRenderers } from '@myst-theme/providers';
+import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
 import type { FiberContent, GraphNode } from '~/utils/content-types';
 import { cleanVerdict, normalizeStatus, statusGlyph } from '~/utils/fiber-status';
 import { assignMdastKeys } from '~/utils/mdast-keys';
@@ -387,15 +387,46 @@ export function FiberCard({
           className="fiber-card__prose"
           onClick={handleProseClick}
         >
-          <ArticleProvider
+          <FiberProseRoot
             kind={(content!.kind as any) ?? 'Article'}
             references={content!.references ?? { cite: {}, footnotes: {} }}
             frontmatter={content!.frontmatter ?? {}}
-          >
-            <MyST ast={strippedMdast} />
-          </ArticleProvider>
+            mdast={strippedMdast}
+          />
         </div>
       )}
     </div>
+  );
+}
+
+// FiberCard can be mounted standalone (e.g. portolan's floating pin cards) where
+// no ThemeProvider wraps the tree — without one, `useNodeRenderers()` returns
+// `{}`, myst-to-react falls through to its DefaultComponent (div/span), and the
+// prose renders as block-div wikilinks mid-paragraph + generic spans for every
+// semantic node. Wrap the MyST subtree in ThemeProvider with DEFAULT_RENDERERS
+// when none is in scope; inherit the host's renderers when one already is (so
+// vellum App.tsx's extensions like tweetEmbed keep working).
+function FiberProseRoot({
+  kind,
+  references,
+  frontmatter,
+  mdast,
+}: {
+  kind: any;
+  references: any;
+  frontmatter: any;
+  mdast: any;
+}) {
+  const existing = useNodeRenderers();
+  const body = (
+    <ArticleProvider kind={kind} references={references} frontmatter={frontmatter}>
+      <MyST ast={mdast} />
+    </ArticleProvider>
+  );
+  if (existing && Object.keys(existing).length > 0) return body;
+  return (
+    <ThemeProvider theme={null} setTheme={() => {}} renderers={DEFAULT_RENDERERS}>
+      {body}
+    </ThemeProvider>
   );
 }
