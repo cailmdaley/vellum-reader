@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAdapter } from '../contexts/AdapterContext';
-import type { Annotation, FileContent } from '../utils/content-types';
+import type { Annotation, AnnotationAction, FileContent } from '../utils/content-types';
 import { FileReader } from '../components/FileReader';
 
 export interface FileViewerPageProps {
@@ -30,6 +30,12 @@ export interface FileViewerPageProps {
   editable?: boolean;
   /** 1-indexed line to select and scroll into view once the file loads. */
   jumpToLine?: number;
+  /**
+   * Host-defined actions on each annotation (e.g. "send to worker", "save as
+   * fiber"). Rendered inside the annotation click-popover. Optional; omit on
+   * hosts that don't route annotations anywhere.
+   */
+  annotationActions?: AnnotationAction[];
 }
 
 type FetchState =
@@ -40,7 +46,14 @@ type FetchState =
 
 type SaveState = 'idle' | 'saving' | 'saved' | { error: string };
 
-export function FileViewerPage({ path, originId, cacheBust, editable, jumpToLine }: FileViewerPageProps) {
+export function FileViewerPage({
+  path,
+  originId,
+  cacheBust,
+  editable,
+  jumpToLine,
+  annotationActions,
+}: FileViewerPageProps) {
   const adapter = useAdapter();
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [dirty, setDirty] = useState(false);
@@ -170,6 +183,7 @@ export function FileViewerPage({ path, originId, cacheBust, editable, jumpToLine
         annotations={annotations}
         annotationSlug={path}
         annotationOriginId={originId}
+        annotationActions={annotationActions}
         onAnnotationsChange={setAnnotations}
         onDocChange={(content) => {
           draftRef.current = content;

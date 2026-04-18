@@ -104,6 +104,23 @@ export interface SearchHit {
  *     `originalText` is the captured selection. Hosts that don't anchor to
  *     files simply leave these undefined.
  */
+/**
+ * Host-defined action on an annotation. Rendered as a button in the annotation
+ * UI (e.g. inside the click-popover next to Edit/Delete). Each action is
+ * identified by `id`, labeled with `label`, and invoked with the annotation
+ * object. The handler may be sync or async; vellum fires it and forgets.
+ *
+ * Use cases: portolan's "send to worker" and "save as fiber" routes. Vellum
+ * itself stays host-agnostic — the actions live in the consumer.
+ */
+export interface AnnotationAction {
+  id: string;
+  label: string;
+  /** Optional tooltip (button title=). Defaults to `label` if omitted. */
+  title?: string;
+  onInvoke: (annotation: Annotation) => void | Promise<void>;
+}
+
 export interface Annotation {
   id: string;
   slug: string;

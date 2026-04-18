@@ -53,8 +53,15 @@ import { vim, Vim } from '@replit/codemirror-vim';
 import { ArticleProvider, ThemeProvider, mergeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
 import { useAdapter } from '../contexts/AdapterContext';
-import type { Annotation, FileContent } from '../utils/content-types';
+import type { Annotation, AnnotationAction, FileContent } from '../utils/content-types';
 import { assignMdastKeys } from '../utils/mdast-keys';
+// Static ?url import: Vite resolves this to a string URL at transform time,
+// which survives symlinked-package serving via /@fs/. A dynamic import()?url
+// goes through a different path where the ?url query gets dropped for
+// symlinked deps and Vite returns the worker *module* instead of its URL —
+// which leaves GlobalWorkerOptions.workerSrc = undefined and pdfjs throws
+// "Invalid workerSrc type" on the first getDocument call.
+import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 export interface FileReaderProps {
   file: FileContent;
@@ -79,6 +86,13 @@ export interface FileReaderProps {
   annotationOriginId?: string;
   /** Fires after create/update/delete mutations with the new annotation array. */
   onAnnotationsChange?: (next: Annotation[]) => void;
+  /**
+   * Host-defined actions on an existing annotation. Rendered as buttons in
+   * the click-popover alongside Edit/Delete. Each action receives the
+   * annotation object when the user invokes it. Used by portolan to route
+   * annotations to a worker session or materialize them as felt fibers.
+   */
+  annotationActions?: AnnotationAction[];
 }
 
 function languageExtension(lang: string): Extension | null {
@@ -187,6 +201,7 @@ function TextReader({
   annotationSlug,
   annotationOriginId,
   onAnnotationsChange,
+  annotationActions,
 }: FileReaderProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -575,6 +590,20 @@ function TextReader({
                 Edit
               </button>
             )}
+            {editingComment === null &&
+              annotationActions?.map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  className="ann-popover__btn ann-popover__btn--action"
+                  title={action.title ?? action.label}
+                  onClick={() => {
+                    void action.onInvoke(popover.annotation);
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
             <button
               type="button"
               className="ann-popover__btn ann-popover__btn--delete"
@@ -646,13 +675,9 @@ let pdfJsPromise: Promise<PdfJsModule> | null = null;
 async function loadPdfJs(): Promise<PdfJsModule> {
   if (!pdfJsPromise) {
     pdfJsPromise = (async () => {
-      const [pdfjs, workerUrlMod] = await Promise.all([
-        import('pdfjs-dist'),
-        import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
-      ]);
-      const workerSrc = (workerUrlMod as { default: string }).default;
+      const pdfjs = await import('pdfjs-dist');
       if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
       }
       return pdfjs;
     })();
