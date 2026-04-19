@@ -20,7 +20,7 @@
  * with a MIN_GAP floor so overlapping Y values don't collide.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GraphNode } from '~/utils/content-types';
 import { useHoverGrace } from '~/hooks/useHoverGrace';
 import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
@@ -118,21 +118,38 @@ export function MarginCitations({
   const { hoveredKey, openKey, scheduleOpen, cancelClose, scheduleClose } =
     useHoverGrace(HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS);
 
+  // Stash prop values into a ref so the measurement effect can stay bound to
+  // only the DOM refs as deps. Previously the effect listed `nodes`,
+  // `currentNode`, `childSubKeys`, `subAnalysisLabels` in its deps — each of
+  // those changed identity on parent re-renders (graph refetches, unmemoized
+  // `currentNode = graph.nodes.find(...)`), which tore down the effect before
+  // its scheduled RAF could fire. The effect never actually measured; groups
+  // stayed empty; the margin rail rendered zero glyphs.
+  const propsRef = useRef({ nodes, currentNode, childSubKeys, subAnalysisLabels });
+  propsRef.current = { nodes, currentNode, childSubKeys, subAnalysisLabels };
+
+  // Measure trigger exposed to the re-measure-on-prop-change effect below.
+  const scheduleMeasureRef = useRef<(() => void) | null>(null);
+
   // Measure positions after prose paints
   useEffect(() => {
     if (!proseRef.current || !wrapperRef.current) return;
 
-    const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
     const cleanups: Array<() => void> = [];
     let hoverTimer: ReturnType<typeof setTimeout> | null = null;
-    let rafId = 0;
+    let scheduleTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // setTimeout(0) rather than requestAnimationFrame. RAF pauses in hidden
+    // or backgrounded tabs (and is heavily throttled when the window isn't
+    // the frontmost one). setTimeout still fires, and for DOM measurement we
+    // don't need paint sync — getBoundingClientRect forces layout flush on
+    // its own.
     const scheduleMeasure = () => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = 0;
+      if (scheduleTimer) return;
+      scheduleTimer = setTimeout(() => {
+        scheduleTimer = null;
         measure();
-      });
+      }, 0);
     };
 
     const measure = () => {
@@ -140,8 +157,11 @@ export function MarginCitations({
       if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
       cancelClose();
 
-      const prose = proseRef.current!;
-      const wrapper = wrapperRef.current!;
+      const prose = proseRef.current;
+      const wrapper = wrapperRef.current;
+      if (!prose || !wrapper) return;
+      const { nodes, currentNode, childSubKeys, subAnalysisLabels } = propsRef.current;
+      const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
       const wrapperRect = wrapper.getBoundingClientRect();
       const rawCanvasWidth = Number.parseFloat(
         getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'),
@@ -305,28 +325,39 @@ export function MarginCitations({
       });
     };
 
-    const frame = requestAnimationFrame(measure);
+    scheduleMeasureRef.current = scheduleMeasure;
+    // Initial measure runs synchronously; most of the time the prose has
+    // already been committed by the time this effect fires. A queued
+    // follow-up handles the case where PretextProse renders a loading
+    // placeholder first and swaps in real content on its next effect.
+    measure();
+    scheduleMeasure();
 
     // Re-measure on resize. Two observe targets, same rationale as before:
     // the outer article (for column width changes) and the inner .pretext-
     // prose (for pretext's re-layout on content width changes).
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(() => { measure(); });
     const proseEl = proseRef.current!;
     observer.observe(proseEl);
     const pretextBoxObs = proseEl.querySelector<HTMLElement>('.pretext-prose');
     if (pretextBoxObs) observer.observe(pretextBoxObs);
 
-    let mutationObserver: MutationObserver | null = null;
-    if (!pretextBoxObs && typeof MutationObserver !== 'undefined') {
-      mutationObserver = new MutationObserver(() => {
+    // Watch for DOM changes inside the article. PretextProse renders a
+    // `.pretext-prose--loading` placeholder first and swaps in real content
+    // (with anchors) once its layout effect runs. ResizeObserver sees the
+    // size change, but the swap can also happen without a size change if
+    // the placeholder was already the right height. A MutationObserver on
+    // childList+subtree fires whenever anchors appear, guaranteeing a
+    // re-measure as soon as the prose actually has content to measure.
+    let proseMutationObserver: MutationObserver | null = null;
+    if (typeof MutationObserver !== 'undefined') {
+      proseMutationObserver = new MutationObserver(() => {
+        // Attach ResizeObserver to the pretext box if it showed up late.
         const box = proseEl.querySelector<HTMLElement>('.pretext-prose');
-        if (box) {
-          observer.observe(box);
-          mutationObserver?.disconnect();
-          mutationObserver = null;
-        }
+        if (box) observer.observe(box);
+        scheduleMeasure();
       });
-      mutationObserver.observe(proseEl, { childList: true, subtree: true });
+      proseMutationObserver.observe(proseEl, { childList: true, subtree: true });
     }
 
     const rootStyleObserver =
@@ -341,17 +372,27 @@ export function MarginCitations({
     window.addEventListener('scroll', scheduleMeasure, { passive: true });
 
     return () => {
-      cancelAnimationFrame(frame);
-      if (rafId) cancelAnimationFrame(rafId);
+      scheduleMeasureRef.current = null;
+      if (scheduleTimer) clearTimeout(scheduleTimer);
       observer.disconnect();
-      mutationObserver?.disconnect();
+      proseMutationObserver?.disconnect();
       rootStyleObserver?.disconnect();
       window.removeEventListener('resize', scheduleMeasure);
       window.removeEventListener('scroll', scheduleMeasure);
       if (hoverTimer) clearTimeout(hoverTimer);
       for (const fn of cleanups) fn();
     };
-  }, [proseRef, wrapperRef, nodes, currentNode, childSubKeys, subAnalysisLabels]);
+    // Deps are only the DOM refs (themselves stable ref objects). Prop
+    // values are read live from `propsRef` inside `measure`; prop changes
+    // are routed through the separate effect below that pokes `scheduleMeasureRef`.
+  }, [proseRef, wrapperRef]);
+
+  // Poke scheduleMeasure when the props that affect rendered glyphs change.
+  // Decoupled from the main effect so its RAF doesn't get cancelled every
+  // time the parent re-renders with a new graphNodes or currentNode identity.
+  useEffect(() => {
+    scheduleMeasureRef.current?.();
+  }, [nodes, currentNode, childSubKeys, subAnalysisLabels]);
 
   if (groups.length === 0) return null;
 
