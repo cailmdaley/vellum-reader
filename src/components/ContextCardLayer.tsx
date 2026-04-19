@@ -32,14 +32,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Card, type CardContent } from './Card';
+import { marginaliaWidth, readCanvasLeft, readCanvasWidth } from '~/utils/canvas-geometry';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type PinMode = 'canvas' | 'screen';
 
 interface FloatingCard {
-  /** Unique id — timestamp-salted so duplicate contents are allowed. */
+  /** Unique id — timestamp-salted so every card has a distinct DOM key.
+   *  Not the same as `key`, which identifies the content. */
   id: string;
+  /** Content identity — see `contentKey`. A second open-card event for
+   *  the same key lifts the existing card to front instead of spawning
+   *  a duplicate. */
+  key: string;
   content: CardContent;
   mode: PinMode;
   /**
@@ -80,38 +86,32 @@ export interface ContextCardLayerProps {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_WIDTH = 340;
-const MIN_WIDTH = 220;
 const MIN_HEIGHT = 100;
-/** Inset applied to --canvas-width when computing a card's marginalia
- *  width. Matches MarginCardPreview's CANVAS_INSET so hover previews and
- *  pinned cards share one visible width. */
-const CANVAS_INSET = 64;
 
 /** Offset from the click point so the card doesn't cover its trigger. */
 const SPAWN_OFFSET_X = 16;
 const SPAWN_OFFSET_Y = 8;
 
-function marginaliaWidth(canvasWidth: number): number {
-  if (canvasWidth <= 0) return DEFAULT_WIDTH;
-  return Math.max(MIN_WIDTH, canvasWidth - CANVAS_INSET);
-}
-
 function readCanvasGeometry(): { canvasLeft: number; canvasWidth: number } {
-  const vw = typeof window === 'undefined' ? 1200 : window.innerWidth;
-  const rawCanvasWidth =
-    typeof document === 'undefined'
-      ? Number.NaN
-      : Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'));
-  const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 0;
-  return {
-    canvasLeft: canvasWidth > 0 ? vw - canvasWidth : 8,
-    canvasWidth,
-  };
+  return { canvasLeft: readCanvasLeft(), canvasWidth: readCanvasWidth() };
 }
 
 function initialCardWidth(): number {
-  const { canvasWidth } = readCanvasGeometry();
-  return marginaliaWidth(canvasWidth);
+  return marginaliaWidth(readCanvasWidth(), DEFAULT_WIDTH);
+}
+
+/** Stable identity for a CardContent — two cards with the same key are
+ *  the "same" card from the reader's perspective. Used to lift an
+ *  existing card to front instead of spawning a duplicate stack. */
+function contentKey(c: CardContent): string {
+  switch (c.type) {
+    case 'fiber':    return `fiber:${c.node.slug}`;
+    case 'decision': return `decision:${c.hostSlug ?? ''}:${c.decision.key}`;
+    case 'finding':  return `finding:${c.hostSlug ?? ''}:${c.finding.key}`;
+    case 'plot':     return `plot:${c.src}`;
+    case 'input':    return `input:${c.hostNode?.slug ?? ''}:${c.input?.id ?? c.label ?? c.from ?? ''}`;
+    case 'output':   return `output:${c.hostNode?.slug ?? ''}:${c.output?.id ?? c.label ?? ''}`;
+  }
 }
 
 function clampSpawn(x: number, y: number, width: number): { x: number; y: number } {
@@ -217,28 +217,39 @@ export function ContextCardLayer({
         height: heightOverride,
         exactPosition,
       } = ev.detail;
-      const id = `${content.type}__${Date.now()}__${Math.random().toString(36).slice(2, 6)}`;
-      const width = widthOverride ?? initialCardWidth();
-      // When pinning from a hover preview, the caller already has a
-      // validated on-screen rect — spawn exactly there so the pin feels
-      // like the preview staying put. Otherwise apply the offset + clamp
-      // used for fresh spawns from a click point.
-      const viewportPos = exactPosition ? { x, y } : clampSpawn(x, y, width);
-      // Promote viewport coords to page coords for canvas mode.
-      const pos = {
-        x: viewportPos.x + window.scrollX,
-        y: viewportPos.y + window.scrollY,
-      };
-      setCards((prev) => [...prev, {
-        id,
-        content,
-        mode: 'canvas',
-        x: pos.x,
-        y: pos.y,
-        width,
-        height: heightOverride ?? null,
-      }]);
-
+      const key = contentKey(content);
+      setCards((prev) => {
+        // Repeat click on the same finding/decision/etc → lift the
+        // existing card to front instead of stacking a duplicate. All
+        // lookup + mutation lives inside the updater so there's no
+        // sync/async mismatch with batched state.
+        const match = prev.find((c) => c.key === key);
+        if (match) {
+          return [...prev.filter((c) => c.id !== match.id), match];
+        }
+        const id = `${content.type}__${Date.now()}__${Math.random().toString(36).slice(2, 6)}`;
+        const width = widthOverride ?? initialCardWidth();
+        // When pinning from a hover preview, the caller already has a
+        // validated on-screen rect — spawn exactly there so the pin feels
+        // like the preview staying put. Otherwise apply the offset +
+        // clamp used for fresh spawns from a click point.
+        const viewportPos = exactPosition ? { x, y } : clampSpawn(x, y, width);
+        // Promote viewport coords to page coords for canvas mode.
+        const pos = {
+          x: viewportPos.x + window.scrollX,
+          y: viewportPos.y + window.scrollY,
+        };
+        return [...prev, {
+          id,
+          key,
+          content,
+          mode: 'canvas',
+          x: pos.x,
+          y: pos.y,
+          width,
+          height: heightOverride ?? null,
+        }];
+      });
       // The pinned card is intentionally the hover preview that stopped
       // going away — no prose-body fetch, no header-duplicating swap.
       // To read full prose the user navigates to the fiber itself.

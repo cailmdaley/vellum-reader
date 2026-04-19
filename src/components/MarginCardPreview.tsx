@@ -18,11 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card, type CardContent } from './Card';
 import { useAdapter } from '~/contexts/AdapterContext';
-
-const MIN_PREVIEW_WIDTH = 220;
-/** Small inset from the canvas edge so the card doesn't butt against the
- *  divider or the viewport edge. */
-const CANVAS_INSET = 64;
+import { CARD_MIN_WIDTH, marginaliaWidth, readCanvasWidth } from '~/utils/canvas-geometry';
 
 interface MarginCardPreviewProps {
   content: CardContent;
@@ -37,14 +33,7 @@ interface MarginCardPreviewProps {
 }
 
 function readPreviewWidth(): number {
-  if (typeof document === 'undefined') return MIN_PREVIEW_WIDTH;
-  const raw = getComputedStyle(document.documentElement).getPropertyValue('--canvas-width');
-  const canvasWidth = Number.parseFloat(raw);
-  if (!Number.isFinite(canvasWidth) || canvasWidth <= 0) return MIN_PREVIEW_WIDTH;
-  // Fill the right column: the hover preview lives in the canvas
-  // pane, so its natural width is the canvas itself (less a small
-  // inset so it doesn't collide with the divider or the viewport edge).
-  return Math.max(MIN_PREVIEW_WIDTH, canvasWidth - CANVAS_INSET);
+  return marginaliaWidth(readCanvasWidth(), CARD_MIN_WIDTH);
 }
 
 export function MarginCardPreview({

@@ -36,6 +36,7 @@ import {
 } from '~/utils/astra-anchor';
 import { MarginCardPreview } from './MarginCardPreview';
 import type { CardContent } from './Card';
+import { marginaliaWidth, readCanvasWidth } from '~/utils/canvas-geometry';
 
 type FiberGlyph = {
   kind: 'fiber';
@@ -536,14 +537,6 @@ export function MarginCitations({
   );
 }
 
-/** Min preview/pin width. Card's pretext layout needs a concrete pixel
- *  width to render into; below this it gets cramped. Canvas-driven. */
-const MIN_PIN_WIDTH = 220;
-/** Small inset from the canvas edge so the pinned card doesn't butt up
- *  against the divider. Mirrors MarginCardPreview's CANVAS_INSET so
- *  hover and pin land in the same spot. */
-const PIN_CANVAS_INSET = 64;
-
 /** Dispatch `vellum:open-card` at the same canvas-column x and line-y
  *  the hover preview would use, so clicking anywhere (glyph, prose text,
  *  the preview itself) pins the same card in the same place. The
@@ -551,11 +544,8 @@ const PIN_CANVAS_INSET = 64;
  *  with its own bounding rect; this helper mirrors that positioning for
  *  the click-before-hover case. */
 function pinCardAtGroup(opts: { content: CardContent; groupTop: number; railLeft: number }) {
-  const rawCanvasWidth = Number.parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'),
-  );
-  const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 360;
-  const width = Math.max(MIN_PIN_WIDTH, canvasWidth - PIN_CANVAS_INSET);
+  const canvasWidth = readCanvasWidth() || 360;
+  const width = marginaliaWidth(canvasWidth);
   const viewportX = window.innerWidth - canvasWidth + 12;
   const viewportY = opts.groupTop + 20;
   document.dispatchEvent(
