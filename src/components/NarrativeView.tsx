@@ -28,6 +28,7 @@ import type { LightboxImage } from './Lightbox';
 import type { Annotation, FiberContent, GraphNode, GraphLink } from '~/utils/content-types';
 import { useAdapter } from '~/contexts/AdapterContext';
 import { transformTweetEmbeds } from '~/utils/tweet-transform';
+import { parseAstraAnchor } from '~/utils/astra-anchor';
 
 /**
  * Initial content width used before the real `.vellum-prose` element has
@@ -276,32 +277,93 @@ export function NarrativeView({
       return;
     }
 
-    const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="/"]');
+    const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href]');
     if (!anchor) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    e.preventDefault();
-    const slug = anchor.getAttribute('href')!.replace(/^\//, '');
-    const node = graphNodes.find((candidate) => candidate.slug === slug);
-    if (!node) {
-      navigate(anchor.getAttribute('href')!);
-      return;
-    }
+    const href = anchor.getAttribute('href') ?? '';
+    if (!href) return;
 
     const rawCanvasWidth = Number.parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'),
     );
     const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 360;
     const rect = anchor.getBoundingClientRect();
-    document.dispatchEvent(
-      new CustomEvent('vellum:open-card', {
-        detail: {
-          content: { type: 'fiber', node },
-          x: window.innerWidth - canvasWidth + 16,
-          y: rect.top,
-        },
-      }),
-    );
-  }, [graphNodes, navigate]);
+    const openCard = (cardContent: any) => {
+      document.dispatchEvent(
+        new CustomEvent('vellum:open-card', {
+          detail: {
+            content: cardContent,
+            x: window.innerWidth - canvasWidth + 16,
+            y: rect.top,
+          },
+        }),
+      );
+    };
+
+    // ASTRA anchors — `#findings.id`, `#decisions.id`, `#outputs.id`,
+    // `#inputs.id`, `#analyses.sub`, `#decisions.id.options.optid`. The
+    // margin glyph column already signals broken anchors visually; here
+    // we simply no-op on them instead of navigating to a meaningless
+    // hash that would scroll the page out of the reader.
+    if (href.startsWith('#') || href.startsWith('../')) {
+      const parsed = parseAstraAnchor(href);
+      if (!parsed) return; // plain heading anchor — let the default fire
+      e.preventDefault();
+      if (!currentNode) return;
+      switch (parsed.kind) {
+        case 'decisions': {
+          const decision = currentNode.decisions?.find((d) => d.key === parsed.id);
+          if (!decision) return;
+          openCard({ type: 'decision', decision, hostSlug: currentNode.slug });
+          return;
+        }
+        case 'findings': {
+          const finding = currentNode.findings?.find((f) => f.key === parsed.id);
+          if (!finding) return;
+          openCard({ type: 'insight', finding, hostSlug: currentNode.slug });
+          return;
+        }
+        case 'outputs': {
+          const out = currentNode.outputs?.find((o) => o.id === parsed.id);
+          if (!out) return;
+          openCard({
+            type: 'output',
+            label: out.id,
+            recipe: out.recipe ?? out.description ?? undefined,
+          });
+          return;
+        }
+        case 'inputs': {
+          const inp = currentNode.inputs?.find((i) => i.id === parsed.id);
+          if (!inp) return;
+          openCard({
+            type: 'input',
+            label: inp.id,
+            from: inp.from ?? inp.source ?? inp.description ?? undefined,
+          });
+          return;
+        }
+        case 'analyses':
+          // Sub-analyses aren't yet served as their own pages; see the
+          // Open Questions list in the narrative-overnight constitution.
+          // Silent no-op keeps the inline link affordance honest — the
+          // margin glyph's broken icon signals "not resolvable here".
+          return;
+      }
+      return;
+    }
+
+    // Fiber link path (href starts with `/`).
+    if (!href.startsWith('/')) return;
+    e.preventDefault();
+    const slug = href.replace(/^\//, '');
+    const node = graphNodes.find((candidate) => candidate.slug === slug);
+    if (!node) {
+      navigate(href);
+      return;
+    }
+    openCard({ type: 'fiber', node });
+  }, [graphNodes, navigate, currentNode]);
 
   return (
     <div className="vellum-prose-wrapper" ref={wrapperRef}>
