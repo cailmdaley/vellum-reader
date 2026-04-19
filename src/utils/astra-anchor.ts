@@ -177,16 +177,32 @@ export const KIND_LEGEND: Record<AstraAnchorKind, string> = {
  * Root-level anchors (`#findings.<id>`, `#decisions.<id>`, ...) look up
  * against the node's own structured fields. `#analyses.<key>` resolves
  * against the caller-supplied `childSubKeys` set — typically derived from
- * graph `contains` edges originating at the current node. Anchors that
- * reach into sub-analyses (`#<sub>.category.id`) or escape parent scope
- * (`../`) render with a broken-link icon on the current page.
+ * graph `contains` edges originating at the current node.
+ * `../analyses.<key>` escapes one level up and resolves against
+ * `parentSubKeys` — sibling sub-analyses of the current node. Anchors that
+ * reach into sub-analyses (`#<sub>.category.id`) or escape further than one
+ * level still render with a broken-link icon on the current page.
  */
 export function resolveAstraAnchor(
   parsed: ParsedAstraAnchor,
   node: Pick<GraphNode, 'findings' | 'decisions' | 'inputs' | 'outputs'>,
   childSubKeys?: Set<string>,
+  parentSubKeys?: Set<string>,
 ): string | null {
-  if (parsed.parentEscapes > 0) return 'Parent-scope anchor not resolvable on this page';
+  if (parsed.parentEscapes > 0) {
+    if (parsed.parentEscapes > 1) {
+      return 'Multi-level parent escape not resolvable on this page';
+    }
+    if (parsed.kind !== 'analyses') {
+      return 'Parent-scope anchor only supported for #analyses on this page';
+    }
+    if (!parentSubKeys) {
+      return 'No parent scope (this page is not a sub-analysis)';
+    }
+    return parentSubKeys.has(parsed.id)
+      ? null
+      : `No sibling sub-analysis "${parsed.id}"`;
+  }
   // Sub-analysis trailing paths are not resolvable against a root-only node.
   if (parsed.trailing && parsed.trailing.length > 0 && parsed.kind !== 'analyses') {
     return 'Sub-analysis element not resolvable on this page';
@@ -249,13 +265,18 @@ export function collectAstraAnchorKinds(mdast: any): AstraAnchorKind[] {
  * `subAnalysisLabels` maps child sub-analysis keys to their display labels
  * (derived from graph nodes at `{currentSlug}/analyses/<key>`). Passed in so
  * the margin glyph for `#analyses.bao_fitting` can read "BAO Fitting"
- * rather than the raw key.
+ * rather than the raw key. `parentSubLabels` is the parent-scope-escape
+ * mirror — labels for sibling sub-analyses reachable via `../analyses.<key>`.
  */
 export function resolveAstraLabel(
   parsed: ParsedAstraAnchor,
   node: Pick<GraphNode, 'findings' | 'decisions' | 'inputs' | 'outputs'>,
   subAnalysisLabels?: Map<string, string>,
+  parentSubLabels?: Map<string, string>,
 ): string {
+  if (parsed.parentEscapes > 0 && parsed.kind === 'analyses') {
+    return parentSubLabels?.get(parsed.id) ?? parsed.id;
+  }
   switch (parsed.kind) {
     case 'findings':
       return parsed.id;

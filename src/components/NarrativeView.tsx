@@ -220,10 +220,24 @@ export function NarrativeView({
    * `subAnalysisLabels` (key → display label) feed margin-glyph resolution
    * and label rendering respectively. Undefined when graphLinks is absent,
    * so the resolver falls back to its legacy "lookup pending" state.
+   *
+   * `parentSub*` mirror this for the parent of the current sub-analysis —
+   * the `../analyses.<key>` parent-scope escape resolves against these. From
+   * inside `desi-bao/analyses/measurements`, the parent is `desi-bao` and the
+   * parent's children are `measurements`, `reconstruction`, `bao_fitting`;
+   * `../analyses.reconstruction` resolves to a sibling sub-analysis page.
+   * `parentSubSlugs` keeps the full slug per key so the click handler can
+   * navigate without rebuilding it from path parts.
    */
-  const { childSubKeys, subAnalysisLabels } = useMemo(() => {
+  const { childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels, parentSubSlugs } = useMemo(() => {
     if (!currentNode || !graphLinks) {
-      return { childSubKeys: undefined, subAnalysisLabels: undefined };
+      return {
+        childSubKeys: undefined,
+        subAnalysisLabels: undefined,
+        parentSubKeys: undefined,
+        parentSubLabels: undefined,
+        parentSubSlugs: undefined,
+      };
     }
     const nodeById = new Map(graphNodes.map((n) => [n.id, n]));
     const keys = new Set<string>();
@@ -237,7 +251,44 @@ export function NarrativeView({
       const child = nodeById.get(link.target);
       if (child?.label) labels.set(key, child.label);
     }
-    return { childSubKeys: keys, subAnalysisLabels: labels };
+
+    // Parent-scope: find the incoming `contains` edge whose target is this
+    // node, then enumerate the parent's other children. One inbound contains
+    // is the canonical case; multi-parent isn't a structure the graph
+    // produces today, so first hit wins.
+    const inbound = graphLinks.find(
+      (l) => l.kind === 'contains' && l.target === currentNode.id,
+    );
+    if (!inbound) {
+      return {
+        childSubKeys: keys,
+        subAnalysisLabels: labels,
+        parentSubKeys: undefined,
+        parentSubLabels: undefined,
+        parentSubSlugs: undefined,
+      };
+    }
+    const pKeys = new Set<string>();
+    const pLabels = new Map<string, string>();
+    const pSlugs = new Map<string, string>();
+    for (const link of graphLinks) {
+      if (link.kind !== 'contains') continue;
+      if (link.source !== inbound.source) continue;
+      if (link.target === currentNode.id) continue; // skip self
+      const key = link.target.split('/').pop();
+      if (!key) continue;
+      pKeys.add(key);
+      const sib = nodeById.get(link.target);
+      if (sib?.label) pLabels.set(key, sib.label);
+      if (sib?.slug) pSlugs.set(key, sib.slug);
+    }
+    return {
+      childSubKeys: keys,
+      subAnalysisLabels: labels,
+      parentSubKeys: pKeys,
+      parentSubLabels: pLabels,
+      parentSubSlugs: pSlugs,
+    };
   }, [currentNode, graphLinks, graphNodes]);
 
   const { mdast: cleanAst, lede } = useMemo(() => {
@@ -364,11 +415,16 @@ export function NarrativeView({
           return;
         }
         case 'analyses': {
-          // Sub-analysis anchor `#analyses.<key>` resolves against the
-          // containment edge from the current page to its child. Prefer
-          // the `contains` link in graphLinks (authoritative from the
-          // astra-project graph builder); fall back to string-concatenation
-          // when graphLinks isn't available (e.g. DeltaView path).
+          // Sub-analysis anchor. `#analyses.<key>` walks down to a child;
+          // `../analyses.<key>` escapes one level up and resolves against a
+          // sibling. The graphLinks-backed `parentSubSlugs` map carries the
+          // sibling's full slug so we don't reconstruct it from path parts.
+          if (parsed.parentEscapes > 0) {
+            const sibSlug = parentSubSlugs?.get(parsed.id);
+            if (!sibSlug) return;
+            navigate(`/${sibSlug}`);
+            return;
+          }
           const childSlug = `${content.slug}/analyses/${parsed.id}`;
           const childNode = graphNodes.find((n) => n.slug === childSlug);
           if (!childNode) return;
@@ -389,7 +445,7 @@ export function NarrativeView({
       return;
     }
     openCard({ type: 'fiber', node });
-  }, [graphNodes, navigate, currentNode]);
+  }, [graphNodes, navigate, currentNode, parentSubSlugs, content.slug]);
 
   return (
     <div className="vellum-prose-wrapper" ref={wrapperRef}>
@@ -443,6 +499,8 @@ export function NarrativeView({
         currentNode={currentNode}
         childSubKeys={childSubKeys}
         subAnalysisLabels={subAnalysisLabels}
+        parentSubKeys={parentSubKeys}
+        parentSubLabels={parentSubLabels}
       />
       <GhostToc
         proseRef={proseRef}

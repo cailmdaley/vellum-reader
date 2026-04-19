@@ -93,6 +93,18 @@ interface MarginCitationsProps {
    * the raw key.
    */
   subAnalysisLabels?: Map<string, string>;
+  /**
+   * Sibling sub-analysis keys reachable via one parent-scope escape. Feeds
+   * `resolveAstraAnchor` for the `../analyses.<key>` case so peer-pointing
+   * refs from inside a sub-analysis (e.g. `measurements` → `bao_fitting`)
+   * resolve as live rather than broken.
+   */
+  parentSubKeys?: Set<string>;
+  /**
+   * Display labels for sibling sub-analyses, mirror of `subAnalysisLabels`
+   * for the parent-scope-escape case.
+   */
+  parentSubLabels?: Map<string, string>;
 }
 
 /** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
@@ -111,6 +123,8 @@ export function MarginCitations({
   currentNode,
   childSubKeys,
   subAnalysisLabels,
+  parentSubKeys,
+  parentSubLabels,
 }: MarginCitationsProps) {
   const [groups, setGroups] = useState<GlyphGroup[]>([]);
   const [railLeft, setRailLeft] = useState(0);
@@ -125,8 +139,8 @@ export function MarginCitations({
   // `currentNode = graph.nodes.find(...)`), which tore down the effect before
   // its scheduled RAF could fire. The effect never actually measured; groups
   // stayed empty; the margin rail rendered zero glyphs.
-  const propsRef = useRef({ nodes, currentNode, childSubKeys, subAnalysisLabels });
-  propsRef.current = { nodes, currentNode, childSubKeys, subAnalysisLabels };
+  const propsRef = useRef({ nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels });
+  propsRef.current = { nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels };
 
   // Measure trigger exposed to the re-measure-on-prop-change effect below.
   const scheduleMeasureRef = useRef<(() => void) | null>(null);
@@ -160,7 +174,7 @@ export function MarginCitations({
       const prose = proseRef.current;
       const wrapper = wrapperRef.current;
       if (!prose || !wrapper) return;
-      const { nodes, currentNode, childSubKeys, subAnalysisLabels } = propsRef.current;
+      const { nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels } = propsRef.current;
       const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
       const wrapperRect = wrapper.getBoundingClientRect();
       const rawCanvasWidth = Number.parseFloat(
@@ -245,10 +259,10 @@ export function MarginCitations({
         // Resolve against the page's GraphNode — broken anchors still get a
         // glyph, just with the broken affordance.
         const broken = currentNode
-          ? resolveAstraAnchor(parsed, currentNode, childSubKeys)
+          ? resolveAstraAnchor(parsed, currentNode, childSubKeys, parentSubKeys)
           : 'No page node for anchor resolution';
         const label = currentNode
-          ? resolveAstraLabel(parsed, currentNode, subAnalysisLabels)
+          ? resolveAstraLabel(parsed, currentNode, subAnalysisLabels, parentSubLabels)
           : parsed.id;
         const item: GlyphItem = {
           kind: 'astra',
@@ -392,7 +406,7 @@ export function MarginCitations({
   // time the parent re-renders with a new graphNodes or currentNode identity.
   useEffect(() => {
     scheduleMeasureRef.current?.();
-  }, [nodes, currentNode, childSubKeys, subAnalysisLabels]);
+  }, [nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels]);
 
   if (groups.length === 0) return null;
 
