@@ -320,27 +320,19 @@ export function NarrativeView({
         case 'findings': {
           const finding = currentNode.findings?.find((f) => f.key === parsed.id);
           if (!finding) return;
-          openCard({ type: 'insight', finding, hostSlug: currentNode.slug });
+          openCard({ type: 'insight', finding, hostSlug: currentNode.slug, hostNode: currentNode });
           return;
         }
         case 'outputs': {
           const out = currentNode.outputs?.find((o) => o.id === parsed.id);
           if (!out) return;
-          openCard({
-            type: 'output',
-            label: out.id,
-            recipe: out.recipe ?? out.description ?? undefined,
-          });
+          openCard({ type: 'output', output: out, hostNode: currentNode });
           return;
         }
         case 'inputs': {
           const inp = currentNode.inputs?.find((i) => i.id === parsed.id);
           if (!inp) return;
-          openCard({
-            type: 'input',
-            label: inp.id,
-            from: inp.from ?? inp.source ?? inp.description ?? undefined,
-          });
+          openCard({ type: 'input', input: inp, hostNode: currentNode });
           return;
         }
         case 'analyses':

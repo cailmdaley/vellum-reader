@@ -80,7 +80,7 @@ export function AstraAppendix({ node, width }: AstraAppendixProps) {
               <Card
                 key={finding.key}
                 width={cardWidth}
-                content={{ type: 'insight', finding, hostSlug: node.slug }}
+                content={{ type: 'insight', finding, hostSlug: node.slug, hostNode: node }}
               />
             ))}
           </div>
@@ -97,11 +97,7 @@ export function AstraAppendix({ node, width }: AstraAppendixProps) {
               <Card
                 key={input.id}
                 width={cardWidth}
-                content={{
-                  type: 'input',
-                  label: input.description ? `${input.id} — ${input.description}` : input.id,
-                  from: input.from ?? input.source,
-                }}
+                content={{ type: 'input', input, hostNode: node }}
               />
             ))}
           </div>
@@ -118,11 +114,7 @@ export function AstraAppendix({ node, width }: AstraAppendixProps) {
               <Card
                 key={output.id}
                 width={cardWidth}
-                content={{
-                  type: 'output',
-                  label: output.description ? `${output.id} — ${output.description}` : output.id,
-                  recipe: output.recipe,
-                }}
+                content={{ type: 'output', output, hostNode: node }}
               />
             ))}
           </div>

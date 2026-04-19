@@ -71,6 +71,8 @@ export interface GraphOutput {
   kind: string;
   description?: string;
   recipe?: string;
+  from?: string;
+  recipeInputs?: string[];
 }
 
 export interface GraphNode {

@@ -30,7 +30,9 @@ import type {
   GraphDecision,
   GraphEvidence,
   GraphFinding,
+  GraphInput,
   GraphNode,
+  GraphOutput,
 } from '~/utils/content-types';
 import { cleanVerdict, normalizeStatus, statusGlyph } from '~/utils/fiber-status';
 import { useDecisionFlip } from '~/contexts/DecisionFlipContext';
@@ -63,10 +65,19 @@ const CLOSE_GLYPH = '×';
 export type CardContent =
   | { type: 'fiber'; node: GraphNode; content?: FiberContent }
   | { type: 'decision'; decision: GraphDecision; hostSlug?: string }
-  | { type: 'insight'; finding: GraphFinding; hostSlug?: string }
+  | { type: 'insight'; finding: GraphFinding; hostSlug?: string; hostNode?: GraphNode }
   | { type: 'plot'; src: string; caption?: string }
-  | { type: 'input'; label: string; from?: string }
-  | { type: 'output'; label: string; recipe?: string };
+  /**
+   * Input/output cards carry the full GraphInput/GraphOutput so the
+   * ProvenanceCard can show description, recipe, recipe-inputs
+   * (ingredients), and the `from:` ref. `hostNode` lets the card
+   * resolve input ids to their descriptions for ingredient chips.
+   * Callers with only a label/recipe string can still use the `label`
+   * escape hatch — the card falls back to that when no structured
+   * object is present.
+   */
+  | { type: 'input'; label?: string; input?: GraphInput; hostNode?: GraphNode; from?: string }
+  | { type: 'output'; label?: string; output?: GraphOutput; hostNode?: GraphNode; recipe?: string };
 
 export interface CardProps {
   content: CardContent;
@@ -441,9 +452,62 @@ const EVIDENCE_KIND_LABEL: Record<GraphEvidence['kind'], string> = {
   unknown: 'Evidence',
 };
 
-function EvidenceRow({ evidence }: { evidence: GraphEvidence }) {
+function EvidenceRow({
+  evidence,
+  hostNode,
+}: {
+  evidence: GraphEvidence;
+  hostNode?: GraphNode;
+}) {
   const glyph = EVIDENCE_KIND_GLYPH[evidence.kind];
   const label = EVIDENCE_KIND_LABEL[evidence.kind];
+
+  // §3 link: clicking the artifact chip opens the referenced output's
+  // detail card. Dispatches the same `vellum:open-card` event the
+  // NarrativeView click handler uses for anchor refs, so the card lands
+  // on the Canvas with a consistent geometry.
+  const openArtifact = (e: React.MouseEvent) => {
+    if (!evidence.artifact || !hostNode) return;
+    e.stopPropagation();
+    const output = hostNode.outputs?.find((o) => o.id === evidence.artifact);
+    const input = hostNode.inputs?.find((i) => i.id === evidence.artifact);
+    const finding = hostNode.findings?.find((f) => f.key === evidence.artifact);
+    if (output) {
+      document.dispatchEvent(
+        new CustomEvent('vellum:open-card', {
+          detail: {
+            content: { type: 'output', output, hostNode },
+            x: (e.clientX ?? 0) + 12,
+            y: (e.clientY ?? 0) - 12,
+          },
+        }),
+      );
+      return;
+    }
+    if (finding) {
+      document.dispatchEvent(
+        new CustomEvent('vellum:open-card', {
+          detail: {
+            content: { type: 'insight', finding, hostSlug: hostNode.slug },
+            x: (e.clientX ?? 0) + 12,
+            y: (e.clientY ?? 0) - 12,
+          },
+        }),
+      );
+      return;
+    }
+    if (input) {
+      document.dispatchEvent(
+        new CustomEvent('vellum:open-card', {
+          detail: {
+            content: { type: 'input', input, hostNode },
+            x: (e.clientX ?? 0) + 12,
+            y: (e.clientY ?? 0) - 12,
+          },
+        }),
+      );
+    }
+  };
 
   return (
     <div className={`card__evidence card__evidence--${evidence.kind}`}>
@@ -463,9 +527,14 @@ function EvidenceRow({ evidence }: { evidence: GraphEvidence }) {
           </a>
         )}
         {evidence.artifact && !evidence.doi && (
-          <span className="card__evidence-source card__evidence-source--artifact" title="Artifact ref">
+          <button
+            type="button"
+            className="card__evidence-source card__evidence-source--artifact"
+            title={`Open ${evidence.artifact}`}
+            onClick={openArtifact}
+          >
             {evidence.artifact}
-          </span>
+          </button>
         )}
       </div>
 
@@ -505,7 +574,7 @@ function InsightCard({
   onClose,
   className,
 }: CardProps & { content: Extract<CardContent, { type: 'insight' }> }) {
-  const { finding } = content;
+  const { finding, hostNode } = content;
   const glyph = finding.hasEvidence ? '●' : '○';
   const title = `${glyph}  Insight`;
   const evidence = finding.evidence ?? [];
@@ -524,7 +593,7 @@ function InsightCard({
         if (evidence.length === 0) return null;
         return (
           <div className="card__evidence-list" style={{ padding: `0 ${CARD_PAD_X}px ${CARD_PAD_Y}px` }}>
-            {evidence.map((e) => <EvidenceRow key={e.id} evidence={e} />)}
+            {evidence.map((e) => <EvidenceRow key={e.id} evidence={e} hostNode={hostNode} />)}
           </div>
         );
       }}
@@ -576,9 +645,21 @@ function filenameOf(src: string): string {
 
 // ── Input / Output ───────────────────────────────────────────────────────
 // A data source the fiber consumes (◂ input, "from: …") or an artifact it
-// produces (▸ output, "recipe: …"). Both show a label in the lockup and a
-// monospace provenance line below — the raw reference is a feature, the
-// reader can copy it into a query.
+// produces (▸ output, "recipe: …"). The card shows the id + description
+// in the lockup; the meta carries the provenance ref (recipe command or
+// source). For outputs with a local recipe, ingredient chips (recipe
+// inputs) render below — §3's minimal Ingredients affordance. A full
+// three-tab inline expansion (Caption / Ingredients / Local DAG) is
+// deferred until sub-analyses are surfaced as their own pages; DESI
+// root-level outputs currently `from:` into sub-analyses, so the recipe
+// chain is not reachable from the root page.
+
+function inputChipLabel(id: string, hostNode?: GraphNode): string {
+  const descr = hostNode?.inputs?.find((i) => i.id === id)?.description;
+  if (!descr) return id;
+  const short = descr.trim().split('\n')[0];
+  return short.length > 64 ? `${id} — ${short.slice(0, 60)}…` : `${id} — ${short}`;
+}
 
 function ProvenanceCard({
   content,
@@ -589,19 +670,50 @@ function ProvenanceCard({
   content: Extract<CardContent, { type: 'input' | 'output' }>;
 }) {
   const isInput = content.type === 'input';
-  const title = `${isInput ? '◂' : '▸'}  ${content.label}`;
-  const meta = isInput
-    ? content.from && `from: ${content.from}`
-    : content.recipe && `recipe: ${content.recipe}`;
+
+  // Prefer the structured object; fall back to the legacy label/recipe
+  // escape hatch for callers that haven't migrated yet.
+  const input = !isInput ? undefined : content.input;
+  const output = isInput ? undefined : content.output;
+
+  const id = input?.id ?? output?.id ?? content.label ?? '';
+  const description = input?.description ?? output?.description;
+  const title = `${isInput ? '◂' : '▸'}  ${id}${description ? ` — ${description.trim().split('\n')[0]}` : ''}`;
+
+  const provenance = isInput
+    ? input?.from ?? input?.source ?? content.from
+    : output?.recipe ?? output?.from ?? content.recipe;
+  const metaLabel = isInput ? 'from' : output?.recipe ? 'recipe' : output?.from ? 'from' : 'recipe';
+  const meta = provenance ? `${metaLabel}: ${provenance}` : null;
+
+  const ingredients = !isInput && output?.recipeInputs && output.recipeInputs.length > 0
+    ? output.recipeInputs
+    : null;
+
   return (
     <CardShell
       width={width}
       typeLabel={content.type}
       title={title}
       body={null}
-      meta={meta || null}
+      meta={meta}
       onClose={onClose}
       className={className}
+      below={() => {
+        if (!ingredients) return null;
+        return (
+          <div className="card__ingredients" style={{ padding: `0 ${CARD_PAD_X}px ${CARD_PAD_Y}px` }}>
+            <div className="card__ingredients-label">Ingredients</div>
+            <ul className="card__ingredients-list">
+              {ingredients.map((inp) => (
+                <li key={inp} className="card__ingredient-chip" title={inp}>
+                  {inputChipLabel(inp, content.hostNode)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      }}
     />
   );
 }
