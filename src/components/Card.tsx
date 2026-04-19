@@ -25,7 +25,13 @@
 
 import { useEffect, useState } from 'react';
 import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
-import type { FiberContent, GraphDecision, GraphFinding, GraphNode } from '~/utils/content-types';
+import type {
+  FiberContent,
+  GraphDecision,
+  GraphEvidence,
+  GraphFinding,
+  GraphNode,
+} from '~/utils/content-types';
 import { cleanVerdict, normalizeStatus, statusGlyph } from '~/utils/fiber-status';
 import { useDecisionFlip } from '~/contexts/DecisionFlipContext';
 import { FiberCard } from './FiberCard';
@@ -412,7 +418,86 @@ function DecisionCard({
 
 // ── Insight ──────────────────────────────────────────────────────────────
 // An insight (a.k.a. ASTRA finding) is a claim with optional evidence.
-// The claim is the body; the evidence dot (●) goes next to the title.
+// The claim is the body; the title carries a presence dot, the evidence
+// list renders below as the generalized §4 evidence-artifact surface.
+
+/**
+ * Short kind glyph + label for an evidence row header. Mirrors the
+ * MarginCitations / AstraLegend color family so a quote-on-the-page and a
+ * quote-inside-a-card read as the same kind.
+ */
+const EVIDENCE_KIND_GLYPH: Record<GraphEvidence['kind'], string> = {
+  quote: '❝',
+  figure: '▭',
+  code: '‹/›',
+  insight: '●',
+  unknown: '?',
+};
+const EVIDENCE_KIND_LABEL: Record<GraphEvidence['kind'], string> = {
+  quote: 'Quote',
+  figure: 'Figure',
+  code: 'Code',
+  insight: 'Insight',
+  unknown: 'Evidence',
+};
+
+function EvidenceRow({ evidence }: { evidence: GraphEvidence }) {
+  const glyph = EVIDENCE_KIND_GLYPH[evidence.kind];
+  const label = EVIDENCE_KIND_LABEL[evidence.kind];
+
+  return (
+    <div className={`card__evidence card__evidence--${evidence.kind}`}>
+      <div className="card__evidence-header">
+        <span className="card__evidence-glyph" aria-hidden="true">{glyph}</span>
+        <span className="card__evidence-label">{label}</span>
+        {evidence.doi && (
+          <a
+            className="card__evidence-source"
+            href={evidence.doi.startsWith('http') ? evidence.doi : `https://doi.org/${evidence.doi}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title="Open source"
+          >
+            {evidence.doi}
+          </a>
+        )}
+        {evidence.artifact && !evidence.doi && (
+          <span className="card__evidence-source card__evidence-source--artifact" title="Artifact ref">
+            {evidence.artifact}
+          </span>
+        )}
+      </div>
+
+      {evidence.quote?.exact && (
+        <blockquote className="card__evidence-quote">
+          {evidence.quote.prefix && (
+            <span className="card__evidence-context">…{evidence.quote.prefix}</span>
+          )}
+          <span className="card__evidence-exact">{evidence.quote.exact}</span>
+          {evidence.quote.suffix && (
+            <span className="card__evidence-context">{evidence.quote.suffix}…</span>
+          )}
+        </blockquote>
+      )}
+
+      {(evidence.figure || evidence.table) && (
+        <div className="card__evidence-selector">
+          {evidence.figure?.label && <span>Panel: {evidence.figure.label}</span>}
+          {evidence.table?.label && <span>Table: {evidence.table.label}</span>}
+          {evidence.table?.region && <span> — {evidence.table.region}</span>}
+        </div>
+      )}
+
+      {evidence.location && (evidence.location.page !== undefined || evidence.location.value) && (
+        <div className="card__evidence-location">
+          {evidence.location.page !== undefined && <>p. {evidence.location.page}</>}
+          {evidence.location.value && <>{evidence.location.value}</>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function InsightCard({
   content,
@@ -423,6 +508,7 @@ function InsightCard({
   const { finding } = content;
   const glyph = finding.hasEvidence ? '●' : '○';
   const title = `${glyph}  Insight`;
+  const evidence = finding.evidence ?? [];
 
   return (
     <CardShell
@@ -431,9 +517,17 @@ function InsightCard({
       variantClass={finding.hasEvidence ? 'card--resolved' : 'card--open'}
       title={title}
       body={finding.claim}
-      meta={finding.hasEvidence ? 'has evidence' : null}
+      meta={finding.notes ?? finding.scope ?? null}
       onClose={onClose}
       className={className}
+      below={() => {
+        if (evidence.length === 0) return null;
+        return (
+          <div className="card__evidence-list" style={{ padding: `0 ${CARD_PAD_X}px ${CARD_PAD_Y}px` }}>
+            {evidence.map((e) => <EvidenceRow key={e.id} evidence={e} />)}
+          </div>
+        );
+      }}
     />
   );
 }

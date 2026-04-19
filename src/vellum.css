@@ -4142,6 +4142,98 @@ body {
   text-decoration: underline;
 }
 
+/* Evidence list below an Insight Card's lockup. §4 evidence-artifact
+   renderer: one card geometry, four kinds — quote, figure, code,
+   insight. Header carries the kind glyph + label + source ref; the body
+   renders whichever selector(s) the evidence carries (quote passage,
+   figure panel, table region, location). The kind-accent stripe on the
+   left keeps the evidence row visually tied to the §2 margin palette. */
+.card__evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card__evidence {
+  position: relative;
+  padding: 6px 8px 6px 12px;
+  border-left: 2px solid var(--text-muted);
+  background: rgba(0, 0, 0, 0.015);
+  border-radius: 0 2px 2px 0;
+}
+.card__evidence--quote   { border-left-color: var(--astra-finding); }
+.card__evidence--figure  { border-left-color: var(--astra-output); }
+.card__evidence--code    { border-left-color: var(--astra-input); }
+.card__evidence--insight { border-left-color: var(--astra-finding); }
+.card__evidence--unknown { border-left-color: var(--text-muted); }
+
+.card__evidence-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+.card__evidence-glyph {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text);
+  opacity: 0.75;
+}
+.card__evidence--quote   .card__evidence-glyph { color: var(--astra-finding); opacity: 1; }
+.card__evidence--figure  .card__evidence-glyph { color: var(--astra-output);  opacity: 1; }
+.card__evidence--code    .card__evidence-glyph { color: var(--astra-input);   opacity: 1; }
+.card__evidence--insight .card__evidence-glyph { color: var(--astra-finding); opacity: 1; }
+.card__evidence-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+.card__evidence-source {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--text-muted);
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card__evidence-source:hover { color: var(--gold); border-bottom-color: var(--gold); }
+.card__evidence-source--artifact {
+  border-bottom-style: dashed;
+  cursor: default;
+}
+.card__evidence-quote {
+  margin: 4px 0 0;
+  padding: 0;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.card__evidence-context {
+  color: var(--text-muted);
+  font-style: italic;
+  opacity: 0.7;
+}
+.card__evidence-exact {
+  color: var(--text);
+  /* Mark the exact passage against the surrounding context by giving it a
+     tiny warm tint — same gold used for margin-active anchor highlights. */
+  background: var(--gold-faint);
+  padding: 0 2px;
+}
+.card__evidence-selector,
+.card__evidence-location {
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
 
 /* Tame MyST prose inside the card */
 .fiber-card__prose p {
