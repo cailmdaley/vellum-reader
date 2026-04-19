@@ -15,7 +15,7 @@
  * event.
  *
  * Today the log emits `created`, `active`, `tempered`, and `closed`
- * events. Richer event types (body edits, insight additions, decision
+ * events. Richer event types (body edits, finding additions, decision
  * flips) will land when the log route learns to diff fiber history.
  */
 import { useEffect, useRef, useState } from 'react';

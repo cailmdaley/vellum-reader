@@ -592,7 +592,7 @@ function resolveAstraCardContent(
     }
     case 'findings': {
       const finding = currentNode.findings?.find((f) => f.key === parsed.id);
-      return finding ? { type: 'insight', finding, hostSlug: currentNode.slug, hostNode: currentNode } : null;
+      return finding ? { type: 'finding', finding, hostSlug: currentNode.slug, hostNode: currentNode } : null;
     }
     case 'outputs': {
       const output = currentNode.outputs?.find((o) => o.id === parsed.id);

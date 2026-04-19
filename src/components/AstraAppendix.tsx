@@ -3,7 +3,7 @@
  * carries, rendered at the end of the narrative prose.
  *
  * Where margin glyphs surface ASTRA structure one-at-a-time on hover,
- * the appendix is the at-a-glance index: decisions, insights, inputs,
+ * the appendix is the at-a-glance index: decisions, findings, inputs,
  * and outputs all laid out as full Cards in the prose column's inline
  * size. Reuses the unified Card primitive — no bespoke renderers — so
  * appendix cards look and layout identically to workspace anatomy cards
@@ -82,7 +82,7 @@ export function AstraAppendix({ node, width, onNavigate }: AstraAppendixProps) {
       {findings.length > 0 && (
         <section id="astra-appendix-findings" className="astra-appendix__section">
           <h3 className="astra-appendix__heading">
-            Insights <span className="astra-appendix__count">{findings.length}</span>
+            Findings <span className="astra-appendix__count">{findings.length}</span>
           </h3>
           <div className="astra-appendix__stack">
             {findings.map((finding) => (
@@ -93,7 +93,7 @@ export function AstraAppendix({ node, width, onNavigate }: AstraAppendixProps) {
               >
                 <Card
                   width={cardWidth}
-                  content={{ type: 'insight', finding, hostSlug: node.slug, hostNode: node }}
+                  content={{ type: 'finding', finding, hostSlug: node.slug, hostNode: node }}
                 />
               </div>
             ))}

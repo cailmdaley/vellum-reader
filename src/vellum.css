@@ -1622,64 +1622,10 @@ body {
   font-weight: 400;
 }
 
-/* ── Canvas-side marginalia: decisions and insights ── */
-.margin-decisions {
-  pointer-events: none;
-}
-.margin-decision {
-  position: fixed;
-  left: var(--canvas-overlay-left);
-  width: var(--canvas-overlay-width);
-  z-index: 450;
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  cursor: pointer;
-  pointer-events: auto;
-  font-size: 0.78rem;
-  line-height: 1;
-  white-space: nowrap;
-  padding: 2px 4px;
-  border-radius: 2px;
-  transition: background 0.15s;
-  color: inherit;
-  text-decoration: none;
-  overflow: hidden;
-}
-.margin-decision:hover {
-  background: var(--gold-faint);
-}
-.margin-decision__glyph {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-  line-height: 1;
-  color: var(--gold);
-  transition: transform 0.15s;
-}
-.margin-decision:hover .margin-decision__glyph {
-  transform: scale(1.2);
-}
-.margin-decision__label {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
-  min-width: 0;
-  max-width: calc(var(--canvas-overlay-width) - 28px);
-  flex-shrink: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0.75;
-  transition: opacity 0.15s, color 0.15s;
-}
-.margin-decision:hover .margin-decision__label {
-  opacity: 1;
-  color: var(--text);
-}
-
 /* ── Margin Card Preview ──
-   Unified hover-pop for citations, decisions, and insights. The preview
-   sits in the canvas pane, aligned by prose line but spatially living on
-   the divider's right side. */
+   Unified hover-pop for citations and findings. The preview sits in the
+   canvas pane, aligned by prose line but spatially living on the
+   divider's right side. */
 .margin-card-preview {
   position: absolute;
   z-index: 490;
@@ -1706,69 +1652,6 @@ body {
 .margin-card-preview:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
-}
-
-/* ── Left Margin: Insight Glyphs ──
-   Shares anchoring and interaction model with `.margin-decision`. The
-   stack lives below the decision stack in the same left gutter so the
-   reader sees ◇ and ● clusters as related marginalia on the same
-   column. `display: none` + pointer-events: none for the container
-   matches MarginDecisions — children carry `pointer-events: auto`. */
-.margin-insights {
-  pointer-events: none;
-}
-.margin-insight {
-  position: fixed;
-  left: var(--canvas-overlay-left);
-  width: var(--canvas-overlay-width);
-  z-index: 450;
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  cursor: pointer;
-  pointer-events: auto;
-  font-size: 0.78rem;
-  line-height: 1;
-  white-space: nowrap;
-  padding: 2px 4px;
-  border-radius: 2px;
-  transition: background 0.15s;
-  color: inherit;
-  text-decoration: none;
-  overflow: hidden;
-}
-.margin-insight:hover {
-  background: var(--gold-faint);
-}
-.margin-insight__glyph {
-  font-size: 0.95rem;
-  flex-shrink: 0;
-  line-height: 1;
-  color: var(--text-muted);
-  transition: transform 0.15s, color 0.15s;
-}
-.margin-insight--evidence .margin-insight__glyph {
-  color: var(--gold);
-}
-.margin-insight:hover .margin-insight__glyph {
-  transform: scale(1.2);
-  color: var(--gold);
-}
-.margin-insight__label {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
-  min-width: 0;
-  max-width: calc(var(--canvas-overlay-width) - 24px);
-  flex-shrink: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0.75;
-  transition: opacity 0.15s, color 0.15s;
-}
-.margin-insight:hover .margin-insight__label {
-  opacity: 1;
-  color: var(--text);
 }
 
 /* ── Ghost TOC (left gutter) ── */
@@ -1896,7 +1779,7 @@ body {
 }
 
 /* Right-side content for the Workspace tab: a fiber's own Card at
-   the top, followed by its decisions and insights as Cards in a
+   the top, followed by its decisions and findings as Cards in a
    vertical flow. Same weathered substrate as the rest of the page. */
 .workspace-anatomy {
   display: flex;
@@ -2643,7 +2526,7 @@ body {
 /* ── Right Margin: Annotation Notes ──
    The reader's own words, rendered literally in the margin like a
    scholar's handwritten note. Positioned in the canvas overlay strip
-   alongside decision and insight glyphs; clicking opens the popover
+   alongside decision and finding glyphs; clicking opens the popover
    for editing / deleting. */
 .ann-margin-note {
   position: absolute;
@@ -2661,7 +2544,7 @@ body {
   transition: color 0.15s, border-color 0.15s, background 0.15s;
   /* Sits above the canvas (z-index 400) so the note is actually
      visible in the canvas-overlay strip alongside decisions and
-     insights. */
+     findings. */
   z-index: 450;
 }
 .ann-margin-note:hover {
@@ -2672,7 +2555,7 @@ body {
 .ann-margin-note__body {
   min-width: 0;
   /* Clamp to a handful of lines so a long note doesn't crowd the
-     decision/insight stack. The full text is always available via
+     decision/finding stack. The full text is always available via
      the click-opens-popover interaction. */
   display: -webkit-box;
   -webkit-line-clamp: 4;
@@ -3554,8 +3437,6 @@ body {
   }
   .vellum-prose-wrapper { width: var(--prose-width); }
   .margin-glyph { display: none; }
-  .margin-decision { display: none; }
-  .margin-insight { display: none; }
   .margin-card-preview { display: none !important; }
   .ann-margin-note { display: none; }
 }
@@ -4076,7 +3957,7 @@ body {
 
 /* ── Unified Card primitive ───────────────────────────────────────────
    Shared chrome and form factor for every Card in Vellum — fiber,
-   decision, insight, and the stubbed plot / input / output / myst
+   decision, finding, and the stubbed plot / input / output / myst
    variants. The title lockup and any body lines are pretext-composed
    and positioned absolutely inside .card__lockup; type-specific
    content (decision options, evidence lists) flows below the lockup
@@ -4199,12 +4080,14 @@ body {
   text-decoration: underline;
 }
 
-/* Evidence list below an Insight Card's lockup. §4 evidence-artifact
+/* Evidence list below a Finding Card's lockup. §4 evidence-artifact
    renderer: one card geometry, four kinds — quote, figure, code,
-   insight. Header carries the kind glyph + label + source ref; the body
+   finding. Header carries the kind glyph + label + source ref; the body
    renders whichever selector(s) the evidence carries (quote passage,
    figure panel, table region, location). The kind-accent stripe on the
-   left keeps the evidence row visually tied to the §2 margin palette. */
+   left keeps the evidence row visually tied to the §2 margin palette.
+   `--insight` class name tracks mystra's schema-level evidence kind
+   token; the UI label reads "Finding". */
 .card__evidence-list {
   display: flex;
   flex-direction: column;
@@ -4261,7 +4144,7 @@ body {
 }
 .card__evidence-source:hover { color: var(--gold); border-bottom-color: var(--gold); }
 /* Artifact chip — clickable button that opens the referenced output /
-   input / insight in a new Card. Styled to match the doi link chip so
+   input / finding in a new Card. Styled to match the doi link chip so
    the row reads uniformly regardless of source kind. */
 button.card__evidence-source--artifact {
   background: none;
@@ -4902,10 +4785,10 @@ a.pretext-prose-frag:hover {
   background: var(--prose-bg);
 }
 
-/* Type accents for the non-decision/non-insight variants. Each gets a
+/* Type accents for the non-decision/non-finding variants. Each gets a
    distinct left-border tint so cards of different kinds read apart at a
    glance while sharing the same body chrome. Open/resolved borders on
-   decision and insight cards still win because they ship as their own
+   decision and finding cards still win because they ship as their own
    selectors further up. */
 .card--plot { border-left: 2px solid var(--teal, #2dd4bf); }
 .card--input { border-left: 2px solid var(--text-muted, #6b6b6b); }

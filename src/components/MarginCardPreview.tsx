@@ -58,7 +58,7 @@ export function MarginCardPreview({
   const [previewWidth, setPreviewWidth] = useState<number>(() => readPreviewWidth());
   const rootRef = useRef<HTMLDivElement>(null);
   // Fiber hovers fetch their prose body so the preview has something
-  // to scroll through. Non-fiber content (decision, insight, plot,
+  // to scroll through. Non-fiber content (decision, finding, plot,
   // input, output) stays as-is — those don't carry a prose body.
   const [resolved, setResolved] = useState<CardContent>(content);
   useEffect(() => {

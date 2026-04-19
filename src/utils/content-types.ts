@@ -23,9 +23,11 @@ export interface FiberContent {
 /**
  * Normalized evidence detail emitted by mystra's graph builder (see
  * mystra/src/server/routes/graph.ts `GraphEvidence`). Mirrors the shape
- * exactly so the Vellum InsightCard (§4 evidence-artifact renderer) can
+ * exactly so the Vellum FindingCard (§4 evidence-artifact renderer) can
  * switch on `kind` and render the four kinds — quote, figure, code,
- * insight — in the same card geometry.
+ * finding — in the same card geometry. The `insight` discriminator
+ * token is kept for schema alignment with mystra's graph route; at the
+ * UI layer it is labeled as "Finding" so the reader sees one word.
  */
 export type GraphEvidenceKind = 'quote' | 'figure' | 'code' | 'insight' | 'unknown';
 

@@ -35,8 +35,10 @@ export type AstraAnchorKind =
   | 'inputs'
   | 'analyses';
 
-/** Set of raw category names that share the "claim-with-evidence" family. */
-const INSIGHT_KINDS = new Set(['findings', 'prior_insights']);
+/** Raw category tokens that collapse to the `findings` kind — schema
+ *  aliases for the same claim-with-evidence family. `prior_insights` is
+ *  a legacy spelling retained for backward compatibility. */
+const FINDING_KIND_ALIASES = new Set(['findings', 'prior_insights']);
 
 /** All recognized first-path-segment categories. */
 const KNOWN_KINDS = new Set([
@@ -107,7 +109,7 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
   // Case 1: top-level category (`findings`, `decisions`, ...).
   if (KNOWN_KINDS.has(head)) {
     const rawKind = head;
-    const kind: AstraAnchorKind = INSIGHT_KINDS.has(head)
+    const kind: AstraAnchorKind = FINDING_KIND_ALIASES.has(head)
       ? 'findings'
       : (head as AstraAnchorKind);
     let optionId: string | undefined;
@@ -133,7 +135,7 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
   // third and beyond are the element id plus optional trailing path.
   if (trailing.length > 0 && KNOWN_KINDS.has(id)) {
     const rawKind = id;
-    const kind: AstraAnchorKind = INSIGHT_KINDS.has(id)
+    const kind: AstraAnchorKind = FINDING_KIND_ALIASES.has(id)
       ? 'findings'
       : (id as AstraAnchorKind);
     const [innerId, ...innerTrailing] = trailing;
@@ -153,13 +155,17 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
  * Symbol glyph per kind — unified with card typography (Weathered Substrate).
  * Paired with KIND_LEGEND to render `symbol + kind-name` in the margin so the
  * word teaches the glyph.
+ *
+ * `⧗` on analyses is the Lightcone glyph: two cones meeting at a point.
+ * A sub-analysis is a contained world with its own past and future, so
+ * the lightcone shape is the semantic match for "scope."
  */
 export const KIND_SYMBOL: Record<AstraAnchorKind, string> = {
   findings: '●',
   decisions: '◇',
   outputs: '▸',
   inputs: '◂',
-  analyses: '¶',
+  analyses: '⧗',
 };
 
 /** Human-readable legend label (singular, title-cased). */

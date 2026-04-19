@@ -19,12 +19,15 @@ type Kind = 'findings' | 'decisions' | 'outputs' | 'inputs' | 'analyses';
 
 const KIND_ORDER: Kind[] = ['findings', 'decisions', 'outputs', 'inputs', 'analyses'];
 
+// Unified with MarginCitations / AstraLegend (see utils/astra-anchor
+// KIND_SYMBOL). `⧗` on analyses is the Lightcone glyph — two cones
+// meeting at a point, matching "sub-analysis = contained scope."
 const KIND_GLYPH: Record<Kind, string> = {
   findings:  '●',
   decisions: '◇',
-  outputs:   '▲',
-  inputs:    '◌',
-  analyses:  '△',
+  outputs:   '▸',
+  inputs:    '◂',
+  analyses:  '⧗',
 };
 
 const KIND_LABEL_PLURAL: Record<Kind, string> = {

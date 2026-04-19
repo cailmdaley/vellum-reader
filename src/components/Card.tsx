@@ -2,7 +2,7 @@
  * Card — the unified polymorphic card primitive for Vellum.
  *
  * One public entry point that renders a Card for any of the ASTRA nouns.
- * Today: fiber, decision, insight, plot, input, output.
+ * Today: fiber, decision, finding, plot, input, output.
  * The goal is a single form factor — title lockup at the top, pretext-
  * composed typography, the Weathered Substrate palette — shared across
  * every surface a card appears on (narrative marginalia, workspace
@@ -10,7 +10,7 @@
  *
  * Why a dispatcher rather than one giant component: each content type
  * carries a different data shape and a different secondary region
- * (options for a decision, evidence for an insight, a figure for a
+ * (options for a decision, evidence for a finding, a figure for a
  * plot). A common shell + type-specific body lets each variant stay
  * legible. The shared pieces — pretext title lockup, padding, status
  * colors — live in the helpers below.
@@ -67,7 +67,7 @@ const CLOSE_GLYPH = '×';
 export type CardContent =
   | { type: 'fiber'; node: GraphNode; content?: FiberContent }
   | { type: 'decision'; decision: GraphDecision; hostSlug?: string }
-  | { type: 'insight'; finding: GraphFinding; hostSlug?: string; hostNode?: GraphNode }
+  | { type: 'finding'; finding: GraphFinding; hostSlug?: string; hostNode?: GraphNode }
   | { type: 'plot'; src: string; caption?: string }
   /**
    * Input/output cards carry the full GraphInput/GraphOutput so the
@@ -114,8 +114,8 @@ export function Card(props: CardProps) {
       );
     case 'decision':
       return <DecisionCard {...props} content={content} />;
-    case 'insight':
-      return <InsightCard {...props} content={content} />;
+    case 'finding':
+      return <FindingCard {...props} content={content} />;
     case 'plot':
       return <PlotCard {...props} content={content} />;
     case 'input':
@@ -457,10 +457,10 @@ function DecisionCard({
   );
 }
 
-// ── Insight ──────────────────────────────────────────────────────────────
-// An insight (a.k.a. ASTRA finding) is a claim with optional evidence.
-// The claim is the body; the title carries a presence dot, the evidence
-// list renders below as the generalized §4 evidence-artifact surface.
+// ── Finding ──────────────────────────────────────────────────────────────
+// An ASTRA finding is a claim with optional evidence. The claim is the
+// body; the title carries a presence dot, the evidence list renders below
+// as the generalized §4 evidence-artifact surface.
 
 /**
  * Short kind glyph + label for an evidence row header. Mirrors the
@@ -478,7 +478,10 @@ const EVIDENCE_KIND_LABEL: Record<GraphEvidence['kind'], string> = {
   quote: 'Quote',
   figure: 'Figure',
   code: 'Code',
-  insight: 'Insight',
+  // The `insight` evidence kind is the schema-level discriminator for
+  // "this evidence artifact is itself another finding." Label it as
+  // Finding so the reader sees the same word everywhere.
+  insight: 'Finding',
   unknown: 'Evidence',
 };
 
@@ -518,7 +521,7 @@ function EvidenceRow({
       document.dispatchEvent(
         new CustomEvent('vellum:open-card', {
           detail: {
-            content: { type: 'insight', finding, hostSlug: hostNode.slug },
+            content: { type: 'finding', finding, hostSlug: hostNode.slug },
             x: (e.clientX ?? 0) + 12,
             y: (e.clientY ?? 0) - 12,
           },
@@ -598,21 +601,21 @@ function EvidenceRow({
   );
 }
 
-function InsightCard({
+function FindingCard({
   content,
   width,
   onClose,
   className,
-}: CardProps & { content: Extract<CardContent, { type: 'insight' }> }) {
+}: CardProps & { content: Extract<CardContent, { type: 'finding' }> }) {
   const { finding, hostNode } = content;
   const glyph = finding.hasEvidence ? '●' : '○';
-  const title = `${glyph}  Insight`;
+  const title = `${glyph}  Finding`;
   const evidence = finding.evidence ?? [];
 
   return (
     <CardShell
       width={width}
-      typeLabel="insight"
+      typeLabel="finding"
       variantClass={finding.hasEvidence ? 'card--resolved' : 'card--open'}
       title={title}
       body={finding.claim}

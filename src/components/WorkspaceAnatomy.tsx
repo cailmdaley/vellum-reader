@@ -3,7 +3,7 @@
  *
  * Decomposes a fiber into its ASTRA parts and renders each as a Card.
  * Layout is a simple vertical flow: the fiber's own card at the top,
- * then its decisions, then its insights. Width tracks the canvas pane
+ * then its decisions, then its findings. Width tracks the canvas pane
  * so each card restages via pretext as the user drags the divider.
  *
  * This is the first surface to exercise the unified Card primitive
@@ -100,14 +100,14 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
       {findings.length > 0 && (
         <section className="workspace-anatomy__section">
           <h3 className="workspace-anatomy__heading">
-            Insights <span className="workspace-anatomy__count">{findings.length}</span>
+            Findings <span className="workspace-anatomy__count">{findings.length}</span>
           </h3>
           <div className="workspace-anatomy__stack">
             {findings.map((finding) => (
               <Card
                 key={finding.key}
                 width={innerWidth}
-                content={{ type: 'insight', finding, hostSlug: node.slug, hostNode: node }}
+                content={{ type: 'finding', finding, hostSlug: node.slug, hostNode: node }}
               />
             ))}
           </div>

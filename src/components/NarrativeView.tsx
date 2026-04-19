@@ -418,7 +418,7 @@ export function NarrativeView({
         case 'findings': {
           const finding = currentNode.findings?.find((f) => f.key === parsed.id);
           if (!finding) return;
-          openCard({ type: 'insight', finding, hostSlug: currentNode.slug, hostNode: currentNode });
+          openCard({ type: 'finding', finding, hostSlug: currentNode.slug, hostNode: currentNode });
           return;
         }
         case 'outputs': {
