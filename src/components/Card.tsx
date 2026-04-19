@@ -733,10 +733,20 @@ function ProvenanceCard({
   const description = input?.description ?? output?.description;
   const title = `${isInput ? '◂' : '▸'}  ${id}${description ? ` — ${description.trim().split('\n')[0]}` : ''}`;
 
+  // Outputs can carry both a `recipe` (hydrated from the sub-analysis on
+  // the server when this is a re-export) and a `from:` pointer to where the
+  // recipe actually lives. Surface both in the meta so the reader sees the
+  // command and the provenance chain at a glance without expanding tabs.
   const provenance = isInput
     ? input?.from ?? input?.source ?? content.from
     : output?.recipe ?? output?.from ?? content.recipe;
-  const metaLabel = isInput ? 'from' : output?.recipe ? 'recipe' : output?.from ? 'from' : 'recipe';
+  const metaLabel = isInput
+    ? 'from'
+    : output?.recipe
+      ? (output?.from ? `recipe · forwarded from ${output.from}` : 'recipe')
+      : output?.from
+        ? 'from'
+        : 'recipe';
   const meta = provenance ? `${metaLabel}: ${provenance}` : null;
 
   // Outputs get the §3 three-tab detail: Caption / Ingredients / Local
@@ -776,6 +786,7 @@ function ProvenanceCard({
                 <IngredientsPanel
                   recipeInputs={output?.recipeInputs}
                   recipe={output?.recipe}
+                  from={output?.from}
                   hostNode={content.hostNode}
                 />
               )}
@@ -827,21 +838,30 @@ function CaptionPanel({ description }: { description?: string }) {
 function IngredientsPanel({
   recipeInputs,
   recipe,
+  from,
   hostNode,
 }: {
   recipeInputs?: string[];
   recipe?: string;
+  from?: string;
   hostNode?: GraphNode;
 }) {
   const hasChips = !!recipeInputs && recipeInputs.length > 0;
   if (!hasChips && !recipe) {
     return <div className="card__detail-empty">No recipe wired on this output yet.</div>;
   }
+  // When `from` is present alongside `recipe`, the server hydrated the recipe
+  // from a sub-analysis that owns the output. Surface the provenance so the
+  // reader knows where the command actually lives — otherwise it looks like
+  // the root analysis runs the recipe directly.
+  const forwardedFrom = from && recipe ? from : undefined;
   return (
     <div className="card__ingredients">
       {recipe && (
         <div className="card__detail-recipe">
-          <span className="card__detail-label">recipe</span>
+          <span className="card__detail-label">
+            {forwardedFrom ? `recipe · forwarded from ${forwardedFrom}` : 'recipe'}
+          </span>
           <code className="card__detail-code">{recipe}</code>
         </div>
       )}
