@@ -20,9 +20,12 @@ interface AstraAppendixProps {
   node?: GraphNode;
   /** Inline content width of the prose column — cards stage at this width. */
   width: number;
+  /** Router-driven navigation; threaded into decision cards so their
+   *  "open page" chrome glyph can route to the §5 decision detail page. */
+  onNavigate?: (slug: string) => void;
 }
 
-export function AstraAppendix({ node, width }: AstraAppendixProps) {
+export function AstraAppendix({ node, width, onNavigate }: AstraAppendixProps) {
   if (!node) return null;
 
   const decisions = node.decisions ?? [];
@@ -64,6 +67,7 @@ export function AstraAppendix({ node, width }: AstraAppendixProps) {
                 key={decision.key}
                 width={cardWidth}
                 content={{ type: 'decision', decision, hostSlug: node.slug }}
+                onNavigate={onNavigate}
               />
             ))}
           </div>

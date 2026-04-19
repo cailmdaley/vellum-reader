@@ -427,7 +427,11 @@ export function NarrativeView({
         )}
 
         {editorBuffer === null && (
-          <AstraAppendix node={currentNode} width={contentWidth} />
+          <AstraAppendix
+            node={currentNode}
+            width={contentWidth}
+            onNavigate={(s) => navigate(`/${s}`)}
+          />
         )}
       </article>
 

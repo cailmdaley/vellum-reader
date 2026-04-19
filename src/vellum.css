@@ -3967,7 +3967,8 @@ body {
 .fiber-card__pin,
 .fiber-card__close,
 .card__pin,
-.card__close {
+.card__close,
+.card__open-page {
   background: none;
   border: none;
   color: var(--text-muted);
@@ -3981,7 +3982,8 @@ body {
 .fiber-card__pin:hover,
 .fiber-card__close:hover,
 .card__pin:hover,
-.card__close:hover {
+.card__close:hover,
+.card__open-page:hover {
   color: var(--gold);
   background: rgba(154, 123, 53, 0.08);
 }

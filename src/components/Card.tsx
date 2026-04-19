@@ -54,9 +54,11 @@ export const CARD_PAD_Y = 12;
 const TITLE_TO_BODY_GAP = 6;
 const BODY_TO_META_GAP = 8;
 
-// Two-button chrome on pinned cards: a pin toggle (canvas ↔ screen) and
-// an × close. The pin glyph is a quiet typographic mark — a textual
-// pin, not an emoji — so it sits in the Weathered Substrate palette.
+// Chrome glyphs on pinned cards: optional open-page arrow (decisions, when
+// a full detail page exists), pin toggle (canvas ↔ screen), × close. All
+// glyphs are quiet typographic marks so they sit in the Weathered
+// Substrate palette.
+const OPEN_PAGE_GLYPH = '↗';
 const PIN_GLYPH = '⌖';
 const CLOSE_GLYPH = '×';
 
@@ -223,6 +225,8 @@ function CardShell({
   below,
   onClose,
   onPin,
+  onOpenPage,
+  openPageLabel,
   pinMode,
   className,
 }: {
@@ -236,6 +240,10 @@ function CardShell({
   below?: (info: { bodyStartY: number; innerWidth: number }) => React.ReactNode;
   onClose?: () => void;
   onPin?: () => void;
+  /** Secondary affordance (§5): navigate to the variant's full detail
+   *  page. Rendered as a small ↗ chrome glyph when set. */
+  onOpenPage?: () => void;
+  openPageLabel?: string;
   pinMode?: 'canvas' | 'screen';
   className?: string;
 }) {
@@ -264,8 +272,18 @@ function CardShell({
       data-card-type={typeLabel}
       style={{ position: 'relative', width: `${width}px` }}
     >
-      {(onPin || onClose) && (
+      {(onOpenPage || onPin || onClose) && (
         <div className="card__chrome">
+          {onOpenPage && (
+            <button
+              className="card__open-page"
+              onClick={(e) => { e.stopPropagation(); onOpenPage(); }}
+              aria-label={openPageLabel ?? 'Open detail page'}
+              title={openPageLabel ?? 'Open detail page'}
+            >
+              {OPEN_PAGE_GLYPH}
+            </button>
+          )}
           {onPin && (
             <button
               className={`card__pin card__pin--${pinMode ?? 'canvas'}`}
@@ -333,6 +351,7 @@ function DecisionCard({
   content,
   width,
   onClose,
+  onNavigate,
   className,
 }: CardProps & { content: Extract<CardContent, { type: 'decision' }> }) {
   const { decision, hostSlug } = content;
@@ -360,6 +379,15 @@ function DecisionCard({
     .filter(Boolean)
     .join(' ');
 
+  // Secondary affordance (§5): "open page" button that navigates to the
+  // decision's detail page. Only wired when the host has a slug and the
+  // caller plumbed an onNavigate — both are true inside narrative views
+  // and floating context cards, but not in bare preview surfaces.
+  const pageSlug = hostSlug ? `${hostSlug}/decisions/${decision.key}` : null;
+  const handleOpenPage = pageSlug && onNavigate
+    ? () => onNavigate(pageSlug)
+    : undefined;
+
   return (
     <CardShell
       width={width}
@@ -369,6 +397,8 @@ function DecisionCard({
       body={body}
       meta={meta}
       onClose={onClose}
+      onOpenPage={handleOpenPage}
+      openPageLabel="Open decision page"
       className={className}
       below={() => {
         if (options.length === 0) return null;
