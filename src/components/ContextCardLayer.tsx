@@ -442,7 +442,7 @@ export function ContextCardLayer({
               onNavigate={onNavigate}
             />
 
-            {/* Resize handle — bottom-right corner. */}
+            {/* Resize handle — bottom-edge strip (ns-resize, vertical only). */}
             <div
               className="context-card-float__resize"
               onPointerDown={startResize(card)}
