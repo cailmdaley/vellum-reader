@@ -173,7 +173,47 @@ function inlineClassName(variant: Variant, marks: MarkState): string {
   if (marks.italic) cls.push('is-em');
   if (marks.code) cls.push('is-code');
   if (marks.strike) cls.push('is-strike');
-  if (marks.href) cls.push('is-link');
+  if (marks.href) {
+    cls.push('is-link');
+    // ASTRA anchor refs (`#findings.id`, `#decisions.id`, …) get a kind-
+    // colored underline so the reading eye can triage references without
+    // leaving the prose column. Parsing is intentionally light here — the
+    // shared `astra-anchor` utility is used at the margin layer where the
+    // full graph is available; this surface only needs the top-level
+    // category token. A malformed anchor still receives the generic
+    // `is-link` treatment.
+    const href = marks.href;
+    const withoutParents = href.replace(/^(?:\.\.\/)+/, '');
+    if (withoutParents.startsWith('#')) {
+      const body = withoutParents.slice(1);
+      const firstDot = body.indexOf('.');
+      const head = firstDot >= 0 ? body.slice(0, firstDot) : body;
+      cls.push('astra-anchor');
+      switch (head) {
+        case 'findings':
+        case 'prior_insights':
+          cls.push('astra-anchor--findings');
+          break;
+        case 'decisions':
+          cls.push('astra-anchor--decisions');
+          break;
+        case 'outputs':
+          cls.push('astra-anchor--outputs');
+          break;
+        case 'inputs':
+          cls.push('astra-anchor--inputs');
+          break;
+        case 'analyses':
+          cls.push('astra-anchor--analyses');
+          break;
+        default:
+          // Sub-analysis-scoped anchor (`#<sub>.<category>.<id>`) or heading
+          // anchor (`#abstract`). The margin layer resolves these properly;
+          // here we just drop back to neutral underline.
+          break;
+      }
+    }
+  }
   return cls.join(' ');
 }
 

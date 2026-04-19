@@ -15,8 +15,10 @@ import { useNavigate } from 'react-router-dom';
 import { ArticleProvider } from '@myst-theme/providers';
 import { FiberHeader } from './FiberHeader';
 import { AstraAppendix } from './AstraAppendix';
+import { AstraLegend } from './AstraLegend';
 import { MarginCitations } from './MarginCitations';
 import { PretextProse } from './PretextProse';
+import { collectAstraAnchorKinds } from '~/utils/astra-anchor';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { Lightbox } from './Lightbox';
 import { GhostToc } from './GhostToc';
@@ -218,6 +220,14 @@ export function NarrativeView({
     return { mdast: transformTweetEmbeds(stripped.mdast), lede: stripped.lede };
   }, [content.mdast, content.frontmatter, currentNode?.verdict]);
 
+  // Kinds of ASTRA anchor refs that actually appear in the prose. The
+  // legend renders only these (empty set → component returns null), so
+  // ordinary felt fibers stay free of the legend chip strip.
+  const anchorKinds = useMemo(
+    () => collectAstraAnchorKinds(cleanAst),
+    [cleanAst],
+  );
+
   useEffect(() => {
     onEditingChange?.(editorBuffer !== null || editorLoading);
   }, [editorBuffer, editorLoading, onEditingChange]);
@@ -320,6 +330,7 @@ export function NarrativeView({
             references={content.references ?? { cite: {}, footnotes: {} }}
             frontmatter={content.frontmatter ?? {}}
           >
+            <AstraLegend kinds={anchorKinds} />
             <PretextProse
               mdast={cleanAst}
               contentWidth={contentWidth}
@@ -337,6 +348,7 @@ export function NarrativeView({
         proseRef={proseRef}
         wrapperRef={wrapperRef}
         changedIds={changedIds}
+        currentNode={currentNode}
       />
       <GhostToc
         proseRef={proseRef}

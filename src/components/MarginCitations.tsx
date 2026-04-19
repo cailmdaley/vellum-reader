@@ -1,16 +1,23 @@
 /**
- * MarginCitations — right-margin citation glyphs.
+ * MarginCitations — right-margin glyph column.
  *
- * After the prose renders, scans for all internal `a[href^="/"]` links,
- * looks each up in the ASTRA graph, and renders a status glyph positioned
- * at the line where the citation appears.
+ * Two glyph families coexist in the same rail:
  *
- * Glyph map:
- *   open       → ○  (gold)
- *   active     → ◐  (teal)
- *   closed     → ●  (teal, dimmed)
- *   suspended  → ·  (muted)
- *   decision   → ⧖  (gold, hourglass)
+ *   1. **Fiber links** — internal anchors `/some-fiber` picked up from the
+ *      prose. Each glyph reflects the link target's fiber status (○/◐/●/…).
+ *   2. **ASTRA anchors** — inline refs `#findings.id`, `#decisions.id`,
+ *      `#outputs.id`, `#inputs.id`, `#analyses.sub`. Each glyph is a
+ *      one-letter kind chip (F/D/O/I/A) keyed to the anchor kind, pulled
+ *      from `utils/astra-anchor.ts`. Unresolved anchors render with a
+ *      broken-link affordance — rule per narrative-overnight constitution
+ *      §2: "Render as an inert link with a small broken-link icon. Do not
+ *      crash. Do not silently drop."
+ *
+ * Positioning is identical across both: the anchor's pretext line-y is
+ * read off `data-pretext-line-top` (falling back to `getBoundingClientRect`
+ * for the myst-to-react path). Anchors that share a line produce a single
+ * group whose glyphs stack horizontally; distinct lines stack vertically
+ * with a MIN_GAP floor so overlapping Y values don't collide.
  */
 
 import { useEffect, useState } from 'react';
@@ -18,23 +25,44 @@ import type { GraphNode } from '~/utils/content-types';
 import { useHoverGrace } from '~/hooks/useHoverGrace';
 import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
 import { glyphForNode, statusClass } from '~/utils/fiber-status';
+import {
+  KIND_LEGEND,
+  KIND_LETTER,
+  parseAstraAnchor,
+  resolveAstraAnchor,
+  resolveAstraLabel,
+  type AstraAnchorKind,
+  type ParsedAstraAnchor,
+} from '~/utils/astra-anchor';
 import { MarginCardPreview } from './MarginCardPreview';
 
-interface Glyph {
+type FiberGlyph = {
+  kind: 'fiber';
   slug: string;
   node: GraphNode;
-  top: number;       // prose-wrapper px so the rail scrolls with the page
   href: string;
   label: string;
-  /**
-   * Every anchor element that backs this glyph. Usually a single anchor,
-   * but pretext emits one `<a>` per wrapped line fragment of a single
-   * source link, so a wikilink that straddles two lines contributes two
-   * (or more) same-href anchors which we fold into one glyph. Hover
-   * listeners are attached to each so highlighting works on whichever
-   * fragment the reader actually mouses over.
-   */
   linkEls: HTMLAnchorElement[];
+};
+
+type AstraGlyph = {
+  kind: 'astra';
+  /** Anchor href, used for rendering + de-duplication within a line. */
+  href: string;
+  parsed: ParsedAstraAnchor;
+  anchorKind: AstraAnchorKind;
+  label: string;
+  /** Broken-anchor reason — `null` when the anchor resolves against the page. */
+  broken: string | null;
+  linkEls: HTMLAnchorElement[];
+};
+
+type GlyphItem = (FiberGlyph | AstraGlyph) & { top: number };
+
+/** A cluster of glyphs at one line Y, rendered side-by-side in the margin. */
+interface GlyphGroup {
+  top: number;
+  items: GlyphItem[];
 }
 
 interface MarginCitationsProps {
@@ -42,19 +70,35 @@ interface MarginCitationsProps {
   proseRef: React.RefObject<HTMLElement>;
   wrapperRef: React.RefObject<HTMLElement>;
   changedIds?: Set<string>;
+  /**
+   * GraphNode for the page being rendered — used to resolve ASTRA anchor refs
+   * against the analysis' findings / decisions / inputs / outputs. When
+   * omitted (or when the page doesn't represent an astra-project), ASTRA
+   * anchors on the page render as broken so readers still see the glyph.
+   */
+  currentNode?: GraphNode | null;
 }
 
 /** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
 const LINK_HOVER_DELAY_MS = 250;
 const CANVAS_RAIL_TOP = 172;
+/** Min vertical gap between distinct glyph groups. Glyphs inside a group share a Y. */
+const MIN_GROUP_GAP = 16;
+/** Max y-distance treated as "same line" when grouping glyphs horizontally. */
+const LINE_MERGE_TOLERANCE = 8;
 
-export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: MarginCitationsProps) {
-  const [glyphs, setGlyphs] = useState<Glyph[]>([]);
+export function MarginCitations({
+  nodes,
+  proseRef,
+  wrapperRef,
+  changedIds,
+  currentNode,
+}: MarginCitationsProps) {
+  const [groups, setGroups] = useState<GlyphGroup[]>([]);
   const [railLeft, setRailLeft] = useState(0);
-  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const { hoveredKey, openKey, scheduleOpen, cancelClose, scheduleClose } =
     useHoverGrace(HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS);
-  const hoveredIdx = hoveredKey != null ? Number(hoveredKey) : null;
 
   // Measure positions after prose paints
   useEffect(() => {
@@ -74,8 +118,6 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
     };
 
     const measure = () => {
-      // Drop any listeners from the previous measurement — new glyph
-      // indices would otherwise point into stale state.
       for (const fn of cleanups.splice(0)) fn();
       if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
       cancelClose();
@@ -89,38 +131,36 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 0;
       const canvasLeft = canvasWidth > 0 ? window.innerWidth - canvasWidth : window.innerWidth;
       setRailLeft(Math.max(0, canvasLeft - wrapperRect.left + 12));
-      // Search the subtree for an element whose positioning origin matches
-      // pretext's own coordinate space — `.pretext-prose` is the relatively-
-      // positioned box pretext lays its lines inside. We read its offset
-      // once (one getBoundingClientRect for the whole container) and then
-      // stamp each pretext-authored anchor's glyph using
-      // `data-pretext-line-top` rather than re-measuring every link with
-      // its own bounding rect. Gate 2 of the pretext-refoundation
-      // constitution: on column or card resize, glyphs track pretext's
-      // updated line coordinates without a per-anchor CSS measurement pass.
+
+      // Pretext lays its lines into a relatively-positioned box; read the
+      // box origin once so we can stamp each anchor's margin y off its
+      // pretext line-top attribute rather than re-measuring with a per-
+      // anchor bounding rect.
       const pretextBox = prose.querySelector<HTMLElement>('.pretext-prose');
       const pretextOriginTop = pretextBox
         ? pretextBox.getBoundingClientRect().top - wrapperRect.top
         : null;
 
-      // All internal anchor tags in the prose
-      const anchors = Array.from(
-        prose.querySelectorAll<HTMLAnchorElement>('a[href^="/"]')
-      );
+      // Collect both fiber anchors (href starts with "/") and ASTRA anchors
+      // (href starts with "#" or "../") in DOM order. Pretext wraps a single
+      // source link into N <a> fragments when it breaks across lines; we
+      // fold those fragments per-anchor-key below.
+      const allAnchors = Array.from(prose.querySelectorAll<HTMLAnchorElement>('a[href]'));
+      const items: GlyphItem[] = [];
 
-      const next: Glyph[] = [];
+      // Per-kind continuation tracking: when pretext emits two adjacent
+      // `<a>` tags for the same source link that wrapped across a line,
+      // the second one becomes a "continuation" fragment of the first
+      // glyph rather than a second glyph. We track the last-emitted glyph
+      // keyed by its lookup href so we can compare against the next
+      // anchor's href + proximity.
+      let lastItem: GlyphItem | null = null;
 
-      for (const a of anchors) {
+      for (const a of allAnchors) {
         const href = a.getAttribute('href') ?? '';
-        const slug = href.replace(/^\//, ''); // strip leading /
-        if (!slug) continue;
+        if (!href) continue;
 
-        const node = nodeBySlug.get(slug);
-        if (!node) continue;
-
-        // Prefer pretext's authoritative line coordinate when the anchor
-        // was rendered by PretextProse. Fall back to the flow-layout
-        // measurement used by the myst-to-react column.
+        // y-coordinate: prefer pretext's line-top attribute when present.
         let top: number;
         const dataLineTop = a.dataset.pretextLineTop;
         if (dataLineTop != null && pretextOriginTop != null) {
@@ -130,115 +170,136 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
           top = rect.top - wrapperRect.top;
         }
 
-        // Pretext emits one `<a>` per wrapped line fragment of a single
-        // source link, so a wikilink straddling two lines produces two
-        // adjacent same-href anchors. Fold those into one glyph: if the
-        // previous accepted glyph has the same href AND sits within one
-        // pretext line-height of this anchor, treat this as a
-        // continuation rather than a new citation. A naive same-href
-        // dedupe collapses distinct citations of the same slug in
-        // different paragraphs; anchoring on line-distance keeps those
-        // separate because their top values differ by much more than a
-        // line. When `data-pretext-line-height` is missing (myst-column
-        // fallback path) there's nothing to dedupe — myst renders one
-        // `<a>` per link across wraps — so we leave the anchor alone.
-        const prev = next[next.length - 1];
-        if (prev && prev.href === href) {
-          const dataLineHeight = a.dataset.pretextLineHeight;
-          if (dataLineHeight != null) {
-            const lineHeight = Number(dataLineHeight);
-            if (Math.abs(top - prev.top) <= lineHeight * 1.5) {
-              prev.linkEls.push(a);
-              continue;
-            }
+        if (href.startsWith('/')) {
+          // Fiber-link glyph — look up the target node. Skip anchors whose
+          // slug isn't in the current project's graph (e.g. external paths
+          // we don't know about).
+          const slug = href.slice(1);
+          if (!slug) continue;
+          const node = nodeBySlug.get(slug);
+          if (!node) continue;
+          if (lastItem && isContinuation(lastItem, 'fiber', href, top, a)) {
+            lastItem.linkEls.push(a);
+            continue;
           }
+          const item: GlyphItem = {
+            kind: 'fiber',
+            slug,
+            node,
+            href,
+            label: node.label ?? slug,
+            linkEls: [a],
+            top,
+          };
+          items.push(item);
+          lastItem = item;
+          continue;
         }
 
-        next.push({
-          slug,
-          node,
-          top,
+        const parsed = parseAstraAnchor(href);
+        if (!parsed) continue; // plain same-document heading anchor, ignore
+
+        if (lastItem && isContinuation(lastItem, 'astra', href, top, a)) {
+          lastItem.linkEls.push(a);
+          continue;
+        }
+
+        // Resolve against the page's GraphNode — broken anchors still get a
+        // glyph, just with the broken affordance.
+        const broken = currentNode
+          ? resolveAstraAnchor(parsed, currentNode)
+          : 'No page node for anchor resolution';
+        const label = currentNode
+          ? resolveAstraLabel(parsed, currentNode)
+          : parsed.id;
+        const item: GlyphItem = {
+          kind: 'astra',
           href,
-          label: node.label ?? slug,
+          parsed,
+          anchorKind: parsed.kind,
+          label,
+          broken,
           linkEls: [a],
-        });
+          top,
+        };
+        items.push(item);
+        lastItem = item;
       }
 
-      // Stack overlapping glyphs (within 14px of each other)
-      const MIN_GAP = 16;
-      let lastTop = CANVAS_RAIL_TOP - MIN_GAP;
-      const positioned = next.map((g) => {
-        const t = Math.max(g.top, lastTop + MIN_GAP);
-        lastTop = t;
-        return { ...g, top: t };
-      });
-
-      setGlyphs(positioned);
-
-      // Surface the same tooltip when the user hovers a prose link, not
-      // just the margin glyph. Delayed so scrubbing across links while
-      // reading doesn't flash tooltips. Wired on every anchor backing
-      // the glyph so that a wrap-fragmented wikilink highlights
-      // correctly from either fragment.
-      positioned.forEach((g, i) => {
-        const setActive = (active: boolean) => {
-          for (const el of g.linkEls) {
-            el.classList.toggle('margin-active', active);
-          }
-        };
-        const onEnter = () => {
-          setActive(true);
-          setActiveIdx(i);
-          if (hoverTimer) clearTimeout(hoverTimer);
-          cancelClose();
-          hoverTimer = setTimeout(() => openKey(String(i)), LINK_HOVER_DELAY_MS);
-        };
-        const onLeave = () => {
-          setActive(false);
-          setActiveIdx((current) => (current === i ? null : current));
-          if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
-          scheduleClose();
-        };
-        for (const el of g.linkEls) {
-          el.addEventListener('mouseenter', onEnter);
-          el.addEventListener('mouseleave', onLeave);
+      // Group items by line Y. Items within LINE_MERGE_TOLERANCE join the
+      // previous group (horizontal stack); otherwise open a new group.
+      // A second pass enforces MIN_GROUP_GAP between distinct groups,
+      // bumping later groups downward so they don't overlap above the
+      // canvas rail origin.
+      const grouped: GlyphGroup[] = [];
+      for (const item of items) {
+        const last = grouped[grouped.length - 1];
+        if (last && Math.abs(last.top - item.top) <= LINE_MERGE_TOLERANCE) {
+          last.items.push(item);
+        } else {
+          grouped.push({ top: item.top, items: [item] });
         }
-        cleanups.push(() => {
-          for (const el of g.linkEls) {
-            el.removeEventListener('mouseenter', onEnter);
-            el.removeEventListener('mouseleave', onLeave);
+      }
+      let lastTop = CANVAS_RAIL_TOP - MIN_GROUP_GAP;
+      for (const group of grouped) {
+        const t = Math.max(group.top, lastTop + MIN_GROUP_GAP);
+        lastTop = t;
+        group.top = t;
+      }
+
+      setGroups(grouped);
+
+      // Hover wiring. We treat the whole glyph group as the hover target for
+      // tooltip coordination: hovering any of the constituent anchors opens
+      // that item's tooltip (keyed by a stable string that encodes group+item).
+      grouped.forEach((group, gi) => {
+        group.items.forEach((item, ii) => {
+          const key = `${gi}:${ii}`;
+          const setActive = (active: boolean) => {
+            for (const el of item.linkEls) {
+              el.classList.toggle('margin-active', active);
+            }
+          };
+          const onEnter = () => {
+            setActive(true);
+            setActiveKey(key);
+            if (hoverTimer) clearTimeout(hoverTimer);
+            cancelClose();
+            hoverTimer = setTimeout(() => openKey(key), LINK_HOVER_DELAY_MS);
+          };
+          const onLeave = () => {
+            setActive(false);
+            setActiveKey((prev) => (prev === key ? null : prev));
+            if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+            scheduleClose();
+          };
+          for (const el of item.linkEls) {
+            el.addEventListener('mouseenter', onEnter);
+            el.addEventListener('mouseleave', onLeave);
           }
+          cleanups.push(() => {
+            for (const el of item.linkEls) {
+              el.removeEventListener('mouseenter', onEnter);
+              el.removeEventListener('mouseleave', onLeave);
+            }
+          });
         });
       });
     };
 
-    // Measure after paint
     const frame = requestAnimationFrame(measure);
 
-    // Re-measure on resize. We observe two targets:
-    //
-    //   1. The prose article itself — catches outer column width changes
-    //      from viewport / mode switches.
-    //   2. The inner `.pretext-prose` box (when present) — pretext
-    //      re-computes line y-coordinates when its width changes, and the
-    //      new coordinates only land on `data-pretext-line-top` after
-    //      PretextProse re-renders. Observing the inner box makes sure
-    //      the re-measurement runs *after* that re-render, so the glyphs
-    //      read fresh pretext coordinates instead of stale ones from the
-    //      previous layout pass. Without this, making CONTENT_WIDTH
-    //      reactive in PretextNarrativePage silently desyncs citations
-    //      from the prose on every responsive breakpoint trip.
+    // Re-measure on resize. Two observe targets, same rationale as before:
+    // the outer article (for column width changes) and the inner .pretext-
+    // prose (for pretext's re-layout on content width changes).
     const observer = new ResizeObserver(measure);
     const proseEl = proseRef.current!;
     observer.observe(proseEl);
-    const pretextBox = proseEl.querySelector<HTMLElement>('.pretext-prose');
-    if (pretextBox) observer.observe(pretextBox);
+    const pretextBoxObs = proseEl.querySelector<HTMLElement>('.pretext-prose');
+    if (pretextBoxObs) observer.observe(pretextBoxObs);
 
-    // Pretext may mount its inner box a tick after the article; watch for
-    // that so the first Gate 1 load with pretext still picks it up for
-    // subsequent resizes.
     let mutationObserver: MutationObserver | null = null;
-    if (!pretextBox && typeof MutationObserver !== 'undefined') {
+    if (!pretextBoxObs && typeof MutationObserver !== 'undefined') {
       mutationObserver = new MutationObserver(() => {
         const box = proseEl.querySelector<HTMLElement>('.pretext-prose');
         if (box) {
@@ -272,46 +333,52 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       if (hoverTimer) clearTimeout(hoverTimer);
       for (const fn of cleanups) fn();
     };
-  }, [proseRef, wrapperRef, nodes]);
+  }, [proseRef, wrapperRef, nodes, currentNode]);
 
-  if (glyphs.length === 0) return null;
+  if (groups.length === 0) return null;
 
-  const hoveredGlyph = hoveredIdx !== null ? glyphs[hoveredIdx] : null;
+  const hoveredItem = (() => {
+    if (!hoveredKey) return null;
+    const [gi, ii] = hoveredKey.split(':').map(Number);
+    const group = groups[gi];
+    if (!group) return null;
+    const item = group.items[ii];
+    if (!item) return null;
+    return { group, item, gi, ii };
+  })();
 
   return (
     <>
-      {glyphs.map((g, i) => (
+      {groups.map((group, gi) => (
         <div
-          key={`${g.slug}-${i}`}
-          className={`margin-glyph margin-glyph--${statusClass(g.node.status)}${changedIds?.has(g.slug) ? ' margin-glyph--changed' : ''}${g.node.tempered ? ' margin-glyph--tempered' : ''}${activeIdx === i ? ' margin-glyph--active' : ''}`}
-          style={{ top: g.top, left: railLeft }}
-          onClick={() => openKey(String(i))}
-          onMouseEnter={() => {
-            for (const el of g.linkEls) el.classList.add('margin-active');
-            setActiveIdx(i);
-            scheduleOpen(String(i));
-          }}
-          onMouseLeave={() => {
-            for (const el of g.linkEls) el.classList.remove('margin-active');
-            setActiveIdx((current) => (current === i ? null : current));
-            scheduleClose();
-          }}
-          role="link"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') openKey(String(i));
-          }}
-          aria-label={`Open ${g.label} in marginalia`}
+          key={gi}
+          className="margin-glyph-row"
+          style={{ position: 'absolute', top: group.top, left: railLeft }}
         >
-          <span className="margin-glyph__dot">{glyphForNode(g.node)}</span>
-          <span className="margin-glyph__label">{g.label}</span>
+          {group.items.map((item, ii) => renderGlyph(item, `${gi}:${ii}`, {
+            activeKey,
+            changedIds,
+            openKey,
+            scheduleOpen,
+            scheduleClose,
+            setActiveKey,
+          }))}
         </div>
       ))}
 
-      {hoveredGlyph && (
+      {hoveredItem && hoveredItem.item.kind === 'fiber' && (
         <MarginCardPreview
-          content={{ type: 'fiber', node: hoveredGlyph.node }}
-          top={hoveredGlyph.top + 20}
+          content={{ type: 'fiber', node: hoveredItem.item.node }}
+          top={hoveredItem.group.top + 20}
+          left={railLeft}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+        />
+      )}
+      {hoveredItem && hoveredItem.item.kind === 'astra' && (
+        <AstraAnchorTooltip
+          item={hoveredItem.item}
+          top={hoveredItem.group.top + 20}
           left={railLeft}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
@@ -319,4 +386,134 @@ export function MarginCitations({ nodes, proseRef, wrapperRef, changedIds }: Mar
       )}
     </>
   );
+}
+
+interface GlyphRenderCtx {
+  activeKey: string | null;
+  changedIds?: Set<string>;
+  openKey: (k: string) => void;
+  scheduleOpen: (k: string) => void;
+  scheduleClose: () => void;
+  setActiveKey: React.Dispatch<React.SetStateAction<string | null>>;
+}
+
+function renderGlyph(item: GlyphItem, key: string, ctx: GlyphRenderCtx) {
+  const active = ctx.activeKey === key;
+  if (item.kind === 'fiber') {
+    const cls =
+      `margin-glyph margin-glyph--fiber margin-glyph--${statusClass(item.node.status)}` +
+      (ctx.changedIds?.has(item.slug) ? ' margin-glyph--changed' : '') +
+      (item.node.tempered ? ' margin-glyph--tempered' : '') +
+      (active ? ' margin-glyph--active' : '');
+    return (
+      <div
+        key={key}
+        className={cls}
+        onClick={() => ctx.openKey(key)}
+        onMouseEnter={() => {
+          for (const el of item.linkEls) el.classList.add('margin-active');
+          ctx.setActiveKey(key);
+          ctx.scheduleOpen(key);
+        }}
+        onMouseLeave={() => {
+          for (const el of item.linkEls) el.classList.remove('margin-active');
+          ctx.setActiveKey((p) => (p === key ? null : p));
+          ctx.scheduleClose();
+        }}
+        role="link"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') ctx.openKey(key);
+        }}
+        aria-label={`Open ${item.label} in marginalia`}
+      >
+        <span className="margin-glyph__dot">{glyphForNode(item.node)}</span>
+        <span className="margin-glyph__label">{item.label}</span>
+      </div>
+    );
+  }
+
+  // ASTRA anchor glyph
+  const cls =
+    `margin-glyph margin-glyph--astra margin-glyph--astra-${item.anchorKind}` +
+    (item.broken ? ' margin-glyph--astra-broken' : '') +
+    (active ? ' margin-glyph--active' : '');
+  const letter = KIND_LETTER[item.anchorKind];
+  return (
+    <div
+      key={key}
+      className={cls}
+      onMouseEnter={() => {
+        for (const el of item.linkEls) el.classList.add('margin-active');
+        ctx.setActiveKey(key);
+        ctx.scheduleOpen(key);
+      }}
+      onMouseLeave={() => {
+        for (const el of item.linkEls) el.classList.remove('margin-active');
+        ctx.setActiveKey((p) => (p === key ? null : p));
+        ctx.scheduleClose();
+      }}
+      aria-label={
+        item.broken
+          ? `Broken anchor: ${item.label}`
+          : `${KIND_LEGEND[item.anchorKind]}: ${item.label}`
+      }
+    >
+      <span className="margin-glyph__dot" aria-hidden="true">{letter}</span>
+      <span className="margin-glyph__label">{item.label}</span>
+      {item.broken && (
+        <span className="margin-glyph__broken" aria-hidden="true">⚠</span>
+      )}
+    </div>
+  );
+}
+
+function AstraAnchorTooltip({
+  item,
+  top,
+  left,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  item: Extract<GlyphItem, { kind: 'astra' }>;
+  top: number;
+  left: number;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  return (
+    <div
+      className="margin-astra-tooltip"
+      style={{ position: 'absolute', top, left }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="margin-astra-tooltip__kind">{KIND_LEGEND[item.anchorKind]}</div>
+      <div className="margin-astra-tooltip__label">{item.label}</div>
+      {item.broken && (
+        <div className="margin-astra-tooltip__broken">⚠ {item.broken}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Pretext emits one `<a>` per wrapped line fragment of a single source link.
+ * Fold same-href adjacent fragments into one glyph when their y-coordinates
+ * are within 1.5 line-heights — same heuristic both the old MarginCitations
+ * used for fiber links and what we want for ASTRA anchors.
+ */
+function isContinuation(
+  prev: GlyphItem,
+  nextKind: 'fiber' | 'astra',
+  href: string,
+  top: number,
+  anchor: HTMLAnchorElement,
+): boolean {
+  if (prev.kind !== nextKind) return false;
+  if (prev.href !== href) return false;
+  const dataLineHeight = anchor.dataset.pretextLineHeight;
+  if (dataLineHeight == null) return false;
+  const lineHeight = Number(dataLineHeight);
+  return Math.abs(top - prev.top) <= lineHeight * 1.5;
 }
