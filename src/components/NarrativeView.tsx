@@ -212,6 +212,25 @@ export function NarrativeView({
       .filter((n): n is GraphNode => !!n);
   }, [currentNode, graphLinks, graphNodes]);
 
+  /**
+   * Sub-analysis keys reachable from the current node via `contains` edges.
+   * The astra-project graph builder emits one `contains` link per nested
+   * `analyses.<key>`; the last path segment of the target slug is the key
+   * the `#analyses.<key>` anchor refers to. Undefined when graphLinks is
+   * absent so the resolver falls back to its legacy "lookup pending" state.
+   */
+  const childSubKeys = useMemo(() => {
+    if (!currentNode || !graphLinks) return undefined;
+    const keys = new Set<string>();
+    for (const link of graphLinks) {
+      if (link.kind !== 'contains') continue;
+      if (link.source !== currentNode.id) continue;
+      const key = link.target.split('/').pop();
+      if (key) keys.add(key);
+    }
+    return keys;
+  }, [currentNode, graphLinks]);
+
   const { mdast: cleanAst, lede } = useMemo(() => {
     const stripped = stripFrontmatterNodes(
       content.mdast,
@@ -335,12 +354,18 @@ export function NarrativeView({
           openCard({ type: 'input', input: inp, hostNode: currentNode });
           return;
         }
-        case 'analyses':
-          // Sub-analyses aren't yet served as their own pages; see the
-          // Open Questions list in the narrative-overnight constitution.
-          // Silent no-op keeps the inline link affordance honest — the
-          // margin glyph's broken icon signals "not resolvable here".
+        case 'analyses': {
+          // Sub-analysis anchor `#analyses.<key>` resolves against the
+          // containment edge from the current page to its child. Prefer
+          // the `contains` link in graphLinks (authoritative from the
+          // astra-project graph builder); fall back to string-concatenation
+          // when graphLinks isn't available (e.g. DeltaView path).
+          const childSlug = `${content.slug}/analyses/${parsed.id}`;
+          const childNode = graphNodes.find((n) => n.slug === childSlug);
+          if (!childNode) return;
+          navigate(`/${childSlug}`);
           return;
+        }
       }
       return;
     }
@@ -403,6 +428,7 @@ export function NarrativeView({
         wrapperRef={wrapperRef}
         changedIds={changedIds}
         currentNode={currentNode}
+        childSubKeys={childSubKeys}
       />
       <GhostToc
         proseRef={proseRef}

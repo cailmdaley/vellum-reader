@@ -77,6 +77,15 @@ interface MarginCitationsProps {
    * anchors on the page render as broken so readers still see the glyph.
    */
   currentNode?: GraphNode | null;
+  /**
+   * Child sub-analysis keys reachable from `currentNode` — derived from
+   * graph `contains` edges. Feeds `resolveAstraAnchor` for the
+   * `#analyses.<key>` case so it can tell live sub-analysis refs from
+   * broken ones. Empty set is treated as "this page has no sub-analyses",
+   * so such refs render broken; omit the prop entirely to fall back to
+   * the legacy "lookup pending" diagnostic.
+   */
+  childSubKeys?: Set<string>;
 }
 
 /** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
@@ -93,6 +102,7 @@ export function MarginCitations({
   wrapperRef,
   changedIds,
   currentNode,
+  childSubKeys,
 }: MarginCitationsProps) {
   const [groups, setGroups] = useState<GlyphGroup[]>([]);
   const [railLeft, setRailLeft] = useState(0);
@@ -207,7 +217,7 @@ export function MarginCitations({
         // Resolve against the page's GraphNode — broken anchors still get a
         // glyph, just with the broken affordance.
         const broken = currentNode
-          ? resolveAstraAnchor(parsed, currentNode)
+          ? resolveAstraAnchor(parsed, currentNode, childSubKeys)
           : 'No page node for anchor resolution';
         const label = currentNode
           ? resolveAstraLabel(parsed, currentNode)
@@ -333,7 +343,7 @@ export function MarginCitations({
       if (hoverTimer) clearTimeout(hoverTimer);
       for (const fn of cleanups) fn();
     };
-  }, [proseRef, wrapperRef, nodes, currentNode]);
+  }, [proseRef, wrapperRef, nodes, currentNode, childSubKeys]);
 
   if (groups.length === 0) return null;
 

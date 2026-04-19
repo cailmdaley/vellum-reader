@@ -170,18 +170,21 @@ export const KIND_LEGEND: Record<AstraAnchorKind, string> = {
 };
 
 /**
- * Check whether an ASTRA anchor resolves against the root astra-project's
+ * Check whether an ASTRA anchor resolves against the current page's
  * GraphNode. Returns `null` when resolved (anchor is live) or a reason
  * string when the anchor is broken.
  *
- * Pass 1 surfaces only the root-level lookup: `#findings.<id>`,
- * `#decisions.<id>`, `#inputs.<id>`, `#outputs.<id>`. Anchors that reach
- * into sub-analyses (`#<sub>.category.id`) or escape parent scope (`../`)
- * render with a broken-link icon; Pass 2+ can wire them to the full tree.
+ * Root-level anchors (`#findings.<id>`, `#decisions.<id>`, ...) look up
+ * against the node's own structured fields. `#analyses.<key>` resolves
+ * against the caller-supplied `childSubKeys` set — typically derived from
+ * graph `contains` edges originating at the current node. Anchors that
+ * reach into sub-analyses (`#<sub>.category.id`) or escape parent scope
+ * (`../`) render with a broken-link icon on the current page.
  */
 export function resolveAstraAnchor(
   parsed: ParsedAstraAnchor,
   node: Pick<GraphNode, 'findings' | 'decisions' | 'inputs' | 'outputs'>,
+  childSubKeys?: Set<string>,
 ): string | null {
   if (parsed.parentEscapes > 0) return 'Parent-scope anchor not resolvable on this page';
   // Sub-analysis trailing paths are not resolvable against a root-only node.
@@ -213,11 +216,8 @@ export function resolveAstraAnchor(
         ? null
         : `No input "${parsed.id}"`;
     case 'analyses':
-      // Sub-analysis presence lives on graphLinks rather than the root node.
-      // The caller (MarginCitations) resolves this by checking containment
-      // edges and passes a pre-computed set; when no set is provided, treat
-      // as broken so the glyph signals "not yet surfaced".
-      return 'Sub-analysis lookup pending';
+      if (!childSubKeys) return 'Sub-analysis lookup pending';
+      return childSubKeys.has(parsed.id) ? null : `No sub-analysis "${parsed.id}"`;
   }
 }
 
