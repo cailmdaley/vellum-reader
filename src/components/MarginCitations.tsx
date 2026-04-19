@@ -200,6 +200,14 @@ export function MarginCitations({
       const allAnchors = Array.from(prose.querySelectorAll<HTMLAnchorElement>('a[href]'));
       const items: GlyphItem[] = [];
 
+      // Clear any stale broken classes from the previous measure pass. We
+      // re-set them per-anchor below when the resolver flags broken. Without
+      // this, an anchor that was broken on a prior render (e.g. before
+      // `currentNode` loaded) would keep the dashed underline forever.
+      for (const a of allAnchors) {
+        a.classList.remove('astra-anchor--broken');
+      }
+
       // Per-kind continuation tracking: when pretext emits two adjacent
       // `<a>` tags for the same source link that wrapped across a line,
       // the second one becomes a "continuation" fragment of the first
@@ -253,6 +261,11 @@ export function MarginCitations({
 
         if (lastItem && isContinuation(lastItem, 'astra', href, top, a)) {
           lastItem.linkEls.push(a);
+          // Propagate broken class to continuation fragments pretext emits
+          // when a link wraps across a line.
+          if (lastItem.kind === 'astra' && lastItem.broken) {
+            a.classList.add('astra-anchor--broken');
+          }
           continue;
         }
 
@@ -264,6 +277,10 @@ export function MarginCitations({
         const label = currentNode
           ? resolveAstraLabel(parsed, currentNode, subAnalysisLabels, parentSubLabels)
           : parsed.id;
+        // Mirror broken state on the inline anchor so prose readers see the
+        // dashed underline for dead refs, not only the margin glyph. CSS for
+        // `.astra-anchor--broken` already lives in vellum.css.
+        if (broken) a.classList.add('astra-anchor--broken');
         const item: GlyphItem = {
           kind: 'astra',
           href,
