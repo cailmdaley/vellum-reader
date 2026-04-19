@@ -4029,7 +4029,9 @@ body {
 
 .card {
   background: var(--prose-bg, #FAFAF7);
-  border: 1px solid rgba(184, 134, 11, 0.15);
+  /* Bolder border so overlapping cards read as distinct plates against
+     the paper substrate rather than blending at their edges. */
+  border: 1px solid rgba(30, 28, 25, 0.32);
   border-radius: 3px;
   color: var(--text);
   font-family: 'EB Garamond', Georgia, serif;
@@ -4856,7 +4858,14 @@ a.pretext-prose-frag:hover {
 .context-card-float {
   pointer-events: auto;
   border-radius: 4px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
+  /* Two-layer shadow so overlapping pinned cards still have a visible
+     seam. The first ring is a tight, darker cast that reads as an
+     edge; the second is a softer drop that separates the stack from
+     the paper behind it. */
+  box-shadow:
+    0 0 0 1px rgba(30, 28, 25, 0.18),
+    0 6px 20px rgba(0, 0, 0, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.18);
   /* Pinned cards scroll internally when content exceeds their
      height — they're a permanent version of the hover preview, not
      a truncating tile. */
