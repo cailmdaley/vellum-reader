@@ -17,7 +17,7 @@ import {
 
 // ───────────────────── Typography ─────────────────────
 
-const MONO = "'JetBrains Mono', 'Courier New', monospace";
+const MONO = "'IBM Plex Mono', 'JetBrains Mono', 'Courier New', ui-monospace, monospace";
 const NAV_SIZE = 11;
 const NAV_SIZE_CURRENT = 14;
 const GLYPH_SIZE = 9;

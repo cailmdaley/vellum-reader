@@ -46,7 +46,7 @@ export const CARD_TITLE_FONT = "600 16px 'EB Garamond', Georgia, serif";
 export const CARD_TITLE_LINE_HEIGHT = 22;
 export const CARD_BODY_FONT = "400 14px 'EB Garamond', Georgia, serif";
 export const CARD_BODY_LINE_HEIGHT = 20;
-export const CARD_META_FONT = "500 11px 'JetBrains Mono', monospace";
+export const CARD_META_FONT = "500 11px 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace";
 export const CARD_META_LINE_HEIGHT = 16;
 
 export const CARD_PAD_X = 14;
@@ -363,7 +363,7 @@ function DecisionCard({
 
   const options = buildOptions(decision);
   const effectiveOption = options.find((o) => o.key === effectiveKey);
-  const title = `⧖  ${decision.label}`;
+  const title = `◇  ${decision.label}`;
   const body = effectiveOption
     ? `→ ${effectiveOption.label}`
     : options.length > 0

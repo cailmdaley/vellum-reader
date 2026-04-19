@@ -150,16 +150,16 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
 }
 
 /**
- * Single-character letter glyph per kind (constitution §2 legend: `letters
- * are one rendering; full-word chips are another. Pick one.`). We pick
- * letters — they stay scannable at body-text opacity.
+ * Symbol glyph per kind — unified with card typography (Weathered Substrate).
+ * Paired with KIND_LEGEND to render `symbol + kind-name` in the margin so the
+ * word teaches the glyph.
  */
-export const KIND_LETTER: Record<AstraAnchorKind, string> = {
-  findings: 'F',
-  decisions: 'D',
-  outputs: 'O',
-  inputs: 'I',
-  analyses: 'A',
+export const KIND_SYMBOL: Record<AstraAnchorKind, string> = {
+  findings: '●',
+  decisions: '◇',
+  outputs: '▸',
+  inputs: '◂',
+  analyses: '¶',
 };
 
 /** Human-readable legend label (singular, title-cased). */

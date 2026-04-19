@@ -2,7 +2,7 @@
  * MarginDecisions — left-margin decision glyphs.
  *
  * Replacement for the inline `<details>` dropdowns that mystra used to
- * emit for ASTRA decisions. A fiber with N decisions now gets N `⧖` glyphs
+ * emit for ASTRA decisions. A fiber with N decisions now gets N `◇` glyphs
  * stacked down the left margin of its prose column, each labelled with
  * the decision name and backed by a hover card that shows the rationale,
  * selected option, and excluded alternatives. Clicking the glyph scrolls
@@ -87,7 +87,7 @@ export function MarginDecisions({ graphNode, wrapperRef: _wrapperRef }: MarginDe
           onMouseLeave={scheduleClose}
           title={d.label}
         >
-          <span className="margin-decision__glyph">⧖</span>
+          <span className="margin-decision__glyph">◇</span>
           <span className="margin-decision__label">{d.label}</span>
         </a>
       ))}

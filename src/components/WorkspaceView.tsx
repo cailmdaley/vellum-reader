@@ -8,7 +8,7 @@
  * on each row is the explicit "open this in Narrative" action.
  *
  * Filters stacked on top of the list: always-on search, segmented status,
- * ⧖ open-decisions toggle, ⬡ tempered toggle, ◇ recently-changed toggle,
+ * ◇ open-decisions toggle, ⬡ tempered toggle, ⧖ recently-changed toggle,
  * and a scrollable row of tag chips derived from the visible children.
  */
 import { useMemo, useState } from 'react';
@@ -184,7 +184,7 @@ export function WorkspaceView({
                   onClick={() => setOpenDecisionsOnly((v) => !v)}
                   title="Only fibers with open decisions"
                 >
-                  ⧖ {counts.openDecisions}
+                  ◇ {counts.openDecisions}
                 </button>
               )}
               {counts.tempered > 0 && (
@@ -202,7 +202,7 @@ export function WorkspaceView({
                   onClick={() => setChangedOnly((v) => !v)}
                   title="Only fibers changed since the last delta checkpoint"
                 >
-                  ◇ {counts.changed}
+                  ⧖ {counts.changed}
                 </button>
               )}
             </div>
@@ -294,7 +294,7 @@ function FiberRow({
       <div className="fiber-row__meta">
         {openDecisions > 0 && (
           <span className="fiber-row__metric fiber-row__metric--gold" title={`${openDecisions} open decisions`}>
-            ⧖ {openDecisions}
+            ◇ {openDecisions}
           </span>
         )}
         {(node.findingCount ?? 0) > 0 && (

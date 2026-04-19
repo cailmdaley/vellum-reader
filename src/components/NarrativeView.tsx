@@ -15,10 +15,9 @@ import { useNavigate } from 'react-router-dom';
 import { ArticleProvider } from '@myst-theme/providers';
 import { FiberHeader } from './FiberHeader';
 import { AstraAppendix } from './AstraAppendix';
-import { AstraLegend } from './AstraLegend';
 import { MarginCitations } from './MarginCitations';
+import { NarrativeCounter } from './NarrativeCounter';
 import { PretextProse } from './PretextProse';
-import { collectAstraAnchorKinds } from '~/utils/astra-anchor';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { Lightbox } from './Lightbox';
 import { GhostToc } from './GhostToc';
@@ -300,13 +299,25 @@ export function NarrativeView({
     return { mdast: transformTweetEmbeds(stripped.mdast), lede: stripped.lede };
   }, [content.mdast, content.frontmatter, currentNode?.verdict]);
 
-  // Kinds of ASTRA anchor refs that actually appear in the prose. The
-  // legend renders only these (empty set → component returns null), so
-  // ordinary felt fibers stay free of the legend chip strip.
-  const anchorKinds = useMemo(
-    () => collectAstraAnchorKinds(cleanAst),
-    [cleanAst],
-  );
+  // Outgoing cites from this fiber — counted for the marginalia counter
+  // ("N refs" row). The graph builder emits one cites edge per
+  // `[[wikilink]]` that resolves to a real fiber; external-URL or dead
+  // wikilinks stay out.
+  const refCount = useMemo(() => {
+    if (!currentNode || !graphLinks) return 0;
+    return graphLinks.filter(
+      (l) => l.kind === 'cites' && l.source === currentNode.id,
+    ).length;
+  }, [currentNode, graphLinks]);
+
+  // Sub-analysis count — `contains` edges whose source is this node.
+  // Matches how FloatingIsland derives `allChildNodes` for the thumb-index.
+  const analysisCount = useMemo(() => {
+    if (!currentNode || !graphLinks) return 0;
+    return graphLinks.filter(
+      (l) => l.kind === 'contains' && l.source === currentNode.id,
+    ).length;
+  }, [currentNode, graphLinks]);
 
   useEffect(() => {
     onEditingChange?.(editorBuffer !== null || editorLoading);
@@ -356,6 +367,14 @@ export function NarrativeView({
       return;
     }
 
+    // MarginCitations owns the click→pin path for fiber + ASTRA anchors: its
+    // native click listener (attached during the measure pass) dispatches the
+    // same `vellum:open-card` event the hover-card's pin button uses, so both
+    // hover and click land the same card in the same spot. If that listener
+    // fired, it already called stopPropagation and this React handler never
+    // runs for the anchor — we just guard against the edge case where the
+    // listener hasn't attached yet (prose hasn't measured), in which case
+    // falling through to the legacy dispatch below keeps the link clickable.
     const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href]');
     if (!anchor) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -474,7 +493,6 @@ export function NarrativeView({
             references={content.references ?? { cite: {}, footnotes: {} }}
             frontmatter={content.frontmatter ?? {}}
           >
-            <AstraLegend kinds={anchorKinds} />
             <PretextProse
               mdast={cleanAst}
               contentWidth={contentWidth}
@@ -491,6 +509,11 @@ export function NarrativeView({
         )}
       </article>
 
+      <NarrativeCounter
+        node={currentNode}
+        refCount={refCount}
+        analysisCount={analysisCount}
+      />
       <MarginCitations
         nodes={graphNodes}
         proseRef={proseRef}
@@ -501,6 +524,7 @@ export function NarrativeView({
         subAnalysisLabels={subAnalysisLabels}
         parentSubKeys={parentSubKeys}
         parentSubLabels={parentSubLabels}
+        parentSubSlugs={parentSubSlugs}
       />
       <GhostToc
         proseRef={proseRef}

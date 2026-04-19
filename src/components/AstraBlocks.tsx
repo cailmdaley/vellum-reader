@@ -40,7 +40,7 @@ export function AstraBlocks({ graphNode }: AstraBlocksProps) {
               className="astra-decision"
             >
               <div className="astra-decision__header">
-                <span className="astra-decision__glyph">⧖</span>
+                <span className="astra-decision__glyph">◇</span>
                 <span className="astra-decision__label">{d.label}</span>
               </div>
               {d.selectedLabel && (

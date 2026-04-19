@@ -10,7 +10,7 @@
  * the shared `vellum:open-card` event so the reader can keep the insight
  * visible while scrolling.
  *
- * Stacks below MarginDecisions so ⧖ and ● share the same left gutter
+ * Stacks below MarginDecisions so ◇ and ● share the same left gutter
  * without overlapping.
  */
 
@@ -81,14 +81,14 @@ export function MarginInsights({ graphNode, wrapperRef: _wrapperRef }: MarginIns
         <a
           key={f.key}
           href={`#astra-finding-${f.key}`}
-          className={`margin-insight${hoveredKey === f.key ? ' margin-insight--hovered' : ''}${f.hasEvidence ? ' margin-insight--evidence' : ''}`}
+          className={`margin-insight${hoveredKey === f.key ? ' margin-insight--hovered' : ''} margin-insight--evidence`}
           style={{ top: baseTop + i * STACK_GAP }}
           onClick={(e) => handleClick(e, f.key)}
           onMouseEnter={() => scheduleOpen(f.key)}
           onMouseLeave={scheduleClose}
           title={f.claim}
         >
-          <span className="margin-insight__glyph">{f.hasEvidence ? '●' : '○'}</span>
+          <span className="margin-insight__glyph">●</span>
           <span className="margin-insight__label">{truncateClaim(f.claim)}</span>
         </a>
       ))}

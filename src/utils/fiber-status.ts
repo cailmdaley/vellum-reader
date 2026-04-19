@@ -27,7 +27,7 @@ export const STATUS_GLYPHS: Record<string, string> = {
 };
 
 /** Glyph used when the node carries one or more decisions. */
-export const DECISION_GLYPH = '⧖';
+export const DECISION_GLYPH = '◇';
 
 /** Fallback glyph for unknown statuses. */
 const UNKNOWN_GLYPH = '○';
@@ -38,7 +38,7 @@ export function statusGlyph(status: string): string {
 }
 
 /**
- * Like `statusGlyph`, but returns `⧖` when the node has decisions.
+ * Like `statusGlyph`, but returns `◇` when the node has decisions.
  * Use for surfaces where decision-ness dominates the indicator
  * (margin citation glyphs, link hover tooltips).
  */

@@ -57,69 +57,89 @@ export function AstraAppendix({ node, width, onNavigate }: AstraAppendixProps) {
       </div>
 
       {decisions.length > 0 && (
-        <section className="astra-appendix__section">
+        <section id="astra-appendix-decisions" className="astra-appendix__section">
           <h3 className="astra-appendix__heading">
             Decisions <span className="astra-appendix__count">{decisions.length}</span>
           </h3>
           <div className="astra-appendix__stack">
             {decisions.map((decision) => (
-              <Card
+              <div
                 key={decision.key}
-                width={cardWidth}
-                content={{ type: 'decision', decision, hostSlug: node.slug }}
-                onNavigate={onNavigate}
-              />
+                id={`astra-decision-${decision.key}`}
+                className="astra-appendix__item"
+              >
+                <Card
+                  width={cardWidth}
+                  content={{ type: 'decision', decision, hostSlug: node.slug }}
+                  onNavigate={onNavigate}
+                />
+              </div>
             ))}
           </div>
         </section>
       )}
 
       {findings.length > 0 && (
-        <section className="astra-appendix__section">
+        <section id="astra-appendix-findings" className="astra-appendix__section">
           <h3 className="astra-appendix__heading">
             Insights <span className="astra-appendix__count">{findings.length}</span>
           </h3>
           <div className="astra-appendix__stack">
             {findings.map((finding) => (
-              <Card
+              <div
                 key={finding.key}
-                width={cardWidth}
-                content={{ type: 'insight', finding, hostSlug: node.slug, hostNode: node }}
-              />
+                id={`astra-finding-${finding.key}`}
+                className="astra-appendix__item"
+              >
+                <Card
+                  width={cardWidth}
+                  content={{ type: 'insight', finding, hostSlug: node.slug, hostNode: node }}
+                />
+              </div>
             ))}
           </div>
         </section>
       )}
 
       {inputs.length > 0 && (
-        <section className="astra-appendix__section">
+        <section id="astra-appendix-inputs" className="astra-appendix__section">
           <h3 className="astra-appendix__heading">
             Inputs <span className="astra-appendix__count">{inputs.length}</span>
           </h3>
           <div className="astra-appendix__stack">
             {inputs.map((input) => (
-              <Card
+              <div
                 key={input.id}
-                width={cardWidth}
-                content={{ type: 'input', input, hostNode: node }}
-              />
+                id={`astra-input-${input.id}`}
+                className="astra-appendix__item"
+              >
+                <Card
+                  width={cardWidth}
+                  content={{ type: 'input', input, hostNode: node }}
+                />
+              </div>
             ))}
           </div>
         </section>
       )}
 
       {outputs.length > 0 && (
-        <section className="astra-appendix__section">
+        <section id="astra-appendix-outputs" className="astra-appendix__section">
           <h3 className="astra-appendix__heading">
             Outputs <span className="astra-appendix__count">{outputs.length}</span>
           </h3>
           <div className="astra-appendix__stack">
             {outputs.map((output) => (
-              <Card
+              <div
                 key={output.id}
-                width={cardWidth}
-                content={{ type: 'output', output, hostNode: node }}
-              />
+                id={`astra-output-${output.id}`}
+                className="astra-appendix__item"
+              >
+                <Card
+                  width={cardWidth}
+                  content={{ type: 'output', output, hostNode: node }}
+                />
+              </div>
             ))}
           </div>
         </section>

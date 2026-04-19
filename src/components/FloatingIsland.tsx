@@ -59,81 +59,6 @@ function shortLabel(node: GraphNode): string {
   return tail.replace(/-/g, ' ');
 }
 
-/** Inline summary chip for the parent row: counts the fiber's ASTRA
- *  entries (decisions, insights) and flags tempered state. Clicking
- *  scrolls to the appendix section at the end of the narrative. Hides
- *  when the fiber carries no structure worth summarizing. */
-function AstraSummaryChip({ node }: { node: GraphNode }) {
-  const adapter = useAdapter();
-  const decisions = node.decisions?.length ?? 0;
-  const insights = node.findings?.length ?? 0;
-  const tempered = !!node.tempered;
-  // Annotation count is fetched live — the count reflects notes the
-  // reader has left (and persisted via MySTRA), not anything baked
-  // into the graph. Refetches when the reader switches fibers.
-  const [noteCount, setNoteCount] = useState(0);
-  useEffect(() => {
-    let cancelled = false;
-    adapter.getAnnotations(node.slug).then((anns) => {
-      if (!cancelled) setNoteCount(anns.length);
-    });
-    return () => { cancelled = true; };
-  }, [adapter, node.slug]);
-
-  if (decisions === 0 && insights === 0 && !tempered && noteCount === 0) return null;
-
-  const handleClick = () => {
-    const el = document.getElementById('astra-appendix');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  return (
-    <button
-      type="button"
-      className="thumb-index__astra-summary"
-      onClick={handleClick}
-      title="Jump to the ASTRA appendix"
-    >
-      {decisions > 0 && (
-        <span className="thumb-index__astra-pair">
-          <span className="thumb-index__astra-glyph">⧖</span>
-          <span className="thumb-index__astra-count">{decisions}</span>
-          <span className="thumb-index__astra-label">
-            {decisions === 1 ? 'decision' : 'decisions'}
-          </span>
-        </span>
-      )}
-      {insights > 0 && (
-        <span className="thumb-index__astra-pair">
-          <span className="thumb-index__astra-glyph">●</span>
-          <span className="thumb-index__astra-count">{insights}</span>
-          <span className="thumb-index__astra-label">
-            {insights === 1 ? 'insight' : 'insights'}
-          </span>
-        </span>
-      )}
-      {noteCount > 0 && (
-        <span className="thumb-index__astra-pair">
-          <span className="thumb-index__astra-glyph">¶</span>
-          <span className="thumb-index__astra-count">{noteCount}</span>
-          <span className="thumb-index__astra-label">
-            {noteCount === 1 ? 'note' : 'notes'}
-          </span>
-        </span>
-      )}
-      {tempered && (
-        <span
-          className="thumb-index__astra-pair thumb-index__astra-pair--tempered"
-          title="Tempered — built to rely on"
-        >
-          <span className="thumb-index__astra-glyph">✦</span>
-          <span className="thumb-index__astra-label">tempered</span>
-        </span>
-      )}
-    </button>
-  );
-}
-
 interface FloatingIslandProps {
   currentNode?: GraphNode;
   graphNodes: GraphNode[];
@@ -171,10 +96,29 @@ export function FloatingIsland({
           ? (Array.isArray(entry.contentBoxSize) ? entry.contentBoxSize[0] : entry.contentBoxSize).inlineSize
           : entry.contentRect.width;
         setTier(tierFromWidth(w));
+        // Publish the rendered bottom of the thumb-index (top: 0 always,
+        // so bottom == borderBox height) so the narrative prose column
+        // can push its top padding down to match. borderBoxSize includes
+        // padding; contentRect does not — we want the outer edge.
+        let h = 0;
+        const borderBoxes = entry.borderBoxSize;
+        if (borderBoxes) {
+          const box = Array.isArray(borderBoxes) ? borderBoxes[0] : borderBoxes;
+          h = box?.blockSize ?? 0;
+        }
+        if (h <= 0) {
+          h = el.getBoundingClientRect().height;
+        }
+        if (h > 0) {
+          document.documentElement.style.setProperty('--thumb-index-bottom', `${Math.round(h)}px`);
+        }
       }
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty('--thumb-index-bottom');
+    };
   }, []);
   // Measure the nav section separately — its content width is what
   // pretext should lay into, not the root (which includes padding).
@@ -418,12 +362,10 @@ export function FloatingIsland({
       {/* ── Navigation: parent / siblings / children / backlinks ── */}
       {currentNode && (
         <div className="thumb-index__nav" ref={navRef}>
-          {/* Parent + ASTRA summary share one row so the back-link
-              isn't stranded on its own line. The summary chip counts
-              decisions/insights and flags tempered state; clicking it
-              scrolls to the ASTRA appendix at the bottom of the
-              narrative. The chip hides itself when the fiber has no
-              ASTRA entries at all. */}
+          {/* Parent back-link. The ASTRA counts + tempered flag used to
+              share this row; they moved to the page-meta panel below so
+              they sit in the top-right blank space mirroring the empty
+              top-left above the FiberHeader. */}
           <div className="thumb-index__parent-row">
             {parentNode ? (
               <button
@@ -444,7 +386,6 @@ export function FloatingIsland({
                 index
               </button>
             )}
-            <AstraSummaryChip node={currentNode} />
           </div>
 
           {/* Backlinks — inline chip row. Reads like a marginal note

@@ -370,7 +370,7 @@ export function Lightbox({
       {traceability && (
         <div className="vellum-lightbox__trace">
           <button className="vellum-lightbox__trace-toggle" onClick={() => setTraceExpanded((prev) => !prev)}>
-            <span className="vellum-lightbox__trace-glyph">{traceability.node.hasASTRA ? '⧖' : '○'}</span>
+            <span className="vellum-lightbox__trace-glyph">{traceability.node.hasASTRA ? '◇' : '○'}</span>
             <span className="vellum-lightbox__trace-title">{traceability.node.label}</span>
             {traceability.node.hasASTRA && (
               <span className="vellum-lightbox__trace-badge">
@@ -407,7 +407,7 @@ export function Lightbox({
                   <span className="vellum-lightbox__trace-label">decisions</span>
                   {traceability.node.decisions!.map((decision) => (
                     <div key={decision.key} className="vellum-lightbox__trace-decision">
-                      <span className="vellum-lightbox__trace-decision-glyph">⧖</span>
+                      <span className="vellum-lightbox__trace-decision-glyph">◇</span>
                       <span>{decision.label}</span>
                       {decision.selectedLabel && (
                         <span className="vellum-lightbox__trace-decision-selected">→ {decision.selectedLabel}</span>

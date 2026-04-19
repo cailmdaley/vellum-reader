@@ -82,10 +82,19 @@ export interface ContextCardLayerProps {
 const DEFAULT_WIDTH = 340;
 const MIN_WIDTH = 220;
 const MIN_HEIGHT = 100;
+/** Inset applied to --canvas-width when computing a card's marginalia
+ *  width. Matches MarginCardPreview's CANVAS_INSET so hover previews and
+ *  pinned cards share one visible width. */
+const CANVAS_INSET = 64;
 
 /** Offset from the click point so the card doesn't cover its trigger. */
 const SPAWN_OFFSET_X = 16;
 const SPAWN_OFFSET_Y = 8;
+
+function marginaliaWidth(canvasWidth: number): number {
+  if (canvasWidth <= 0) return DEFAULT_WIDTH;
+  return Math.max(MIN_WIDTH, canvasWidth - CANVAS_INSET);
+}
 
 function readCanvasGeometry(): { canvasLeft: number; canvasWidth: number } {
   const vw = typeof window === 'undefined' ? 1200 : window.innerWidth;
@@ -102,8 +111,7 @@ function readCanvasGeometry(): { canvasLeft: number; canvasWidth: number } {
 
 function initialCardWidth(): number {
   const { canvasWidth } = readCanvasGeometry();
-  if (canvasWidth <= 0) return DEFAULT_WIDTH;
-  return Math.max(MIN_WIDTH, Math.min(DEFAULT_WIDTH, canvasWidth - 24));
+  return marginaliaWidth(canvasWidth);
 }
 
 function clampSpawn(x: number, y: number, width: number): { x: number; y: number } {
@@ -155,6 +163,43 @@ export function ContextCardLayer({
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // ── Track --canvas-width so pinned cards follow the divider ─────────────
+  // When the reader drags CanvasDivider, it writes a new --canvas-width
+  // to document.documentElement.style. Each pinned card reflows to the
+  // new marginalia width AND shifts its x to stay anchored to the
+  // canvas column's left edge — so cards remain gutter-filling whether
+  // the reader grows or shrinks the column. Drag and resize on the
+  // cards are locked to the vertical axis (see pointermove handler
+  // below), which makes this reflow the sole authority on width/x.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    let lastCanvasLeft = readCanvasGeometry().canvasLeft;
+    let lastWidth = readCanvasGeometry().canvasWidth;
+    const update = () => {
+      const { canvasWidth, canvasLeft } = readCanvasGeometry();
+      if (canvasWidth === lastWidth && canvasLeft === lastCanvasLeft) return;
+      const nextWidth = marginaliaWidth(canvasWidth);
+      const dx = canvasLeft - lastCanvasLeft;
+      lastCanvasLeft = canvasLeft;
+      lastWidth = canvasWidth;
+      setCards((prev) => prev.map((c) => {
+        const nextX = c.x + dx;
+        if (c.width === nextWidth && nextX === c.x) return c;
+        return { ...c, width: nextWidth, x: nextX };
+      }));
+    };
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
   }, []);
 
   // ── open-card (generic) ───────────────────────────────────────────────────
@@ -221,21 +266,24 @@ export function ContextCardLayer({
       if (!state) return;
 
       if (state.mode === 'drag') {
+        // Vertical-only drag. Width tracks --canvas-width so horizontal
+        // position is pinned to the marginalia column; letting the reader
+        // drag x would strand cards outside the column the next time the
+        // divider moves (cards would reflow width but keep the old x).
         setCards((prev) => prev.map((c) => (
           c.id === state.cardId
             ? {
                 ...c,
-                x: e.clientX - state.startClientX + state.startCardX,
                 y: e.clientY - state.startClientY + state.startCardY,
               }
             : c
         )));
       } else {
+        // Height-only resize for the same reason — width is canvas-driven.
         setCards((prev) => prev.map((c) => (
           c.id === state.cardId
             ? {
                 ...c,
-                width: Math.max(MIN_WIDTH, state.startWidth + (e.clientX - state.startClientX)),
                 height: Math.max(MIN_HEIGHT, state.startHeight + (e.clientY - state.startClientY)),
               }
             : c

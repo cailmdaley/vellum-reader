@@ -52,7 +52,7 @@ import {
 // DOM layout on macOS per pretext's README and would silently break accuracy.
 
 const SERIF = "'EB Garamond', Georgia, 'Times New Roman', serif";
-const MONO = "'JetBrains Mono', 'Courier New', monospace";
+const MONO = "'IBM Plex Mono', 'JetBrains Mono', 'Courier New', ui-monospace, monospace";
 
 // Sizes are kept close to the existing `.vellum-prose` CSS so the pretext
 // column reads like the mystra-rendered column next door.

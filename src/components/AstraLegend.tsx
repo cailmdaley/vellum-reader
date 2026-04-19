@@ -12,7 +12,7 @@
  * `utils/astra-anchor.ts`.
  */
 
-import { KIND_LETTER, KIND_LEGEND, type AstraAnchorKind } from '~/utils/astra-anchor';
+import { KIND_SYMBOL, KIND_LEGEND, type AstraAnchorKind } from '~/utils/astra-anchor';
 
 interface AstraLegendProps {
   /** Kinds present on the page, in canonical order. Empty → the legend doesn't render. */
@@ -41,7 +41,7 @@ export function AstraLegend({ kinds }: AstraLegendProps) {
           key={kind}
           className={`astra-legend__chip astra-legend__chip--${kind}`}
         >
-          <span className="astra-legend__dot" aria-hidden="true">{KIND_LETTER[kind]}</span>
+          <span className="astra-legend__dot" aria-hidden="true">{KIND_SYMBOL[kind]}</span>
           <span className="astra-legend__label">{KIND_LEGEND[kind]}</span>
         </span>
       ))}

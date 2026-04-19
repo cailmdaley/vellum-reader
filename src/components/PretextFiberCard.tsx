@@ -32,7 +32,7 @@ const TITLE_FONT = "600 19px 'EB Garamond', Georgia, serif";
 const TITLE_LINE_HEIGHT = 25;
 const OUTCOME_FONT = "400 15.5px 'EB Garamond', Georgia, serif";
 const OUTCOME_LINE_HEIGHT = 22;
-const HIGHLIGHT_FONT = "500 12px 'JetBrains Mono', monospace";
+const HIGHLIGHT_FONT = "500 12px 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace";
 const HIGHLIGHT_LINE_HEIGHT = 18;
 
 // Inner padding of the card — pretext lines are positioned relative to the
@@ -77,7 +77,7 @@ function pickHighlight(node: GraphNode): string | null {
       : firstDecision.excluded.length > 0
         ? ' · open'
         : '';
-    return `⧖ ${firstDecision.label}${verdict}`;
+    return `◇ ${firstDecision.label}${verdict}`;
   }
   // Fallback: first finding's claim, trimmed.
   const firstFinding = node.findings?.[0];

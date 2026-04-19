@@ -27,7 +27,7 @@ import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
 import { glyphForNode, statusClass } from '~/utils/fiber-status';
 import {
   KIND_LEGEND,
-  KIND_LETTER,
+  KIND_SYMBOL,
   parseAstraAnchor,
   resolveAstraAnchor,
   resolveAstraLabel,
@@ -35,6 +35,7 @@ import {
   type ParsedAstraAnchor,
 } from '~/utils/astra-anchor';
 import { MarginCardPreview } from './MarginCardPreview';
+import type { CardContent } from './Card';
 
 type FiberGlyph = {
   kind: 'fiber';
@@ -105,6 +106,13 @@ interface MarginCitationsProps {
    * for the parent-scope-escape case.
    */
   parentSubLabels?: Map<string, string>;
+  /**
+   * Full slug per sibling sub-analysis key, for the `../analyses.<key>`
+   * case. Feeds the hover-card resolver so the preview can open the target
+   * sub-analysis as a fiber card (rather than falling back to a plain
+   * tooltip) when the anchor is a sibling peer reference.
+   */
+  parentSubSlugs?: Map<string, string>;
 }
 
 /** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
@@ -125,6 +133,7 @@ export function MarginCitations({
   subAnalysisLabels,
   parentSubKeys,
   parentSubLabels,
+  parentSubSlugs,
 }: MarginCitationsProps) {
   const [groups, setGroups] = useState<GlyphGroup[]>([]);
   const [railLeft, setRailLeft] = useState(0);
@@ -139,8 +148,8 @@ export function MarginCitations({
   // `currentNode = graph.nodes.find(...)`), which tore down the effect before
   // its scheduled RAF could fire. The effect never actually measured; groups
   // stayed empty; the margin rail rendered zero glyphs.
-  const propsRef = useRef({ nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels });
-  propsRef.current = { nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels };
+  const propsRef = useRef({ nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels, parentSubSlugs });
+  propsRef.current = { nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels, parentSubSlugs };
 
   // Measure trigger exposed to the re-measure-on-prop-change effect below.
   const scheduleMeasureRef = useRef<(() => void) | null>(null);
@@ -175,6 +184,8 @@ export function MarginCitations({
       const wrapper = wrapperRef.current;
       if (!prose || !wrapper) return;
       const { nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels } = propsRef.current;
+      // parentSubSlugs is pulled separately inside the click handler below so
+      // it tracks prop updates without retriggering the whole measure.
       const nodeBySlug = new Map(nodes.map((n) => [n.slug, n]));
       const wrapperRect = wrapper.getBoundingClientRect();
       const rawCanvasWidth = Number.parseFloat(
@@ -321,6 +332,10 @@ export function MarginCitations({
       // Hover wiring. We treat the whole glyph group as the hover target for
       // tooltip coordination: hovering any of the constituent anchors opens
       // that item's tooltip (keyed by a stable string that encodes group+item).
+      // Click wiring lives here too, intercepting anchor navigation so a
+      // click on prose text pins the same hover card in place rather than
+      // opening a differently-positioned card via NarrativeView's article
+      // click handler — unified hover-preview + pin path.
       grouped.forEach((group, gi) => {
         group.items.forEach((item, ii) => {
           const key = `${gi}:${ii}`;
@@ -342,14 +357,29 @@ export function MarginCitations({
             if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
             scheduleClose();
           };
+          const onClick = (e: MouseEvent) => {
+            // Modifier-click falls through to the anchor's default behavior so
+            // cmd-click / ctrl-click can still open in a new tab.
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            const { currentNode: cn, nodes: ns, parentSubSlugs: pss } = propsRef.current;
+            const content: CardContent | null = item.kind === 'fiber'
+              ? { type: 'fiber', node: item.node }
+              : resolveAstraCardContent(item, cn ?? null, ns, pss);
+            if (!content) return; // broken or unresolvable — let default fire
+            e.preventDefault();
+            e.stopPropagation();
+            pinCardAtGroup({ content, groupTop: group.top, railLeft });
+          };
           for (const el of item.linkEls) {
             el.addEventListener('mouseenter', onEnter);
             el.addEventListener('mouseleave', onLeave);
+            el.addEventListener('click', onClick);
           }
           cleanups.push(() => {
             for (const el of item.linkEls) {
               el.removeEventListener('mouseenter', onEnter);
               el.removeEventListener('mouseleave', onLeave);
+              el.removeEventListener('click', onClick);
             }
           });
         });
@@ -452,6 +482,14 @@ export function MarginCitations({
             scheduleOpen,
             scheduleClose,
             setActiveKey,
+            groupTop: group.top,
+            pinItem: (it, gt) => {
+              const content: CardContent | null = it.kind === 'fiber'
+                ? { type: 'fiber', node: it.node }
+                : resolveAstraCardContent(it, currentNode ?? null, nodes, parentSubSlugs);
+              if (!content) return;
+              pinCardAtGroup({ content, groupTop: gt, railLeft });
+            },
           }))}
         </div>
       ))}
@@ -465,17 +503,114 @@ export function MarginCitations({
           onMouseLeave={scheduleClose}
         />
       )}
-      {hoveredItem && hoveredItem.item.kind === 'astra' && (
-        <AstraAnchorTooltip
-          item={hoveredItem.item}
-          top={hoveredItem.group.top + 20}
-          left={railLeft}
-          onMouseEnter={cancelClose}
-          onMouseLeave={scheduleClose}
-        />
-      )}
+      {hoveredItem && hoveredItem.item.kind === 'astra' && (() => {
+        // Unified hover experience: every anchor hover surfaces the same
+        // Card primitive as the click-to-pin path, so readers don't get
+        // two different renderings for the same content. Broken anchors
+        // still fall back to the diagnostic tooltip since there's no
+        // CardContent to hand Card.
+        const astra = hoveredItem.item;
+        const content = resolveAstraCardContent(astra, currentNode, nodes, parentSubSlugs);
+        if (content && !astra.broken) {
+          return (
+            <MarginCardPreview
+              content={content}
+              top={hoveredItem.group.top + 20}
+              left={railLeft}
+              onMouseEnter={cancelClose}
+              onMouseLeave={scheduleClose}
+            />
+          );
+        }
+        return (
+          <AstraAnchorTooltip
+            item={astra}
+            top={hoveredItem.group.top + 20}
+            left={railLeft}
+            onMouseEnter={cancelClose}
+            onMouseLeave={scheduleClose}
+          />
+        );
+      })()}
     </>
   );
+}
+
+/** Min preview/pin width. Card's pretext layout needs a concrete pixel
+ *  width to render into; below this it gets cramped. Canvas-driven. */
+const MIN_PIN_WIDTH = 220;
+/** Small inset from the canvas edge so the pinned card doesn't butt up
+ *  against the divider. Mirrors MarginCardPreview's CANVAS_INSET so
+ *  hover and pin land in the same spot. */
+const PIN_CANVAS_INSET = 64;
+
+/** Dispatch `vellum:open-card` at the same canvas-column x and line-y
+ *  the hover preview would use, so clicking anywhere (glyph, prose text,
+ *  the preview itself) pins the same card in the same place. The
+ *  `MarginCardPreview` click-to-pin path already dispatches this event
+ *  with its own bounding rect; this helper mirrors that positioning for
+ *  the click-before-hover case. */
+function pinCardAtGroup(opts: { content: CardContent; groupTop: number; railLeft: number }) {
+  const rawCanvasWidth = Number.parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'),
+  );
+  const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 360;
+  const width = Math.max(MIN_PIN_WIDTH, canvasWidth - PIN_CANVAS_INSET);
+  const viewportX = window.innerWidth - canvasWidth + 12;
+  const viewportY = opts.groupTop + 20;
+  document.dispatchEvent(
+    new CustomEvent('vellum:open-card', {
+      detail: {
+        content: opts.content,
+        x: viewportX,
+        y: viewportY,
+        width,
+        exactPosition: true,
+      },
+    }),
+  );
+}
+
+/** Map an ASTRA anchor glyph to the unified Card primitive. Mirrors the
+ *  same kind→CardContent switch NarrativeView's click handler uses, so
+ *  hover and click render the same card — the pinned card on click is
+ *  the verbatim hover preview. Returns null for kinds that don't have a
+ *  structured host (e.g. analyses that route to a sub-analysis fiber
+ *  but whose target GraphNode isn't in the graph yet). */
+function resolveAstraCardContent(
+  item: Extract<GlyphItem, { kind: 'astra' }>,
+  currentNode: GraphNode | null | undefined,
+  nodes: GraphNode[],
+  parentSubSlugs?: Map<string, string>,
+): CardContent | null {
+  if (!currentNode) return null;
+  const { parsed } = item;
+  switch (parsed.kind) {
+    case 'decisions': {
+      const decision = currentNode.decisions?.find((d) => d.key === parsed.id);
+      return decision ? { type: 'decision', decision, hostSlug: currentNode.slug } : null;
+    }
+    case 'findings': {
+      const finding = currentNode.findings?.find((f) => f.key === parsed.id);
+      return finding ? { type: 'insight', finding, hostSlug: currentNode.slug, hostNode: currentNode } : null;
+    }
+    case 'outputs': {
+      const output = currentNode.outputs?.find((o) => o.id === parsed.id);
+      return output ? { type: 'output', output, hostNode: currentNode } : null;
+    }
+    case 'inputs': {
+      const input = currentNode.inputs?.find((i) => i.id === parsed.id);
+      return input ? { type: 'input', input, hostNode: currentNode } : null;
+    }
+    case 'analyses': {
+      const targetSlug = parsed.parentEscapes > 0
+        ? parentSubSlugs?.get(parsed.id) ?? null
+        : `${currentNode.slug}/analyses/${parsed.id}`;
+      if (!targetSlug) return null;
+      const sub = nodes.find((n) => n.slug === targetSlug);
+      return sub ? { type: 'fiber', node: sub } : null;
+    }
+  }
 }
 
 interface GlyphRenderCtx {
@@ -485,6 +620,8 @@ interface GlyphRenderCtx {
   scheduleOpen: (k: string) => void;
   scheduleClose: () => void;
   setActiveKey: React.Dispatch<React.SetStateAction<string | null>>;
+  pinItem: (item: GlyphItem, groupTop: number) => void;
+  groupTop: number;
 }
 
 function renderGlyph(item: GlyphItem, key: string, ctx: GlyphRenderCtx) {
@@ -499,7 +636,7 @@ function renderGlyph(item: GlyphItem, key: string, ctx: GlyphRenderCtx) {
       <div
         key={key}
         className={cls}
-        onClick={() => ctx.openKey(key)}
+        onClick={() => ctx.pinItem(item, ctx.groupTop)}
         onMouseEnter={() => {
           for (const el of item.linkEls) el.classList.add('margin-active');
           ctx.setActiveKey(key);
@@ -513,7 +650,7 @@ function renderGlyph(item: GlyphItem, key: string, ctx: GlyphRenderCtx) {
         role="link"
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') ctx.openKey(key);
+          if (e.key === 'Enter') ctx.pinItem(item, ctx.groupTop);
         }}
         aria-label={`Open ${item.label} in marginalia`}
       >
@@ -528,11 +665,13 @@ function renderGlyph(item: GlyphItem, key: string, ctx: GlyphRenderCtx) {
     `margin-glyph margin-glyph--astra margin-glyph--astra-${item.anchorKind}` +
     (item.broken ? ' margin-glyph--astra-broken' : '') +
     (active ? ' margin-glyph--active' : '');
-  const letter = KIND_LETTER[item.anchorKind];
+  const symbol = KIND_SYMBOL[item.anchorKind];
+  const kindName = KIND_LEGEND[item.anchorKind];
   return (
     <div
       key={key}
       className={cls}
+      onClick={item.broken ? undefined : () => ctx.pinItem(item, ctx.groupTop)}
       onMouseEnter={() => {
         for (const el of item.linkEls) el.classList.add('margin-active');
         ctx.setActiveKey(key);
@@ -543,14 +682,19 @@ function renderGlyph(item: GlyphItem, key: string, ctx: GlyphRenderCtx) {
         ctx.setActiveKey((p) => (p === key ? null : p));
         ctx.scheduleClose();
       }}
+      role={item.broken ? undefined : 'link'}
+      tabIndex={item.broken ? undefined : 0}
+      onKeyDown={item.broken ? undefined : (e) => {
+        if (e.key === 'Enter') ctx.pinItem(item, ctx.groupTop);
+      }}
       aria-label={
         item.broken
           ? `Broken anchor: ${item.label}`
-          : `${KIND_LEGEND[item.anchorKind]}: ${item.label}`
+          : `${kindName}: ${item.label}`
       }
     >
-      <span className="margin-glyph__dot" aria-hidden="true">{letter}</span>
-      <span className="margin-glyph__label">{item.label}</span>
+      <span className="margin-glyph__dot" aria-hidden="true">{symbol}</span>
+      <span className="margin-glyph__kind-name">{kindName}</span>
       {item.broken && (
         <span className="margin-glyph__broken" aria-hidden="true">⚠</span>
       )}
