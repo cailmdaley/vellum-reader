@@ -53,6 +53,9 @@ export interface FileViewerPageProps {
    * its own Save button to this.
    */
   onSaveReady?: (save: (() => Promise<void>) | null) => void;
+  /** Fires whenever the annotation list for this file changes. Host uses this
+   * to show/hide bulk action buttons in its own chrome. */
+  onAnnotationsChange?: (annotations: Annotation[]) => void;
 }
 
 type FetchState =
@@ -74,6 +77,7 @@ export function FileViewerPage({
   onDirtyChange,
   onSaveStateChange,
   onSaveReady,
+  onAnnotationsChange,
 }: FileViewerPageProps) {
   const adapter = useAdapter();
   const [state, setState] = useState<FetchState>({ status: 'loading' });
@@ -158,6 +162,10 @@ export function FileViewerPage({
   useEffect(() => {
     onSaveStateChange?.(saveState);
   }, [saveState, onSaveStateChange]);
+
+  useEffect(() => {
+    onAnnotationsChange?.(annotations);
+  }, [annotations, onAnnotationsChange]);
 
   useEffect(() => {
     if (!onSaveReady) return;

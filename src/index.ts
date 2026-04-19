@@ -6,6 +6,7 @@ export * from './adapter';
 export type {
   Annotation,
   AnnotationAction,
+  AnnotationBulkAction,
   AstraGraph,
   FiberContent,
   FileContent,

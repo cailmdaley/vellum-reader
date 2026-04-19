@@ -252,11 +252,10 @@ export function FiberPage() {
         />
       )}
 
-      {/* Ambient floating cards — available across all modes, not just
-          Narrative. Delta cards pin into this layer when the reader wants
-          to keep reading a change while triaging siblings; Narrative
-          margins pin hover previews here too. */}
-      <ContextCardLayer onNavigate={(s) => navigate(`/${s}`)} />
+      {/* Pinned cards are a Narrative-only affordance — they're anchored
+          to prose line-y coordinates that don't exist in other modes, so
+          rendering them on Delta/Workspace/Map looks like ghost UI. */}
+      {mode === 'narrative' && <ContextCardLayer onNavigate={(s) => navigate(`/${s}`)} />}
 
       {mode === 'delta' && (
         <DeltaView

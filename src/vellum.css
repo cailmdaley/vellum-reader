@@ -5125,6 +5125,27 @@ a.pretext-prose-frag:hover {
   font-size: 20px;
 }
 
+.vellum-modal-btn--bulk {
+  font-size: 13px;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+}
+
+.vellum-modal-btn__count {
+  display: inline-block;
+  min-width: 16px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--gold-faint);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+}
+
 .vellum-modal-body {
   flex: 1;
   overflow: auto;

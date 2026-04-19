@@ -6,9 +6,9 @@
  * lifted to this modal via callbacks, so there is only one bar.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileViewerPage, type SaveState } from '../pages/FileViewerPage';
-import type { AnnotationAction } from '../utils/content-types';
+import type { Annotation, AnnotationAction, AnnotationBulkAction } from '../utils/content-types';
 
 export interface FileViewerModalProps {
   path: string;
@@ -19,6 +19,9 @@ export interface FileViewerModalProps {
   jumpToLine?: number;
   /** Host-defined actions on each annotation; forwarded to FileViewerPage. */
   annotationActions?: AnnotationAction[];
+  /** Host-defined bulk actions shown in the modal header when ≥1 annotation
+   * is present. Receive the current annotation list plus the anchor element. */
+  headerAnnotationActions?: AnnotationBulkAction[];
   /** Fires when the user dismisses the modal (× / Esc / scrim click). */
   onClose: () => void;
 }
@@ -36,12 +39,16 @@ export function FileViewerModal({
   editable,
   jumpToLine,
   annotationActions,
+  headerAnnotationActions,
   onClose,
 }: FileViewerModalProps) {
   const [cacheBustKey, setCacheBustKey] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [save, setSave] = useState<(() => Promise<void>) | null>(null);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const annotationsRef = useRef<Annotation[]>([]);
+  annotationsRef.current = annotations;
 
   const handleRefresh = useCallback(() => {
     setCacheBustKey((n) => n + 1);
@@ -82,6 +89,22 @@ export function FileViewerModal({
             <span className="vellum-file-viewer-page__status">{statusText}</span>
           )}
           <div className="vellum-modal-actions">
+            {annotations.length > 0 && headerAnnotationActions?.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                className="vellum-modal-btn vellum-modal-btn--bulk"
+                title={action.title ?? action.label}
+                onClick={(e) => {
+                  void action.onInvoke(annotationsRef.current, {
+                    anchor: e.currentTarget as HTMLElement,
+                  });
+                }}
+              >
+                {action.label}
+                <span className="vellum-modal-btn__count">{annotations.length}</span>
+              </button>
+            ))}
             {save && (
               <button
                 type="button"
@@ -125,6 +148,7 @@ export function FileViewerModal({
             onDirtyChange={setDirty}
             onSaveStateChange={setSaveState}
             onSaveReady={handleSaveReady}
+            onAnnotationsChange={setAnnotations}
           />
         </div>
       </div>

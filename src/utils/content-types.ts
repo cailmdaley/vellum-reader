@@ -148,6 +148,22 @@ export interface AnnotationAction {
   onInvoke: (annotation: Annotation) => void | Promise<void>;
 }
 
+/**
+ * Host-defined bulk action rendered in the file viewer's top chrome (modal
+ * header or page toolbar) when at least one annotation is attached. Receives
+ * the full annotation list plus the anchor element of the button so hosts
+ * can render their own popovers/pickers positioned against it.
+ */
+export interface AnnotationBulkAction {
+  id: string;
+  label: string;
+  title?: string;
+  onInvoke: (
+    annotations: Annotation[],
+    ctx: { anchor: HTMLElement },
+  ) => void | Promise<void>;
+}
+
 export interface Annotation {
   id: string;
   slug: string;
