@@ -591,6 +591,41 @@ function EvidenceRow({
         </div>
       )}
 
+      {evidence.kind === 'figure' && evidence.artifact && hostNode && (() => {
+        // Figure thumbnail. Clicking opens the lightbox (not a pinned
+        // card) so the reader gets the full image with annotations and,
+        // when available, the output's provenance panel alongside.
+        const output = hostNode.outputs?.find((o) => o.id === evidence.artifact);
+        const src = `/static/${hostNode.slug}/${evidence.artifact}`;
+        const altText = evidence.figure?.caption ?? evidence.figure?.label ?? evidence.artifact;
+        const openLightbox = (ev: React.MouseEvent) => {
+          ev.stopPropagation();
+          document.dispatchEvent(
+            new CustomEvent('vellum:open-lightbox', {
+              detail: {
+                images: [{ src, alt: altText, fiberSlug: hostNode.slug, output, hostNode }],
+                index: 0,
+              },
+            }),
+          );
+        };
+        return (
+          <button
+            type="button"
+            className="card__evidence-thumbnail"
+            onClick={openLightbox}
+            title={`Open ${evidence.artifact}`}
+          >
+            <img
+              className="card__evidence-thumbnail-img"
+              src={src}
+              alt={altText}
+              loading="lazy"
+            />
+          </button>
+        );
+      })()}
+
       {evidence.location && (evidence.location.page !== undefined || evidence.location.value) && (
         <div className="card__evidence-location">
           {evidence.location.page !== undefined && <>p. {evidence.location.page}</>}
@@ -752,15 +787,40 @@ function ProvenanceCard({
         : 'recipe';
   const meta = provenance ? `${metaLabel}: ${provenance}` : null;
 
-  // Outputs get the §3 three-tab detail: Caption / Ingredients / Local
-  // DAG. Strip is always visible on outputs — the Caption tab shows the
-  // full description, which the title only previews by its first line.
-  // Ingredients and Local DAG may be empty for outputs without a wired
-  // recipeInputs chain; they render a muted placeholder so the reader
-  // sees "provenance not yet wired" rather than a missing affordance.
-  const hasTabs = !isInput;
+  // Figure-kind outputs render like a finding: title + meta + the figure
+  // itself, no tabs. The figure IS the content. Clicking it opens the
+  // lightbox (same path as the evidence thumbnail).
+  const isFigure = !isInput && output?.kind === 'figure';
+  const hostSlug = content.hostNode?.slug;
+  const figureSrc = isFigure && output?.id && hostSlug
+    ? `/static/${hostSlug}/${output.id}`
+    : null;
+
+  // Non-figure outputs keep the §3 three-tab detail (Caption / Ingredients /
+  // Local DAG). Inputs and figure outputs don't need the tab machinery —
+  // inputs only carry a provenance line and figures lead with the image.
+  const hasTabs = !isInput && !isFigure;
 
   const [tab, setTab] = useState<OutputTab>('caption');
+
+  const openFigureInLightbox = (e: React.MouseEvent) => {
+    if (!figureSrc || !output) return;
+    e.stopPropagation();
+    document.dispatchEvent(
+      new CustomEvent('vellum:open-lightbox', {
+        detail: {
+          images: [{
+            src: figureSrc,
+            alt: description ?? output.id,
+            fiberSlug: hostSlug,
+            output,
+            hostNode: content.hostNode,
+          }],
+          index: 0,
+        },
+      }),
+    );
+  };
 
   return (
     <CardShell
@@ -771,35 +831,55 @@ function ProvenanceCard({
       meta={meta}
       onClose={onClose}
       className={className}
-      below={() => {
-        if (!hasTabs) return null;
+      below={({ innerWidth }) => {
+        if (!hasTabs && !figureSrc) return null;
         return (
           <div
             className="card__detail"
             style={{ padding: `0 ${CARD_PAD_X}px ${CARD_PAD_Y}px` }}
           >
-            <div className="card__detail-tabs" role="tablist">
-              <TabButton label="Caption" active={tab === 'caption'} onClick={() => setTab('caption')} />
-              <TabButton label="Ingredients" active={tab === 'ingredients'} onClick={() => setTab('ingredients')} />
-              <TabButton label="Local DAG" active={tab === 'dag'} onClick={() => setTab('dag')} />
-            </div>
-            <div className="card__detail-panel" role="tabpanel">
-              {tab === 'caption' && <CaptionPanel description={description} />}
-              {tab === 'ingredients' && (
-                <IngredientsPanel
-                  recipeInputs={output?.recipeInputs}
-                  recipe={output?.recipe}
-                  from={output?.from}
-                  hostNode={content.hostNode}
+            {figureSrc && (
+              <button
+                type="button"
+                className="card__output-figure-button"
+                onClick={openFigureInLightbox}
+                title="Open in lightbox"
+              >
+                <img
+                  className="card__output-figure"
+                  src={figureSrc}
+                  alt={description ?? output?.id ?? 'figure'}
+                  style={{ width: innerWidth, height: 'auto', display: 'block' }}
+                  loading="lazy"
                 />
-              )}
-              {tab === 'dag' && (
-                <LocalDagPanel
-                  recipeInputs={output?.recipeInputs}
-                  hostNode={content.hostNode}
-                />
-              )}
-            </div>
+              </button>
+            )}
+            {hasTabs && (
+              <>
+                <div className="card__detail-tabs" role="tablist">
+                  <TabButton label="Caption" active={tab === 'caption'} onClick={() => setTab('caption')} />
+                  <TabButton label="Ingredients" active={tab === 'ingredients'} onClick={() => setTab('ingredients')} />
+                  <TabButton label="Local DAG" active={tab === 'dag'} onClick={() => setTab('dag')} />
+                </div>
+                <div className="card__detail-panel" role="tabpanel">
+                  {tab === 'caption' && <CaptionPanel description={description} />}
+                  {tab === 'ingredients' && (
+                    <IngredientsPanel
+                      recipeInputs={output?.recipeInputs}
+                      recipe={output?.recipe}
+                      from={output?.from}
+                      hostNode={content.hostNode}
+                    />
+                  )}
+                  {tab === 'dag' && (
+                    <LocalDagPanel
+                      recipeInputs={output?.recipeInputs}
+                      hostNode={content.hostNode}
+                    />
+                  )}
+                </div>
+              </>
+            )}
           </div>
         );
       }}

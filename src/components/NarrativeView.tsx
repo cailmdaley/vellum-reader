@@ -117,6 +117,20 @@ export function NarrativeView({
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
+
+  // External surfaces (e.g. the finding-card evidence thumbnail) request the
+  // lightbox by dispatching a custom event — avoids prop-drilling the open
+  // callback into every child that might want to zoom a figure.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ images: LightboxImage[]; index?: number }>;
+      if (!ev.detail?.images?.length) return;
+      setLightboxImages(ev.detail.images);
+      setLightboxIndex(ev.detail.index ?? 0);
+    };
+    document.addEventListener('vellum:open-lightbox', handler);
+    return () => document.removeEventListener('vellum:open-lightbox', handler);
+  }, []);
   const [editorBuffer, setEditorBuffer] = useState<string | null>(null);
   const [editorLoading, setEditorLoading] = useState(false);
   const [contentWidth, setContentWidth] = useState<number>(INITIAL_CONTENT_WIDTH);

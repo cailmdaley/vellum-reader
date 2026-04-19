@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Annotation, GraphLink, GraphNode } from '~/utils/content-types';
+import type { Annotation, GraphLink, GraphNode, GraphOutput } from '~/utils/content-types';
 import { useAdapter } from '~/contexts/AdapterContext';
 
 export interface LightboxImage {
   src: string;
   alt: string;
   fiberSlug?: string;
+  /** Optional output provenance — when present, Lightbox renders a
+   *  side panel with the recipe, `from:` ref, and recipe-input chips
+   *  so the reader can see where the figure came from. */
+  output?: GraphOutput;
+  /** Parent node; used to resolve recipe-input ids to descriptions. */
+  hostNode?: GraphNode;
 }
 
 export interface ImageMarker {
@@ -337,6 +343,43 @@ export function Lightbox({
 
       {hasMultiple && <div className="vellum-lightbox__counter">{currentIndex + 1} / {images.length}</div>}
       {image.alt && <div className="vellum-lightbox__caption">{image.alt}</div>}
+
+      {image.output && (
+        <aside className="vellum-lightbox__provenance">
+          <div className="vellum-lightbox__provenance-kicker">▸ {image.output.id}</div>
+          {image.output.description && (
+            <p className="vellum-lightbox__provenance-desc">{image.output.description.trim()}</p>
+          )}
+          {image.output.recipe && (
+            <div className="vellum-lightbox__provenance-section">
+              <span className="vellum-lightbox__provenance-label">recipe</span>
+              <code className="vellum-lightbox__provenance-code">{image.output.recipe}</code>
+            </div>
+          )}
+          {image.output.from && (
+            <div className="vellum-lightbox__provenance-section">
+              <span className="vellum-lightbox__provenance-label">from</span>
+              <code className="vellum-lightbox__provenance-code">{image.output.from}</code>
+            </div>
+          )}
+          {image.output.recipeInputs && image.output.recipeInputs.length > 0 && (
+            <div className="vellum-lightbox__provenance-section">
+              <span className="vellum-lightbox__provenance-label">ingredients</span>
+              <ul className="vellum-lightbox__provenance-ingredients">
+                {image.output.recipeInputs.map((ref) => {
+                  const input = image.hostNode?.inputs?.find((i) => i.id === ref);
+                  return (
+                    <li key={ref}>
+                      <code>{ref}</code>
+                      {input?.description && <span> — {input.description}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </aside>
+      )}
 
       {markers.length > 0 && (
         <div className="vellum-lightbox__annotations">
