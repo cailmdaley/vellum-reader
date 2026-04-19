@@ -10,7 +10,7 @@
  *   #prior_insights.<id>
  *   #analyses.<sub>
  *   #<sub>.<category>.<id>              (element inside a sub-analysis)
- *   ../#…                               (escape to parent scope, may chain)
+ *   #../…                               (escape to parent scope, may chain)
  *
  * For Pass 1 the renderer only needs two things out of each href:
  *
@@ -80,22 +80,24 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
   let rest = href;
   let parentEscapes = 0;
 
-  // `../` may chain at the head of the href, before the `#`. In practice the
-  // authoring examples show `../#decisions.id`, so we consume leading `../`
-  // before the fragment start.
+  // Must be an in-document anchor.
+  if (!rest.startsWith('#')) return null;
+
+  // Drop the `#` first. Per astra-spec canonical form, `../` escapes live
+  // *inside* the fragment (e.g. `#../decisions.id`), so we consume leading
+  // `../` from the body after the `#` has been stripped. `../` may chain for
+  // multi-level escapes.
+  rest = rest.slice(1);
   while (rest.startsWith('../')) {
     parentEscapes++;
     rest = rest.slice(3);
   }
 
-  // Must be an in-document anchor at this point.
-  if (!rest.startsWith('#')) return null;
-
-  // Drop the `#`, split on `.`. A valid ASTRA anchor has at least two
-  // segments (category.id). A single-segment anchor like `#abstract` is a
-  // heading anchor rendered by mystra's felt loader and is handled by the
-  // ordinary link path, not by this module.
-  const body = rest.slice(1);
+  // Split on `.`. A valid ASTRA anchor has at least two segments
+  // (category.id). A single-segment anchor like `#abstract` is a heading
+  // anchor rendered by mystra's felt loader and is handled by the ordinary
+  // link path, not by this module.
+  const body = rest;
   if (!body) return null;
   const segments = body.split('.');
   if (segments.length < 2) return null;
