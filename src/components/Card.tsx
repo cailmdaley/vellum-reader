@@ -647,19 +647,42 @@ function filenameOf(src: string): string {
 // A data source the fiber consumes (◂ input, "from: …") or an artifact it
 // produces (▸ output, "recipe: …"). The card shows the id + description
 // in the lockup; the meta carries the provenance ref (recipe command or
-// source). For outputs with a local recipe, ingredient chips (recipe
-// inputs) render below — §3's minimal Ingredients affordance. A full
-// three-tab inline expansion (Caption / Ingredients / Local DAG) is
-// deferred until sub-analyses are surfaced as their own pages; DESI
-// root-level outputs currently `from:` into sub-analyses, so the recipe
-// chain is not reachable from the root page.
+// source).
+//
+// §3 three-tab detail (Caption / Ingredients / Local DAG) unfolds below
+// output cards. The tabs are always-visible on outputs that carry any
+// non-trivial content (recipe, recipe inputs, multi-paragraph description):
+// Caption is the full `description` prose, Ingredients is the recipe
+// command + recipe-inputs chips, Local DAG is a 1–2-hop upstream list
+// resolved against `hostNode.inputs` / `hostNode.outputs`.
+//
+// Inputs render with the same title/meta lockup but no tab strip — they
+// have no recipe and no upstream chain to unfold.
+
+function resolveRef(
+  id: string,
+  hostNode?: GraphNode,
+): { kind: 'input'; node: GraphInput } | { kind: 'output'; node: GraphOutput } | null {
+  const input = hostNode?.inputs?.find((i) => i.id === id);
+  if (input) return { kind: 'input', node: input };
+  const output = hostNode?.outputs?.find((o) => o.id === id);
+  if (output) return { kind: 'output', node: output };
+  return null;
+}
 
 function inputChipLabel(id: string, hostNode?: GraphNode): string {
-  const descr = hostNode?.inputs?.find((i) => i.id === id)?.description;
+  const resolved = resolveRef(id, hostNode);
+  const descr = resolved?.kind === 'input'
+    ? resolved.node.description
+    : resolved?.kind === 'output'
+      ? resolved.node.description
+      : undefined;
   if (!descr) return id;
   const short = descr.trim().split('\n')[0];
   return short.length > 64 ? `${id} — ${short.slice(0, 60)}…` : `${id} — ${short}`;
 }
+
+type OutputTab = 'caption' | 'ingredients' | 'dag';
 
 function ProvenanceCard({
   content,
@@ -686,9 +709,15 @@ function ProvenanceCard({
   const metaLabel = isInput ? 'from' : output?.recipe ? 'recipe' : output?.from ? 'from' : 'recipe';
   const meta = provenance ? `${metaLabel}: ${provenance}` : null;
 
-  const ingredients = !isInput && output?.recipeInputs && output.recipeInputs.length > 0
-    ? output.recipeInputs
-    : null;
+  // Outputs get the §3 three-tab detail: Caption / Ingredients / Local
+  // DAG. Strip is always visible on outputs — the Caption tab shows the
+  // full description, which the title only previews by its first line.
+  // Ingredients and Local DAG may be empty for outputs without a wired
+  // recipeInputs chain; they render a muted placeholder so the reader
+  // sees "provenance not yet wired" rather than a missing affordance.
+  const hasTabs = !isInput;
+
+  const [tab, setTab] = useState<OutputTab>('caption');
 
   return (
     <CardShell
@@ -700,21 +729,177 @@ function ProvenanceCard({
       onClose={onClose}
       className={className}
       below={() => {
-        if (!ingredients) return null;
+        if (!hasTabs) return null;
         return (
-          <div className="card__ingredients" style={{ padding: `0 ${CARD_PAD_X}px ${CARD_PAD_Y}px` }}>
-            <div className="card__ingredients-label">Ingredients</div>
-            <ul className="card__ingredients-list">
-              {ingredients.map((inp) => (
-                <li key={inp} className="card__ingredient-chip" title={inp}>
-                  {inputChipLabel(inp, content.hostNode)}
-                </li>
-              ))}
-            </ul>
+          <div
+            className="card__detail"
+            style={{ padding: `0 ${CARD_PAD_X}px ${CARD_PAD_Y}px` }}
+          >
+            <div className="card__detail-tabs" role="tablist">
+              <TabButton label="Caption" active={tab === 'caption'} onClick={() => setTab('caption')} />
+              <TabButton label="Ingredients" active={tab === 'ingredients'} onClick={() => setTab('ingredients')} />
+              <TabButton label="Local DAG" active={tab === 'dag'} onClick={() => setTab('dag')} />
+            </div>
+            <div className="card__detail-panel" role="tabpanel">
+              {tab === 'caption' && <CaptionPanel description={description} />}
+              {tab === 'ingredients' && (
+                <IngredientsPanel
+                  recipeInputs={output?.recipeInputs}
+                  recipe={output?.recipe}
+                  hostNode={content.hostNode}
+                />
+              )}
+              {tab === 'dag' && (
+                <LocalDagPanel
+                  recipeInputs={output?.recipeInputs}
+                  hostNode={content.hostNode}
+                />
+              )}
+            </div>
           </div>
         );
       }}
     />
+  );
+}
+
+function TabButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      className={`card__detail-tab${active ? ' card__detail-tab--active' : ''}`}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function CaptionPanel({ description }: { description?: string }) {
+  if (!description) {
+    return <div className="card__detail-empty">No caption on this output.</div>;
+  }
+  // The title already carries the first line; show the whole paragraph
+  // here so readers who want the full caption get it without re-reading.
+  return <p className="card__detail-caption">{description.trim()}</p>;
+}
+
+function IngredientsPanel({
+  recipeInputs,
+  recipe,
+  hostNode,
+}: {
+  recipeInputs?: string[];
+  recipe?: string;
+  hostNode?: GraphNode;
+}) {
+  const hasChips = !!recipeInputs && recipeInputs.length > 0;
+  if (!hasChips && !recipe) {
+    return <div className="card__detail-empty">No recipe wired on this output yet.</div>;
+  }
+  return (
+    <div className="card__ingredients">
+      {recipe && (
+        <div className="card__detail-recipe">
+          <span className="card__detail-label">recipe</span>
+          <code className="card__detail-code">{recipe}</code>
+        </div>
+      )}
+      {hasChips && (
+        <>
+          <div className="card__ingredients-label">Inputs</div>
+          <ul className="card__ingredients-list">
+            {recipeInputs!.map((inp) => (
+              <li key={inp} className="card__ingredient-chip" title={inp}>
+                {inputChipLabel(inp, hostNode)}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+function LocalDagPanel({
+  recipeInputs,
+  hostNode,
+}: {
+  recipeInputs?: string[];
+  hostNode?: GraphNode;
+}) {
+  if (!recipeInputs || recipeInputs.length === 0) {
+    return <div className="card__detail-empty">No upstream inputs resolved.</div>;
+  }
+  return (
+    <ul className="card__dag">
+      {recipeInputs.map((id) => (
+        <DagNode key={id} id={id} hostNode={hostNode} depth={0} />
+      ))}
+    </ul>
+  );
+}
+
+function DagNode({
+  id,
+  hostNode,
+  depth,
+}: {
+  id: string;
+  hostNode?: GraphNode;
+  depth: number;
+}) {
+  const resolved = resolveRef(id, hostNode);
+  const glyph = resolved?.kind === 'output' ? '▸' : '◂';
+  const descr = resolved?.kind === 'input'
+    ? resolved.node.description
+    : resolved?.kind === 'output'
+      ? resolved.node.description
+      : undefined;
+  const shortDescr = descr?.trim().split('\n')[0];
+  const provenance = resolved?.kind === 'input'
+    ? resolved.node.from ?? resolved.node.source
+    : resolved?.kind === 'output'
+      ? resolved.node.recipe ?? resolved.node.from
+      : undefined;
+
+  // Walk one more hop for outputs — inputs terminate at their source/from
+  // string and don't carry structured upstream on the current node.
+  const upstream = resolved?.kind === 'output' && depth < 1
+    ? resolved.node.recipeInputs
+    : undefined;
+
+  return (
+    <li className="card__dag-node">
+      <span className="card__dag-glyph" aria-hidden="true">{glyph}</span>
+      <span className="card__dag-id">{id}</span>
+      {shortDescr && <span className="card__dag-descr"> — {shortDescr}</span>}
+      {provenance && (
+        <div className="card__dag-provenance">
+          <span className="card__detail-label">
+            {resolved?.kind === 'output' ? 'recipe' : 'from'}
+          </span>
+          <code className="card__detail-code">{provenance}</code>
+        </div>
+      )}
+      {upstream && upstream.length > 0 && (
+        <ul className="card__dag card__dag--nested">
+          {upstream.map((uid) => (
+            <DagNode key={uid} id={uid} hostNode={hostNode} depth={depth + 1} />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 
