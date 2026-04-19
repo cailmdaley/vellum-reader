@@ -36,6 +36,23 @@ export interface FileViewerPageProps {
    * hosts that don't route annotations anywhere.
    */
   annotationActions?: AnnotationAction[];
+  /**
+   * Suppress the built-in save toolbar. Use when a parent shell (modal
+   * header, pin-card chrome) renders its own bar — avoids two stacked bars.
+   * Pair with `onDirtyChange` / `onSaveStateChange` / `onSaveReady` so the
+   * host can show dirty/status/Save in its own chrome.
+   */
+  hideToolbar?: boolean;
+  /** Fires whenever the document's dirty bit flips. Host renders its own dirty dot. */
+  onDirtyChange?: (dirty: boolean) => void;
+  /** Fires whenever save state transitions (idle/saving/saved/error). */
+  onSaveStateChange?: (state: SaveState) => void;
+  /**
+   * Handed a save trigger once the page is ready to accept one. Fires with
+   * `null` when the page unmounts so the host can clear its bar. Host wires
+   * its own Save button to this.
+   */
+  onSaveReady?: (save: (() => Promise<void>) | null) => void;
 }
 
 type FetchState =
@@ -44,7 +61,7 @@ type FetchState =
   | { status: 'error'; message: string }
   | { status: 'ready'; file: FileContent };
 
-type SaveState = 'idle' | 'saving' | 'saved' | { error: string };
+export type SaveState = 'idle' | 'saving' | 'saved' | { error: string };
 
 export function FileViewerPage({
   path,
@@ -53,6 +70,10 @@ export function FileViewerPage({
   editable,
   jumpToLine,
   annotationActions,
+  hideToolbar,
+  onDirtyChange,
+  onSaveStateChange,
+  onSaveReady,
 }: FileViewerPageProps) {
   const adapter = useAdapter();
   const [state, setState] = useState<FetchState>({ status: 'loading' });
@@ -130,6 +151,22 @@ export function FileViewerPage({
     };
   }, []);
 
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    onSaveStateChange?.(saveState);
+  }, [saveState, onSaveStateChange]);
+
+  useEffect(() => {
+    if (!onSaveReady) return;
+    const canSave = editable && state.status === 'ready' &&
+      (state.file.kind === 'text' || state.file.kind === 'markdown');
+    onSaveReady(canSave ? doSave : null);
+    return () => onSaveReady(null);
+  }, [onSaveReady, doSave, editable, state]);
+
   if (state.status === 'loading') {
     return <div className="vellum-file-viewer-page vellum-file-viewer-page--loading">Loading {path}…</div>;
   }
@@ -149,7 +186,8 @@ export function FileViewerPage({
   }
 
   const showToolbar =
-    editable && (state.file.kind === 'text' || state.file.kind === 'markdown');
+    !hideToolbar && editable &&
+    (state.file.kind === 'text' || state.file.kind === 'markdown');
 
   return (
     <div

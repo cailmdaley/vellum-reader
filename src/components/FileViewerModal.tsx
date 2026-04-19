@@ -1,22 +1,13 @@
 /**
  * FileViewerModal — vellum's portable modal shell around FileViewerPage.
  *
- * The host mounts this inside a full-viewport container (e.g. a React root
- * attached to a <div> appended to document.body). The modal covers the
- * viewport with a scrim, renders a titled inner panel, and exposes:
- *
- *   - Close (× button, click on the scrim backdrop, Escape key)
- *   - Refresh (↻ button — re-fetches the file via a cacheBust token)
- *   - Path label in the header
- *
- * This is deliberately minimal. The host still owns *when* to mount/unmount
- * and any cross-cutting integration (hash routing, annotations UI, fiber
- * context sidebar). Those will arrive in follow-ups as the portolan
- * FileViewerModal absorption progresses.
+ * Single top bar: path + dirty dot + save status + Save + refresh + close.
+ * The inner FileViewerPage is told `hideToolbar`; its dirty/save state is
+ * lifted to this modal via callbacks, so there is only one bar.
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { FileViewerPage } from '../pages/FileViewerPage';
+import { FileViewerPage, type SaveState } from '../pages/FileViewerPage';
 import type { AnnotationAction } from '../utils/content-types';
 
 export interface FileViewerModalProps {
@@ -32,6 +23,13 @@ export interface FileViewerModalProps {
   onClose: () => void;
 }
 
+function saveStatusText(s: SaveState): string {
+  if (s === 'saving') return 'Saving…';
+  if (s === 'saved') return 'Saved';
+  if (typeof s === 'object') return `Error: ${s.error}`;
+  return '';
+}
+
 export function FileViewerModal({
   path,
   originId,
@@ -41,9 +39,16 @@ export function FileViewerModal({
   onClose,
 }: FileViewerModalProps) {
   const [cacheBustKey, setCacheBustKey] = useState(0);
+  const [dirty, setDirty] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [save, setSave] = useState<(() => Promise<void>) | null>(null);
 
   const handleRefresh = useCallback(() => {
     setCacheBustKey((n) => n + 1);
+  }, []);
+
+  const handleSaveReady = useCallback((fn: (() => Promise<void>) | null) => {
+    setSave(() => fn);
   }, []);
 
   useEffect(() => {
@@ -57,6 +62,9 @@ export function FileViewerModal({
     return () => document.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
+  const canSave = !!save && dirty && saveState !== 'saving';
+  const statusText = saveStatusText(saveState);
+
   return (
     <div
       className="vellum-modal-scrim"
@@ -68,8 +76,22 @@ export function FileViewerModal({
         <header className="vellum-modal-header">
           <span className="vellum-modal-path" title={path}>
             {path}
+            {dirty && <span className="vellum-file-viewer-page__dirty" aria-hidden="true"> •</span>}
           </span>
+          {statusText && (
+            <span className="vellum-file-viewer-page__status">{statusText}</span>
+          )}
           <div className="vellum-modal-actions">
+            {save && (
+              <button
+                type="button"
+                className="vellum-file-viewer-page__save"
+                onClick={() => { void save(); }}
+                disabled={!canSave}
+              >
+                Save
+              </button>
+            )}
             <button
               type="button"
               className="vellum-modal-btn"
@@ -99,6 +121,10 @@ export function FileViewerModal({
             editable={editable}
             jumpToLine={jumpToLine}
             annotationActions={annotationActions}
+            hideToolbar
+            onDirtyChange={setDirty}
+            onSaveStateChange={setSaveState}
+            onSaveReady={handleSaveReady}
           />
         </div>
       </div>
