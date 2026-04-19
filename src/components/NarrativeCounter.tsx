@@ -1,35 +1,40 @@
 /**
  * NarrativeCounter — marginalia table-of-contents next to the FiberHeader.
  *
- * One row per ASTRA kind present on the current fiber (findings,
- * decisions, outputs, inputs, analyses) plus outgoing refs (fiber
- * wikilinks captured as `cites` edges). Sits in the right-margin canvas
- * column, absolutely positioned inside the prose wrapper so it scrolls
- * with the page — unlike the fixed thumb-index above it. The counter
- * replaces both the old `AstraLegend` kind-strip and the short-lived
- * `PageMeta` nav sub-panel; one strip, clickable rows, no dividers.
+ * One section per ASTRA kind present on the current fiber (findings,
+ * decisions, outputs, inputs, analyses) plus an outgoing-refs line.
+ * Sits in the right-margin canvas column, absolutely positioned inside
+ * the prose wrapper so it scrolls with the page — unlike the fixed
+ * thumb-index above it. Replaces both the older inline `AstraLegend`
+ * kind-strip and the short-lived `PageMeta` nav sub-panel.
  *
- * Clicking a row jumps to the matching appendix section:
- *   findings  → `#astra-appendix-findings`
- *   decisions → `#astra-appendix-decisions`
- *   outputs   → `#astra-appendix-outputs`
- *   inputs    → `#astra-appendix-inputs`
- *   analyses  → `#astra-appendix` (the appendix has no analyses
- *               section — sub-analyses are their own fibers, reachable
- *               from the thumb-index's children row — so we land on
- *               the appendix divider as a soft fallback).
- *   refs      → no scroll; refs live scattered through the prose and
- *               in the thumb-index backlinks row, not in a central
- *               listing. The row still renders its count for parity.
+ * Each kind renders in one of two modes:
+ *   - **enumerated** (count ≤ ENUMERATE_THRESHOLD): one row per item,
+ *     click jumps to that item's anchor in the appendix (findings,
+ *     decisions, inputs, outputs) or navigates to the sub-analysis
+ *     fiber (analyses). The reader sees *which* items the page
+ *     carries, not just how many.
+ *   - **aggregate** (count > ENUMERATE_THRESHOLD): a single row with
+ *     the count, clicking jumps to that kind's section heading in the
+ *     appendix. Keeps the counter from ballooning for fibers with
+ *     dozens of findings.
+ *
+ * Refs always render as an aggregate count — there's no central
+ * listing for outgoing cites in the prose, so enumeration has no
+ * useful jump target.
  *
  * Hidden on narrow viewports (≤960px) since the thumb-index itself
  * goes away there — the counter has no column to sit in.
  */
 
 import type { GraphNode } from '~/utils/content-types';
+import { useNavigate } from 'react-router-dom';
 
-/** ASTRA kinds in canonical display order. Only kinds with count > 0
- *  render a row. Refs (outgoing cites) follow as the last row. */
+/** Upper bound for enumeration. Counts above this collapse to an
+ *  aggregate row so the marginalia column doesn't stack a scrolling
+ *  rail of tiny one-line items for big fibers. */
+const ENUMERATE_THRESHOLD = 8;
+
 type Kind = 'findings' | 'decisions' | 'outputs' | 'inputs' | 'analyses';
 
 const KIND_ORDER: Kind[] = ['findings', 'decisions', 'outputs', 'inputs', 'analyses'];
@@ -42,14 +47,6 @@ const KIND_GLYPH: Record<Kind, string> = {
   analyses:  '△',
 };
 
-const KIND_LABEL_SINGULAR: Record<Kind, string> = {
-  findings:  'insight',
-  decisions: 'decision',
-  outputs:   'output',
-  inputs:    'input',
-  analyses:  'analysis',
-};
-
 const KIND_LABEL_PLURAL: Record<Kind, string> = {
   findings:  'insights',
   decisions: 'decisions',
@@ -58,56 +55,136 @@ const KIND_LABEL_PLURAL: Record<Kind, string> = {
   analyses:  'analyses',
 };
 
+const KIND_LABEL_SINGULAR: Record<Kind, string> = {
+  findings:  'insight',
+  decisions: 'decision',
+  outputs:   'output',
+  inputs:    'input',
+  analyses:  'analysis',
+};
+
+/** Shorten a raw key/id (`bao_detection_highest_significance`) into a
+ *  label the reader can skim. Underscores and hyphens become spaces;
+ *  snake_case stays snake_case-ish visually. */
+function humanizeKey(key: string): string {
+  return key.replace(/[_-]+/g, ' ').trim();
+}
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1).trimEnd() + '…';
+}
+
+interface CounterItem {
+  id: string;
+  label: string;
+  /** Heading-id in the appendix (or elsewhere in the prose). When null
+   *  the row navigates instead of scrolling — used for sub-analyses. */
+  anchorId: string | null;
+  /** Sub-analysis fibers route via the router. Null otherwise. */
+  navigateSlug?: string;
+}
+
 interface NarrativeCounterProps {
   node?: GraphNode;
   /** Outgoing `cites` targets — fibers this page wiki-links to. */
   refCount: number;
-  /** How many child sub-analyses the graph records for this fiber.
-   *  `contains` edges are the source of truth, not `node.analyses?.length`
-   *  which may be absent on non-astra-project fibers. */
-  analysisCount: number;
+  /** Sub-analysis children derived from `contains` graph edges. */
+  subAnalyses: Array<{ slug: string; label: string; key: string }>;
 }
 
-export function NarrativeCounter({ node, refCount, analysisCount }: NarrativeCounterProps) {
+export function NarrativeCounter({ node, refCount, subAnalyses }: NarrativeCounterProps) {
+  const navigate = useNavigate();
   if (!node) return null;
 
-  const counts: Record<Kind, number> = {
-    findings:  node.findings?.length  ?? 0,
-    decisions: node.decisions?.length ?? 0,
-    outputs:   node.outputs?.length   ?? 0,
-    inputs:    node.inputs?.length    ?? 0,
-    analyses:  analysisCount,
+  // Build the per-kind item lists from the node. Each item carries a
+  // label + anchor/navigate target so the row click lands on the
+  // specific thing it names.
+  const itemsByKind: Record<Kind, CounterItem[]> = {
+    findings: (node.findings ?? []).map((f) => ({
+      id: f.key,
+      label: truncate(f.claim || humanizeKey(f.key), 42),
+      anchorId: `astra-finding-${f.key}`,
+    })),
+    decisions: (node.decisions ?? []).map((d) => ({
+      id: d.key,
+      label: truncate(d.label || humanizeKey(d.key), 42),
+      anchorId: `astra-decision-${d.key}`,
+    })),
+    outputs: (node.outputs ?? []).map((o) => ({
+      id: o.id,
+      label: truncate(o.description || humanizeKey(o.id), 42),
+      anchorId: `astra-output-${o.id}`,
+    })),
+    inputs: (node.inputs ?? []).map((i) => ({
+      id: i.id,
+      label: truncate(i.description || humanizeKey(i.id), 42),
+      anchorId: `astra-input-${i.id}`,
+    })),
+    analyses: subAnalyses.map((a) => ({
+      id: a.key,
+      label: truncate(a.label || humanizeKey(a.key), 42),
+      anchorId: null,
+      navigateSlug: a.slug,
+    })),
   };
 
-  const rows = KIND_ORDER.filter((k) => counts[k] > 0);
-  if (rows.length === 0 && refCount === 0) return null;
+  const visibleKinds = KIND_ORDER.filter((k) => itemsByKind[k].length > 0);
+  if (visibleKinds.length === 0 && refCount === 0) return null;
 
-  const jumpTo = (kind: Kind) => {
-    // findings/decisions/outputs/inputs have dedicated appendix
-    // sections; analyses has no section, so fall back to the appendix
-    // root divider.
-    const targetId = kind === 'analyses' ? 'astra-appendix' : `astra-appendix-${kind}`;
-    const el = document.getElementById(targetId) ?? document.getElementById('astra-appendix');
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id) ?? document.getElementById('astra-appendix');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleItemClick = (item: CounterItem) => {
+    if (item.navigateSlug) navigate(`/${item.navigateSlug}`);
+    else if (item.anchorId) scrollTo(item.anchorId);
+  };
+
+  const handleAggregateClick = (kind: Kind) => {
+    // Aggregate-only kinds (large lists) jump to their section heading;
+    // analyses has no section so it falls back to the appendix root.
+    const targetId = kind === 'analyses' ? 'astra-appendix' : `astra-appendix-${kind}`;
+    scrollTo(targetId);
   };
 
   return (
     <aside className="narrative-counter" aria-label="On this page">
-      {rows.map((kind) => {
-        const n = counts[kind];
-        const label = n === 1 ? KIND_LABEL_SINGULAR[kind] : KIND_LABEL_PLURAL[kind];
+      {visibleKinds.map((kind) => {
+        const items = itemsByKind[kind];
+        const aggregate = items.length > ENUMERATE_THRESHOLD;
+        const plural = items.length === 1 ? KIND_LABEL_SINGULAR[kind] : KIND_LABEL_PLURAL[kind];
+        if (aggregate) {
+          return (
+            <button
+              key={kind}
+              type="button"
+              className={`narrative-counter__row narrative-counter__row--${kind}`}
+              onClick={() => handleAggregateClick(kind)}
+              title={`Jump to ${items.length} ${plural}`}
+            >
+              <span className="narrative-counter__glyph" aria-hidden="true">{KIND_GLYPH[kind]}</span>
+              <span className="narrative-counter__count">{items.length}</span>
+              <span className="narrative-counter__label">{plural}</span>
+            </button>
+          );
+        }
         return (
-          <button
-            key={kind}
-            type="button"
-            className={`narrative-counter__row narrative-counter__row--${kind}`}
-            onClick={() => jumpTo(kind)}
-            title={`Jump to ${n} ${label}`}
-          >
-            <span className="narrative-counter__glyph" aria-hidden="true">{KIND_GLYPH[kind]}</span>
-            <span className="narrative-counter__count">{n}</span>
-            <span className="narrative-counter__label">{label}</span>
-          </button>
+          <div key={kind} className="narrative-counter__group">
+            {items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`narrative-counter__row narrative-counter__row--${kind} narrative-counter__row--item`}
+                onClick={() => handleItemClick(item)}
+                title={item.label}
+              >
+                <span className="narrative-counter__glyph" aria-hidden="true">{KIND_GLYPH[kind]}</span>
+                <span className="narrative-counter__item-label">{item.label}</span>
+              </button>
+            ))}
+          </div>
         );
       })}
       {refCount > 0 && (
