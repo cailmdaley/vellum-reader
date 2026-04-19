@@ -86,6 +86,13 @@ interface MarginCitationsProps {
    * the legacy "lookup pending" diagnostic.
    */
   childSubKeys?: Set<string>;
+  /**
+   * Display labels for child sub-analyses, keyed by the final path segment
+   * (e.g. `bao_fitting` → `BAO Fitting`). Feeds `resolveAstraLabel` so the
+   * margin glyph for `#analyses.<key>` reads the human label rather than
+   * the raw key.
+   */
+  subAnalysisLabels?: Map<string, string>;
 }
 
 /** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
@@ -103,6 +110,7 @@ export function MarginCitations({
   changedIds,
   currentNode,
   childSubKeys,
+  subAnalysisLabels,
 }: MarginCitationsProps) {
   const [groups, setGroups] = useState<GlyphGroup[]>([]);
   const [railLeft, setRailLeft] = useState(0);
@@ -220,7 +228,7 @@ export function MarginCitations({
           ? resolveAstraAnchor(parsed, currentNode, childSubKeys)
           : 'No page node for anchor resolution';
         const label = currentNode
-          ? resolveAstraLabel(parsed, currentNode)
+          ? resolveAstraLabel(parsed, currentNode, subAnalysisLabels)
           : parsed.id;
         const item: GlyphItem = {
           kind: 'astra',
@@ -343,7 +351,7 @@ export function MarginCitations({
       if (hoverTimer) clearTimeout(hoverTimer);
       for (const fn of cleanups) fn();
     };
-  }, [proseRef, wrapperRef, nodes, currentNode, childSubKeys]);
+  }, [proseRef, wrapperRef, nodes, currentNode, childSubKeys, subAnalysisLabels]);
 
   if (groups.length === 0) return null;
 

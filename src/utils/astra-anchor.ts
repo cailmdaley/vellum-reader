@@ -245,10 +245,16 @@ export function collectAstraAnchorKinds(mdast: any): AstraAnchorKind[] {
 /**
  * Resolve a label to show next to the margin glyph. Prefers the entry's
  * own label / id; falls back to the anchor id for broken links.
+ *
+ * `subAnalysisLabels` maps child sub-analysis keys to their display labels
+ * (derived from graph nodes at `{currentSlug}/analyses/<key>`). Passed in so
+ * the margin glyph for `#analyses.bao_fitting` can read "BAO Fitting"
+ * rather than the raw key.
  */
 export function resolveAstraLabel(
   parsed: ParsedAstraAnchor,
   node: Pick<GraphNode, 'findings' | 'decisions' | 'inputs' | 'outputs'>,
+  subAnalysisLabels?: Map<string, string>,
 ): string {
   switch (parsed.kind) {
     case 'findings':
@@ -268,6 +274,6 @@ export function resolveAstraLabel(
     case 'inputs':
       return node.inputs?.find((i) => i.id === parsed.id)?.id ?? parsed.id;
     case 'analyses':
-      return parsed.id;
+      return subAnalysisLabels?.get(parsed.id) ?? parsed.id;
   }
 }

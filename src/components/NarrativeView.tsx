@@ -213,23 +213,32 @@ export function NarrativeView({
   }, [currentNode, graphLinks, graphNodes]);
 
   /**
-   * Sub-analysis keys reachable from the current node via `contains` edges.
+   * Child sub-analyses reachable from the current node via `contains` edges,
+   * indexed by the final path segment (the key `#analyses.<key>` refers to).
    * The astra-project graph builder emits one `contains` link per nested
-   * `analyses.<key>`; the last path segment of the target slug is the key
-   * the `#analyses.<key>` anchor refers to. Undefined when graphLinks is
-   * absent so the resolver falls back to its legacy "lookup pending" state.
+   * `analyses.<key>`. `childSubKeys` (the set of keys) and
+   * `subAnalysisLabels` (key → display label) feed margin-glyph resolution
+   * and label rendering respectively. Undefined when graphLinks is absent,
+   * so the resolver falls back to its legacy "lookup pending" state.
    */
-  const childSubKeys = useMemo(() => {
-    if (!currentNode || !graphLinks) return undefined;
+  const { childSubKeys, subAnalysisLabels } = useMemo(() => {
+    if (!currentNode || !graphLinks) {
+      return { childSubKeys: undefined, subAnalysisLabels: undefined };
+    }
+    const nodeById = new Map(graphNodes.map((n) => [n.id, n]));
     const keys = new Set<string>();
+    const labels = new Map<string, string>();
     for (const link of graphLinks) {
       if (link.kind !== 'contains') continue;
       if (link.source !== currentNode.id) continue;
       const key = link.target.split('/').pop();
-      if (key) keys.add(key);
+      if (!key) continue;
+      keys.add(key);
+      const child = nodeById.get(link.target);
+      if (child?.label) labels.set(key, child.label);
     }
-    return keys;
-  }, [currentNode, graphLinks]);
+    return { childSubKeys: keys, subAnalysisLabels: labels };
+  }, [currentNode, graphLinks, graphNodes]);
 
   const { mdast: cleanAst, lede } = useMemo(() => {
     const stripped = stripFrontmatterNodes(
@@ -429,6 +438,7 @@ export function NarrativeView({
         changedIds={changedIds}
         currentNode={currentNode}
         childSubKeys={childSubKeys}
+        subAnalysisLabels={subAnalysisLabels}
       />
       <GhostToc
         proseRef={proseRef}
