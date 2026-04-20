@@ -5620,3 +5620,14 @@ a.pretext-prose-frag:hover {
   border-bottom: 1px dashed var(--text-muted);
   color: var(--text-muted);
 }
+
+/* Lightcone: empty right gutter.
+   The column stays (text doesn't reflow) but every persistent inhabitant
+   is hidden so the space is available for hover-card rendering. The
+   components still mount; this is a visual gate only. */
+:root[data-theme="lightcone"] .floating-island,
+:root[data-theme="lightcone"] .thumb-index,
+:root[data-theme="lightcone"] .backlink-nodes,
+:root[data-theme="lightcone"] .ghost-toc {
+  display: none !important;
+}
