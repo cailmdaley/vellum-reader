@@ -81,7 +81,6 @@ const MEDIA_HEIGHT = 120;
 function synthesizeNode(slug: string, content: FiberContent | null): GraphNode {
   const fm = (content?.frontmatter ?? {}) as Record<string, unknown>;
   const label =
-    (typeof fm.title === 'string' && fm.title) ||
     (typeof fm.name === 'string' && fm.name) ||
     slug.split('/').pop() ||
     slug;

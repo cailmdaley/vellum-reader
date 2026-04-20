@@ -219,6 +219,7 @@ function CardShell({
   width,
   typeLabel,
   variantClass,
+  kicker,
   title,
   body,
   meta,
@@ -234,6 +235,10 @@ function CardShell({
   /** Used for data-type attribute and the status-like --type accent. */
   typeLabel: string;
   variantClass?: string;
+  /** Optional kicker line rendered above the pretext lockup in IBM Plex
+   *  Mono — for technical identifiers (output ids, input ids) that want
+   *  a caption-label treatment rather than competing with the prose title. */
+  kicker?: string | null;
   title: string;
   body?: string | null;
   meta?: string | null;
@@ -300,6 +305,9 @@ function CardShell({
             </button>
           )}
         </div>
+      )}
+      {kicker && (
+        <div className="card__kicker" title={kicker}>{kicker}</div>
       )}
       <div
         className="card__lockup"
@@ -769,7 +777,17 @@ function ProvenanceCard({
 
   const id = input?.id ?? output?.id ?? content.label ?? '';
   const description = input?.description ?? output?.description;
-  const title = `${isInput ? '◂' : '▸'}  ${id}${description ? ` — ${description.trim().split('\n')[0]}` : ''}`;
+  // Lead with the kind heading ("Input" / "Output") the way Finding does
+  // — the id is a technical handle and wants monospace; putting it in the
+  // title would force Garamond on snake_case / camelCase identifiers. The
+  // kicker slot renders the id above the heading in IBM Plex Mono so the
+  // reader sees a caption-label lockup (id → kind heading → description)
+  // instead of a bold-italic mash-up.
+  const glyph = isInput ? '◂' : '▸';
+  const kindLabel = isInput ? 'Input' : 'Output';
+  const kicker = id || null;
+  const title = `${glyph}  ${kindLabel}`;
+  const body = description?.trim() ? description.trim().split('\n')[0] : null;
 
   // Outputs can carry both a `recipe` (hydrated from the sub-analysis on
   // the server when this is a re-export) and a `from:` pointer to where the
@@ -826,8 +844,9 @@ function ProvenanceCard({
     <CardShell
       width={width}
       typeLabel={content.type}
+      kicker={kicker}
       title={title}
-      body={null}
+      body={body}
       meta={meta}
       onClose={onClose}
       className={className}

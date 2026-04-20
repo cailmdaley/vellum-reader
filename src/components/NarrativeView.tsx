@@ -82,8 +82,8 @@ function stripFrontmatterNodes(mdast: any, frontmatter: Record<string, any>, gra
 
   if (i < children.length && children[i].type === 'heading') {
     const text = nodeText(children[i]).trim().toLowerCase();
-    const fmTitle = (frontmatter.title ?? '').trim().toLowerCase();
-    if (fmTitle && (fmTitle.startsWith(text) || text.startsWith(fmTitle))) i++;
+    const fmName = (frontmatter.name ?? '').trim().toLowerCase();
+    if (fmName && (fmName.startsWith(text) || text.startsWith(fmName))) i++;
   }
 
   // Extract lede text for metadata display but do NOT strip it from the

@@ -13,6 +13,7 @@
  * goes away there — the counter has no column to sit in.
  */
 
+import { useEffect, useRef } from 'react';
 import type { GraphNode } from '~/utils/content-types';
 
 type Kind = 'findings' | 'decisions' | 'outputs' | 'inputs' | 'analyses';
@@ -55,6 +56,35 @@ interface NarrativeCounterProps {
 }
 
 export function NarrativeCounter({ node, refCount, analysisCount }: NarrativeCounterProps) {
+  const ref = useRef<HTMLElement>(null);
+
+  // Publish the counter's rendered height as a CSS variable so other
+  // chrome — notably the FiberHeader's bottom rule — can align its
+  // cartouche to the last counter row instead of floating a few rem
+  // lower and reading as a disconnected hairline. ResizeObserver keeps
+  // the value in sync as the kind-count changes or fonts settle.
+  useEffect(() => {
+    const el = ref.current;
+    const root = document.documentElement;
+    const apply = () => {
+      const h = el?.offsetHeight ?? 0;
+      if (h > 0) root.style.setProperty('--narrative-counter-height', `${h}px`);
+      else root.style.removeProperty('--narrative-counter-height');
+    };
+    if (!el) {
+      root.style.removeProperty('--narrative-counter-height');
+      return;
+    }
+    apply();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.removeProperty('--narrative-counter-height');
+    };
+  }, [node, refCount, analysisCount]);
+
   if (!node) return null;
 
   const countsByKind: Record<Kind, number> = {
@@ -80,7 +110,7 @@ export function NarrativeCounter({ node, refCount, analysisCount }: NarrativeCou
     kind === 'analyses' ? 'astra-appendix' : `astra-appendix-${kind}`;
 
   return (
-    <aside className="narrative-counter" aria-label="On this page">
+    <aside ref={ref} className="narrative-counter" aria-label="On this page">
       {visibleKinds.map((kind) => {
         const count = countsByKind[kind];
         const label = count === 1 ? KIND_LABEL_SINGULAR[kind] : KIND_LABEL_PLURAL[kind];

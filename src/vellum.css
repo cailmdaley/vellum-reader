@@ -70,25 +70,33 @@
   --canvas-overlay-left: calc(100vw - var(--canvas-width, 360px) + 12px);
   --canvas-overlay-width: calc(var(--canvas-width, 360px) - 24px);
   --shadow: 0 2px 8px rgba(31, 26, 21, 0.07), 0 1px 3px rgba(31, 26, 21, 0.04);
-  /* Portolan palette — colors from Mediterranean navigation charts.
-     verdigris/cinnabar/ochre/indigo are kept as tonal primitives, but the
-     ASTRA kind assignments below now route Decision to rubric and Sub-
-     analysis to ochre-ink per the First Light specimen. */
+  /* Portolan palette — colors from Mediterranean navigation charts. Kept
+     as tonal primitives for non-kind chrome (teal for resolved status,
+     ochre for UI gold), but no longer carry kind taxonomy. */
   --portolan-verdigris: #4A7C6F;
   --portolan-cinnabar: #B5453A;
   --portolan-ochre: #C2963B;
   --portolan-indigo: #4A5A7C;
-  /* ASTRA anchor kinds — color is taxonomy, one ink per primitive.
-     - findings: verdigris (claim with evidence)
-     - decisions: rubric (red — the author's second hand, where the path forked)
-     - outputs: indigo (produced artifact)
-     - inputs: slate (ingested artifact, quiet cousin of outputs)
-     - analyses: ochre-ink (sub-analysis scope — contained world) */
-  --astra-finding: var(--portolan-verdigris);
+  /* ASTRA anchor kinds — one rubricated hand for every annotation, Gwern.
+     Rubrication is the typographer's habitual second color and the most
+     consequential mark on a page deserves a single ink, not a legend of
+     competing primaries. Kind differentiation survives through glyph
+     shape (●/◇/◂/▸/◆) and the label word ("Finding", "Input", …), so
+     color can carry a coarser signal: red means "this is annotation."
+     Status (gold=open, teal=resolved) remains an orthogonal axis on
+     card rails; UI chrome (hover, focus, links) keeps its gold. */
+  --astra-finding: var(--rubric);
   --astra-decision: var(--rubric);
-  --astra-output: var(--portolan-indigo);
-  --astra-input: #6A7280;
-  --astra-analysis: var(--ochre-ink);
+  --astra-output: var(--rubric);
+  --astra-input: var(--rubric);
+  --astra-analysis: var(--rubric);
+  /* Tally ink — counts and tallies live in a third, cooler register:
+     indigo. The narrative counter and delta view count use it so the eye
+     reads them as "how many of a thing" rather than "click this
+     annotation." Distinct from the rubricated red (annotation) and the
+     gold UI chrome (link/hover/focus). */
+  --counter: var(--portolan-indigo);
+  --counter-faint: rgba(74, 90, 124, 0.12);
 }
 
 /* ── Reset ── */
@@ -109,10 +117,21 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  /* Subtle grain texture — the substrate */
+  /* Tonal key unity (Hudson River). Atmospheric perspective = temperature:
+     (1) warm dawn light from the upper-left — the near, illuminated edge,
+     (2) a cool blue-gray atmospheric recession from the lower-right —
+         distant air, the Bierstadt valley haze,
+     (3) warm-tinted grain is the material substrate — not cold gray noise.
+     The cross-diagonal warm/cool split gives the page depth without
+     competing with prose ink. Layers are all `fixed` so scrolling reveals
+     paper, not wallpaper. */
   background-color: var(--page-bg);
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-  background-size: 256px;
+  background-image:
+    radial-gradient(ellipse 85% 50% at 22% -8%, rgba(255, 243, 210, 0.34), transparent 55%),
+    radial-gradient(ellipse 110% 60% at 78% 112%, rgba(96, 118, 142, 0.14), transparent 60%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0.55 0 0 0 0.08  0.48 0 0 0 0.05  0.32 0 0 0 0.02  0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  background-attachment: fixed, fixed, fixed;
+  background-size: auto, auto, 256px;
 }
 
 /* ── Page Container ── */
@@ -491,26 +510,23 @@ body {
 }
 .thumb-index__mode:hover { opacity: 1; }
 
-/* Per-mode portolan colors — applied on hover and active */
+/* Mode tabs share one ink (indigo). The tabs are a navigation axis —
+   "which lens am I looking at this fiber through" — not a kind or a
+   status, and want their own third color distinct from the rubricated
+   annotation red and the gold UI chrome. Per-mode portolan colors were
+   an earlier experiment that added visual noise without reinforcing
+   any other channel; the glyph letter + word already discriminates
+   the modes at a glance. */
 .thumb-index__mode--narrative:hover,
-.thumb-index__mode--narrative.thumb-index__mode--active {
-  color: var(--portolan-verdigris);
-  border-bottom-color: var(--portolan-verdigris);
-}
+.thumb-index__mode--narrative.thumb-index__mode--active,
 .thumb-index__mode--workspace:hover,
-.thumb-index__mode--workspace.thumb-index__mode--active {
-  color: var(--portolan-cinnabar);
-  border-bottom-color: var(--portolan-cinnabar);
-}
+.thumb-index__mode--workspace.thumb-index__mode--active,
 .thumb-index__mode--map:hover,
-.thumb-index__mode--map.thumb-index__mode--active {
-  color: var(--portolan-ochre);
-  border-bottom-color: var(--portolan-ochre);
-}
+.thumb-index__mode--map.thumb-index__mode--active,
 .thumb-index__mode--delta:hover,
 .thumb-index__mode--delta.thumb-index__mode--active {
-  color: var(--portolan-indigo);
-  border-bottom-color: var(--portolan-indigo);
+  color: var(--counter);
+  border-bottom-color: var(--counter);
 }
 .thumb-index__mode--active { opacity: 1; }
 
@@ -532,7 +548,9 @@ body {
   height: 11px;
   font-size: 0.5rem;
   font-weight: 600;
-  background: var(--gold);
+  /* Badge rides the Delta tab's indigo ink so the pair reads as a single
+     mode+count glyph rather than competing signals. */
+  background: var(--counter);
   color: var(--prose-bg);
   border-radius: 6px;
   line-height: 1;
@@ -1123,20 +1141,77 @@ body {
 }
 .vellum-prose tr:last-child td { border-bottom: none; }
 
-/* ── Fiber Header (frontmatter) ── */
+/* ── Fiber Header (title plate) ────────────────────────────
+   Cartouche treatment: a hairline rule below the title with a centered
+   rubric ornament punctuating the threshold into the body. The title
+   itself gets a very faint volume line above — rendered by CSS alone,
+   no React change needed. */
 .vellum-fiber-header {
-  margin-bottom: 2.75rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 3rem;
+  padding-top: 0.25rem;
+  padding-bottom: 1.75rem;
+  border-bottom: none;
+  position: relative;
+}
+
+/* Align the bottom rule with the last row of the narrative counter.
+   Counter and header start at the same y (both anchored off the
+   thumb-index bottom); positioning the rule at `top: counter-height`
+   lands it exactly at the counter's final baseline, without forcing
+   the header box itself to resize. NarrativeCounter publishes its
+   height via a ResizeObserver; the fallback (calc(100% - 1px)) keeps
+   the rule pinned to the bottom when the var isn't set — fibers
+   without ASTRA structure see the legacy cartouche. */
+.vellum-fiber-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--narrative-counter-height, calc(100% - 1px));
+  height: 1px;
+  background: var(--border);
+  opacity: 0.6;
+}
+
+/* Tristanpunctus ornament sits astride the rule (not below the title)
+   so the cartouche reads as a single threshold: title above,
+   ornamented rule below, aligned with the last counter row on the
+   right. Rubricators used this cadence mark to close a titled section
+   on portolan charts. */
+.vellum-fiber-header::before {
+  content: '⁘';
+  position: absolute;
+  left: 50%;
+  top: var(--narrative-counter-height, calc(100% - 1px));
+  transform: translate(-50%, -50%);
+  padding: 0 0.4em;
+  background: var(--page-bg);
+  font-size: 0.95rem;
+  letter-spacing: 0.5em;
+  margin-right: -0.5em;
+  color: var(--rubric);
+  opacity: 0.68;
+  line-height: 1;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .vellum-fiber-header__title {
-  font-size: 2rem;
-  font-weight: 600;
-  margin: 0 0 1rem;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  color: var(--text);
+  font-size: 2.1rem;
+  font-weight: 500;
+  margin: 0 0 0.5rem;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  font-feature-settings: 'lnum' 1, 'onum' 0;
+  position: relative;
+  /* Respect authored newlines in the name string. YAML block scalars let
+     the author break a long title across lines (e.g. a paper's main title
+     on one line, its subtitle on the next) and this keeps the break in
+     the rendered h1. Other places that show the same label (nav, map)
+     inherit the default normal whitespace and collapse the newline to a
+     space, so the break is a typographic affordance local to this title. */
+  white-space: pre-line;
 }
 
 .vellum-fiber-header__meta {
@@ -1493,6 +1568,12 @@ body {
 /* Symbol + muted kind-name, per glyph-systems-diverge: the word teaches the
    glyph so readers don't have to learn a separate visual vocabulary for the
    margin vs. the card typography. Symbol inherits its kind color below. */
+/* Glyph + label share one kind color so a margin annotation reads as a
+   single coherent mark — the word teaches the glyph and vice versa.
+   Routing the label text to red while the glyph stayed kind-colored broke
+   that coherence; keep both in the kind palette. Red is reserved for the
+   uses where it does original work elsewhere (decision kind, rubric
+   cartouche, inline rubrication). */
 .margin-glyph--astra .margin-glyph__dot {
   display: inline-block;
   font-size: 0.85rem;
@@ -1502,15 +1583,58 @@ body {
   font-size: 0.7rem;
   font-family: 'Spectral', 'EB Garamond', Georgia, serif;
   font-weight: 400;
-  color: var(--text-muted);
+  opacity: 0.85;
   margin-left: 4px;
 }
 
-.margin-glyph--astra-findings .margin-glyph__dot { color: var(--astra-finding); }
-.margin-glyph--astra-decisions .margin-glyph__dot { color: var(--astra-decision); }
-.margin-glyph--astra-outputs .margin-glyph__dot { color: var(--astra-output); }
-.margin-glyph--astra-inputs .margin-glyph__dot { color: var(--astra-input); }
-.margin-glyph--astra-analyses .margin-glyph__dot { color: var(--astra-analysis); }
+.margin-glyph--astra-findings  .margin-glyph__dot,
+.margin-glyph--astra-findings  .margin-glyph__kind-name { color: var(--astra-finding); }
+.margin-glyph--astra-decisions .margin-glyph__dot,
+.margin-glyph--astra-decisions .margin-glyph__kind-name { color: var(--astra-decision); }
+.margin-glyph--astra-outputs   .margin-glyph__dot,
+.margin-glyph--astra-outputs   .margin-glyph__kind-name { color: var(--astra-output); }
+.margin-glyph--astra-inputs    .margin-glyph__dot,
+.margin-glyph--astra-inputs    .margin-glyph__kind-name { color: var(--astra-input); }
+.margin-glyph--astra-analyses  .margin-glyph__dot,
+.margin-glyph--astra-analyses  .margin-glyph__kind-name { color: var(--astra-analysis); }
+
+/* Same-kind labels appear only on the first occurrence on the page —
+   every later pin of a kind renders glyph-only regardless of whether
+   other kinds intervene. The general-sibling combinator (~) matches any
+   later same-kind row, not just the immediately adjacent one, so the
+   reader sees "Finding" once and a column of quiet dots for the rest.
+   The selector targets only matching-kind pins inside the later row so
+   mixed-kind rows still show labels for their other kinds. */
+.margin-glyph-row:has(.margin-glyph--astra-findings)  ~ .margin-glyph-row .margin-glyph--astra-findings  .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--astra-decisions) ~ .margin-glyph-row .margin-glyph--astra-decisions .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--astra-outputs)   ~ .margin-glyph-row .margin-glyph--astra-outputs   .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--astra-inputs)    ~ .margin-glyph-row .margin-glyph--astra-inputs    .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--astra-analyses)  ~ .margin-glyph-row .margin-glyph--astra-analyses  .margin-glyph__kind-name,
+/* Within a single row: when the same kind appears multiple times, keep
+   only the last occurrence's label so the cluster reads as
+   "⧗ ⧗ Sub-analysis" — glyphs first, one shared label after. A pin
+   whose kind-name is suppressed is one that has a later same-kind
+   sibling in the same row; the final same-kind pin retains its label,
+   which visually sits after the whole dot run. */
+.margin-glyph-row > .margin-glyph--astra-findings:has(~ .margin-glyph--astra-findings)   .margin-glyph__kind-name,
+.margin-glyph-row > .margin-glyph--astra-decisions:has(~ .margin-glyph--astra-decisions) .margin-glyph__kind-name,
+.margin-glyph-row > .margin-glyph--astra-outputs:has(~ .margin-glyph--astra-outputs)     .margin-glyph__kind-name,
+.margin-glyph-row > .margin-glyph--astra-inputs:has(~ .margin-glyph--astra-inputs)       .margin-glyph__kind-name,
+.margin-glyph-row > .margin-glyph--astra-analyses:has(~ .margin-glyph--astra-analyses)   .margin-glyph__kind-name {
+  visibility: hidden;
+  width: 0;
+  margin-left: 0;
+  overflow: hidden;
+}
+/* Repeated dots wear a lighter weight — a column of "• • •" reads as a
+   portolan bearing line rather than a repeat of the first bright pin. */
+.margin-glyph-row:has(.margin-glyph--astra-findings) ~ .margin-glyph-row:has(.margin-glyph--astra-findings) .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--astra-decisions) ~ .margin-glyph-row:has(.margin-glyph--astra-decisions) .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--astra-outputs) ~ .margin-glyph-row:has(.margin-glyph--astra-outputs) .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--astra-inputs) ~ .margin-glyph-row:has(.margin-glyph--astra-inputs) .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--astra-analyses) ~ .margin-glyph-row:has(.margin-glyph--astra-analyses) .margin-glyph__dot {
+  opacity: 0.7;
+}
 
 .margin-glyph--astra-broken {
   opacity: 0.55;
@@ -1556,26 +1680,25 @@ body {
 }
 
 /* ── Inline ASTRA anchor links inside the prose ──
-   Kind-colored underline; the anchor text itself stays in ink. Try
-   "kind-color underline" first (constitution Open Question — keep the
-   quieter of the two renderings). Neutral underline would be achievable
-   by dropping the `border-bottom-color` overrides below. */
+   Two surfaces carry annotation — the margin (where the author's hand
+   lives) and the prose (where the reference phrase lives). Keeping both
+   equally red makes the prose feel stained. Let the margin carry the
+   rubricated load; keep the inline underline quiet at rest (hair-thin,
+   dotted, muted) and brighten it to rubric red only on hover or when
+   the corresponding margin pin is active. The reader's eye reads prose
+   as prose; when they reach for a reference, the red ink lights up. */
 .pretext-prose a.astra-anchor {
   color: var(--text);
   text-decoration: none;
-  border-bottom: 1px solid currentColor;
-  border-bottom-color: var(--text-muted);
-  transition: background 0.15s;
+  border-bottom: 1px dotted var(--text-muted);
+  transition: background 0.15s, border-bottom-color 0.15s, border-bottom-style 0.15s;
 }
 .pretext-prose a.astra-anchor:hover,
 .pretext-prose a.astra-anchor.margin-active {
-  background: var(--gold-faint);
+  background: var(--rubric-faint);
+  border-bottom-style: solid;
+  border-bottom-color: var(--rubric);
 }
-.pretext-prose a.astra-anchor--findings  { border-bottom-color: var(--astra-finding); }
-.pretext-prose a.astra-anchor--decisions { border-bottom-color: var(--astra-decision); }
-.pretext-prose a.astra-anchor--outputs   { border-bottom-color: var(--astra-output); }
-.pretext-prose a.astra-anchor--inputs    { border-bottom-color: var(--astra-input); }
-.pretext-prose a.astra-anchor--analyses  { border-bottom-color: var(--astra-analysis); }
 .pretext-prose a.astra-anchor--broken {
   border-bottom-style: dashed;
   border-bottom-color: var(--text-muted);
@@ -1647,6 +1770,18 @@ body {
      page. */
   background: var(--prose-bg);
   box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
+}
+/* When the preview carries a figure (evidence thumbnail or figure-output),
+   give it room. Cutting a figure in half at the 40vh fold forces the
+   reader to pin + scroll before they can even see what they hovered;
+   the figure is almost always the thing worth seeing. Raise the cap to
+   85vh for these — a pinned card is free to take a taller slot, and
+   smaller figures self-size. Text-only previews keep the 40vh cap so a
+   wall of prose doesn't devour the viewport. */
+.margin-card-preview:has(.card__evidence-thumbnail),
+.margin-card-preview:has(.card__output-figure-button),
+.margin-card-preview:has(.card__plot-img) {
+  max-height: 85vh;
 }
 .margin-card-preview:focus { outline: none; }
 .margin-card-preview:focus-visible {
@@ -2119,39 +2254,96 @@ body {
 
 /* ── Error state ── */
 /* ── Index View — auto-generated root listing ── */
+/* ── Index view: the title plate ───────────────────────────────────────
+   The root index is a catalog of open threads, not a nav menu. Treated
+   as a titled plate: volume-line above, larger title, centered rubric
+   tristanpunctus, and catalog entries with quiet dotted guides linking
+   the label to its verdict. Hudson River restraint with a portolan
+   cartographer's hand. */
 .index-view {
-  max-width: var(--prose-width);
-  padding: 3.5rem 3.5rem 5rem;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 5rem 3.5rem 6rem;
+  position: relative;
 }
+
 .index-view__title {
   font-family: 'EB Garamond', Georgia, serif;
-  font-size: 1.8rem;
-  font-weight: 400;
-  color: var(--text);
-  margin: 0 0 0.3rem;
+  font-size: 2.2rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+  text-align: center;
+  letter-spacing: 0.02em;
 }
-.index-view__count {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.65rem;
+
+.index-view__title::before {
+  content: 'lightcone';
+  display: block;
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 0.78rem;
+  letter-spacing: 0.3em;
+  text-transform: lowercase;
   color: var(--text-muted);
-  margin: 0 0 1.5rem;
+  opacity: 0.7;
+  margin-bottom: 0.9rem;
+  font-weight: 400;
 }
+
+.index-view__count {
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 1.4rem 0 0;
+  opacity: 0.8;
+  letter-spacing: 0.04em;
+}
+
+.index-view__count::before {
+  content: '⁘';
+  display: block;
+  color: var(--rubric);
+  opacity: 0.68;
+  letter-spacing: 0.5em;
+  margin: 0 -0.5em 0.9rem 0;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.index-view__count::after {
+  content: '';
+  display: block;
+  width: 40%;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.5;
+  margin: 1.2rem auto 0;
+}
+
 .index-view__section {
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin-bottom: 1.5rem;
+  margin: 2.5rem 0 0;
 }
+
 .index-view__section-title {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.6rem;
-  font-weight: 500;
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-size: 0.78rem;
+  font-weight: 400;
+  font-style: italic;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin: 0 0 0.5rem;
-  opacity: 0.6;
+  text-transform: lowercase;
+  letter-spacing: 0.22em;
+  margin: 2rem 0 0.5rem;
+  opacity: 0.7;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
 }
+
 .index-view__item {
   -webkit-appearance: none;
   appearance: none;
@@ -2159,39 +2351,80 @@ body {
   border: none;
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding: 5px 4px;
+  gap: 10px;
+  padding: 0.55rem 0.2rem;
   cursor: pointer;
   text-align: left;
-  border-radius: 2px;
-  transition: background 0.1s;
+  border-radius: 0;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
 }
+
+.index-view__item + .index-view__item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.35;
+}
+
 .index-view__item:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 248, 230, 0.35);
 }
+
 .index-view__item--closed {
-  opacity: 0.5;
+  opacity: 0.55;
 }
+
 .index-view__glyph {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   flex-shrink: 0;
-  width: 1.2em;
+  width: 1.3em;
   text-align: center;
+  color: var(--text-muted);
+  opacity: 0.7;
 }
+
 .index-view__label {
   font-family: 'EB Garamond', Georgia, serif;
-  font-size: 1rem;
-  color: var(--text);
+  font-size: 1.08rem;
+  color: var(--ink);
+  letter-spacing: 0.005em;
 }
+
 .index-view__verdict {
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 0.82rem;
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 0.86rem;
   color: var(--text-muted);
   margin-left: auto;
-  max-width: 50%;
+  max-width: 55%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  opacity: 0.85;
+  padding-left: 1rem;
+  position: relative;
+}
+
+/* Dotted guide leader between the label and verdict — the cartographer's
+   coastline annotation: a line of tiny dots reaching from place-name to
+   remark. Painted with repeating-radial-gradient in muted ink. */
+.index-view__verdict::before {
+  content: '';
+  position: absolute;
+  left: 0.15em;
+  right: 0.15em;
+  bottom: 0.34em;
+  height: 1px;
+  background-image: radial-gradient(circle, var(--text-muted) 0.5px, transparent 1px);
+  background-size: 5px 1px;
+  background-repeat: repeat-x;
+  opacity: 0.35;
+  z-index: -1;
 }
 
 .vellum-error {
@@ -4037,8 +4270,34 @@ body {
   font-family: 'EB Garamond', Georgia, serif;
   overflow: hidden;
 }
-.card--open { border-left: 2px solid var(--gold, #b8860b); }
-.card--resolved { border-left: 2px solid var(--teal, #2dd4bf); }
+/* Card left-rail — the structural edge of every pinned/appendix card
+   rides a single indigo ink, matching the thumb-index mode tabs. It
+   reads as "card chrome" rather than as another annotation signal; the
+   rubricated red is reserved for the marginalia and anchor register,
+   and status (open/resolved) drops as a rail channel. Kind stays
+   legible via the glyph + section heading. */
+.card--open,
+.card--resolved { border-left: 2px solid var(--counter); }
+
+/* Kicker — small monospace caption-label above the pretext lockup. Used
+   on input/output cards to carry the technical id (snake_case /
+   camelCase artifact name) in IBM Plex Mono, while the pretext title
+   below states the kind ("Input"/"Output") in Garamond. Reads like a
+   catalog entry: identifier → kind → description. */
+.card__kicker {
+  padding: 10px 14px 0;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Kind-ink the kicker so the id picks up the same taxonomy the rail
+   carries — muted but present, matching the appendix section headings. */
+.card--input  .card__kicker { color: var(--astra-input); }
+.card--output .card__kicker { color: var(--astra-output); }
 
 /* .card__chrome + .card__pin + .card__close styles live alongside
    .fiber-card__chrome above — a single ruleset covers both. */
@@ -4162,15 +4421,13 @@ body {
 .card__evidence {
   position: relative;
   padding: 6px 8px 6px 12px;
-  border-left: 2px solid var(--text-muted);
-  background: rgba(0, 0, 0, 0.015);
+  /* Hairline muted indent — the card frame is the only strong edge; the
+     evidence row gets a quiet rail that reads as sub-structure, not a
+     second annotation channel. No kind tint here; the evidence-label
+     word ("Quote", "Figure", "Code", "Finding") already names the kind. */
+  border-left: 1px solid var(--border);
   border-radius: 0 2px 2px 0;
 }
-.card__evidence--quote   { border-left-color: var(--astra-finding); }
-.card__evidence--figure  { border-left-color: var(--astra-output); }
-.card__evidence--code    { border-left-color: var(--astra-input); }
-.card__evidence--insight { border-left-color: var(--astra-finding); }
-.card__evidence--unknown { border-left-color: var(--text-muted); }
 
 .card__evidence-header {
   display: flex;
@@ -4398,8 +4655,15 @@ button.card__evidence-source--artifact:hover {
   gap: 2px 6px;
 }
 .card__evidence-quote {
+  /* Override the global `.vellum-prose blockquote` rule that would otherwise
+     paint a third gold rail stacked inside the card's kind-rail and the
+     evidence row's rail. Inside a card the evidence row already carries
+     the kind accent and the quote passage is a content slot, not an
+     author-flagged pull-quote — one rail, one hand. */
   margin: 4px 0 0;
   padding: 0;
+  border-left: none;
+  font-style: normal;
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 13px;
   line-height: 1.45;
@@ -4425,48 +4689,34 @@ button.card__evidence-source--artifact:hover {
   color: var(--text-muted);
 }
 
-/* Figure thumbnail on evidence rows. A small preview of the referenced
-   artifact; click to pin the full figure card in the marginalia. */
-.card__evidence-thumbnail {
-  display: block;
-  width: 100%;
-  margin-top: 8px;
-  padding: 0;
-  border: 1px solid var(--rule-soft, rgba(0, 0, 0, 0.08));
-  border-radius: 2px;
-  background: var(--substrate-warm, #faf7f0);
-  cursor: zoom-in;
-  overflow: hidden;
-  transition: border-color 120ms ease;
-}
-.card__evidence-thumbnail:hover {
-  border-color: var(--gold, #b8860b);
-}
-.card__evidence-thumbnail-img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* Figure-output card — button wraps the image so clicking opens the
-   lightbox. No tabs on figure outputs; the image is the content. */
+/* Figure inlay — evidence thumbnail or the hero figure on an output
+   card. Lives inside the card frame, so it doesn't need its own
+   border, substrate tint, or hover chrome. The image is content; the
+   card's indigo rail is the only frame. Hover reads via a subtle cursor
+   + opacity shift rather than a color change. */
+.card__evidence-thumbnail,
 .card__output-figure-button {
   display: block;
   width: 100%;
   padding: 0;
   margin: 0;
-  border: 1px solid var(--rule-soft, rgba(0, 0, 0, 0.08));
-  border-radius: 2px;
-  background: var(--substrate-warm, #faf7f0);
+  border: none;
+  border-radius: 0;
+  background: none;
   cursor: zoom-in;
   overflow: hidden;
-  transition: border-color 120ms ease;
+  transition: opacity 120ms ease;
 }
+.card__evidence-thumbnail { margin-top: 8px; }
+.card__evidence-thumbnail:hover,
 .card__output-figure-button:hover {
-  border-color: var(--gold, #b8860b);
+  opacity: 0.92;
 }
+.card__evidence-thumbnail-img,
 .card__output-figure {
   display: block;
+  width: 100%;
+  height: auto;
 }
 
 /* Tame MyST prose inside the card */
@@ -4664,6 +4914,51 @@ button.card__evidence-source--artifact:hover {
      it and accept a slightly quieter heading treatment. */
 }
 
+/* ── Section cartouche: § N (rubric counter hung in the left margin) ──
+   Pretext measures heading text with its own canvas metrics, so CSS
+   tracking/font-feature changes would desynchronize measurement and
+   paint. The § counter lives in a ::before pseudo-element positioned
+   out of flow to the heading's left — it scrolls with the heading but
+   never enters pretext's line-width budget.
+
+   Only first-line h2 elements (real <h2> tags) receive the counter;
+   continuation lines are divs. Counter numbering resets per article. */
+.pretext-prose {
+  counter-reset: section-counter;
+}
+h2.pretext-prose-line--h2 {
+  counter-increment: section-counter;
+}
+h2.pretext-prose-line--h2::before {
+  content: '§ ' counter(section-counter, upper-roman);
+  position: absolute;
+  right: calc(100% + 1rem);
+  top: 0.5em;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  color: var(--rubric);
+  opacity: 0.85;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* h3 gets a quieter pencil mark in the muted ink family — the author
+   pausing to mark a subsection, not announce it. */
+h3.pretext-prose-line--h3::before {
+  content: '·';
+  position: absolute;
+  right: calc(100% + 0.5rem);
+  top: 0;
+  font-family: 'EB Garamond', serif;
+  font-size: 1.2em;
+  line-height: inherit;
+  color: var(--text-muted);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* The first wrapped line of each heading block is emitted as a semantic
    <h1>/<h2>/<h3>/<h4> so GhostToc's scanner and a11y tooling find real
    heading elements. That also pulls in `.vellum-prose h2 { border-bottom,
@@ -4740,7 +5035,19 @@ a.pretext-prose-frag:hover {
   border-top: 1px solid var(--border);
 }
 .pretext-prose-rule--heading {
-  border-top-color: var(--border-faint);
+  /* Whisper-width rule with a centered rubric dot — restraint over flat
+     horizontal line. The dot is painted via a CSS mask so the 1px border
+     stays crisp; if the browser doesn't support mask, the rule still
+     renders as a quiet hairline. */
+  border-top: none;
+  background:
+    radial-gradient(circle at 50% 50%, var(--rubric) 0 2px, transparent 2.5px) no-repeat,
+    linear-gradient(90deg, transparent 0, var(--border) 8%, var(--border) 44%, transparent 48%, transparent 52%, var(--border) 56%, var(--border) 92%, transparent 100%) no-repeat;
+  background-size: 100% 4px, 100% 1px;
+  background-position: 50% 50%, 0 50%;
+  height: 4px;
+  margin-top: 2px;
+  opacity: 0.75;
 }
 
 /* Unknown-node placeholder. Deliberately visible so survey catches what's
@@ -4907,79 +5214,191 @@ a.pretext-prose-frag:hover {
    glance while sharing the same body chrome. Open/resolved borders on
    decision and finding cards still win because they ship as their own
    selectors further up. */
-.card--plot { border-left: 2px solid var(--teal, #2dd4bf); }
-.card--input { border-left: 2px solid var(--text-muted, #6b6b6b); }
-.card--output { border-left: 2px solid var(--text-muted, #6b6b6b); }
+/* Every card kind shares the indigo rail — see .card--open above. Plot,
+   input, output all route through the same --counter ink so the card
+   frame reads as a single structural register. */
+.card--plot,
+.card--input,
+.card--output { border-left: 2px solid var(--counter); }
 
 .card__plot-img {
-  border: 1px solid var(--border, rgba(184, 134, 11, 0.2));
-  background: var(--prose-bg, #FAFAF7);
-  border-radius: 2px;
+  /* No inner border — the card frame supplies the edge. */
+  border: none;
+  background: none;
+  border-radius: 0;
 }
 
 /* ── ASTRA Appendix ────────────────────────────────────────────────────
-   Long-tail listing of every ASTRA entry a fiber carries, rendered at
-   the end of the narrative prose. Minimal chrome — Card carries the
-   visual weight; the appendix only contributes the section divider and
-   small uppercase JetBrains Mono subheadings matching the Weathered
-   Substrate aesthetic. */
+   A plate of catalog entries at the foot of the narrative, not a
+   dashboard of cards. Hudson-River restraint: the entries live on the
+   page surface with a single kind-colored rail; the cartouche divider
+   and Spectral small-caps kind-labels do the rest of the work.
+   Cards here shed their border and chrome — they are paragraphs with
+   a hanging kind-letter, not framed widgets. */
 
 .astra-appendix {
-  margin-top: 3.5rem;
+  margin-top: 4.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.5rem;
 }
 
+/* Cartouche: centered rubric tristanpunctus on a hairline rule.
+   The small-caps word "Astra" sits above as a plate title. */
 .astra-appendix__divider {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 0.5rem;
-}
-
-.astra-appendix__divider::before,
-.astra-appendix__divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border, rgba(184, 134, 11, 0.2));
+  gap: 8px;
+  margin-bottom: 0.25rem;
+  position: relative;
 }
 
 .astra-appendix__divider-label {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.6rem;
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 0.88rem;
   letter-spacing: 0.18em;
-  text-transform: uppercase;
+  text-transform: lowercase;
   color: var(--text-muted);
-  opacity: 0.5;
+  opacity: 0.85;
+  order: 1;
+}
+
+.astra-appendix__divider::after {
+  content: '⁘';
+  order: 2;
+  color: var(--rubric);
+  opacity: 0.68;
+  font-size: 0.85rem;
+  letter-spacing: 0.5em;
+  margin-right: -0.5em;
+  line-height: 1;
+}
+
+.astra-appendix__divider::before {
+  content: '';
+  order: 3;
+  display: block;
+  width: 55%;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.6;
+  margin-top: 4px;
 }
 
 .astra-appendix__section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .astra-appendix__heading {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.7rem;
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-size: 0.82rem;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-style: normal;
+  text-transform: lowercase;
+  letter-spacing: 0.22em;
   color: var(--text-muted);
-  margin: 0;
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+  opacity: 0.85;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 
+.astra-appendix__heading::before {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  /* Kind-color dot set per section below. */
+  background: currentColor;
+  opacity: 0.7;
+  transform: translateY(-0.05em);
+}
+
+#astra-appendix-decisions .astra-appendix__heading { color: var(--astra-decision); }
+#astra-appendix-findings  .astra-appendix__heading { color: var(--astra-finding); }
+#astra-appendix-inputs    .astra-appendix__heading { color: var(--astra-input); }
+#astra-appendix-outputs   .astra-appendix__heading { color: var(--astra-output); }
+/* Keep the label text in muted ink; only the dot carries the kind color. */
+#astra-appendix-decisions .astra-appendix__heading,
+#astra-appendix-findings  .astra-appendix__heading,
+#astra-appendix-inputs    .astra-appendix__heading,
+#astra-appendix-outputs   .astra-appendix__heading {
+  color: var(--text-muted);
+}
+#astra-appendix-decisions .astra-appendix__heading::before { background: var(--astra-decision); }
+#astra-appendix-findings  .astra-appendix__heading::before { background: var(--astra-finding); }
+#astra-appendix-inputs    .astra-appendix__heading::before { background: var(--astra-input); }
+#astra-appendix-outputs   .astra-appendix__heading::before { background: var(--astra-output); }
+
 .astra-appendix__count {
-  color: var(--gold);
-  margin-left: 0.4em;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .astra-appendix__stack {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.1rem;
+}
+
+/* Appendix entries shed card chrome.
+   The kind-rail on the left (already on .card--open / .card--resolved) is
+   replaced by a kind-color accent specific to each entry type. Cards become
+   hanging catalog entries on the paper surface: no border, transparent bg,
+   a quiet hairline between siblings. Pinned-margin and workspace cards
+   keep their original framing — these overrides are scoped to appendix. */
+.astra-appendix .card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-left: 2px solid var(--border);
+  padding: 0.35rem 0 0.35rem 1rem;
+  overflow: visible;
+}
+.astra-appendix__item:not(:last-child) {
+  border-bottom: 1px dotted var(--border);
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.15rem;
+}
+/* Appendix cards inherit the same indigo rail — no kind-specific
+   overrides. The section heading above already names the kind. */
+#astra-appendix-decisions .astra-appendix .card,
+#astra-appendix-findings  .astra-appendix .card,
+#astra-appendix-inputs    .astra-appendix .card,
+#astra-appendix-outputs   .astra-appendix .card { border-left-color: var(--counter); }
+.astra-appendix .card--open,
+.astra-appendix .card--resolved,
+.astra-appendix .card--flipped.card--resolved {
+  /* Suppress the default gold/teal rails — kind color wins in the
+     appendix, since "open/resolved" is not a status the reader is
+     scanning for here. */
+  border-left-width: 2px;
+}
+.astra-appendix .card__chrome {
+  /* No pin/close affordances at rest; the catalog entry is static. */
+  display: none;
+}
+.astra-appendix .card__evidence {
+  background: transparent;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  border-left-color: var(--border);
 }
 
 /* File viewer page — read and edit surface */
