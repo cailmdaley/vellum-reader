@@ -44,6 +44,13 @@ export interface GraphEvidence {
 
 export interface GraphFinding {
   key: string;
+  /**
+   * `finding` = new-knowledge-from-this-analysis (top-level renderable).
+   * `prior_insight` = existing literature used as decision-level evidence
+   * (demoted in the paper-shaped rendering: show inside decision cards,
+   * not as top-level items). See themes-constitution Pass 6.
+   */
+  kind?: 'finding' | 'prior_insight';
   claim: string;
   hasEvidence: boolean;
   evidence?: GraphEvidence[];
