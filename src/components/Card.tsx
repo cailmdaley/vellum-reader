@@ -343,15 +343,28 @@ function CardShell({
 // option is "selected" — a visual thought experiment that persists in
 // DecisionFlipContext but does not write back to the fiber.
 
-function buildOptions(decision: GraphDecision): Array<{ key: string; label: string; reason?: string }> {
+type DecisionOption = {
+  key: string;
+  label: string;
+  reason?: string;
+  insights?: GraphDecision['excluded'][number]['insights'];
+};
+
+function buildOptions(decision: GraphDecision): DecisionOption[] {
   // Canonical option list: the fiber's authored selection (if any)
   // first, then each excluded alternative in authored order. When a
   // decision has no `selected`, every option lives in `excluded`.
-  const options: Array<{ key: string; label: string; reason?: string }> = [];
+  const options: DecisionOption[] = [];
   if (decision.selectedKey && decision.selectedLabel) {
-    options.push({ key: decision.selectedKey, label: decision.selectedLabel });
+    options.push({
+      key: decision.selectedKey,
+      label: decision.selectedLabel,
+      insights: decision.selectedInsights,
+    });
   }
-  for (const ex of decision.excluded) options.push({ key: ex.key, label: ex.label, reason: ex.reason });
+  for (const ex of decision.excluded) {
+    options.push({ key: ex.key, label: ex.label, reason: ex.reason, insights: ex.insights });
+  }
   return options;
 }
 
@@ -441,6 +454,16 @@ function DecisionCard({
                         <span className="card__option-reason"> — {opt.reason}</span>
                       )}
                     </button>
+                    {opt.insights && opt.insights.length > 0 && (
+                      <ul className="card__option-insights" aria-label="Prior-insight evidence">
+                        {opt.insights.map((ins) => (
+                          <li key={ins.key} className="card__option-insight">
+                            <span className="card__option-insight-glyph" aria-hidden="true">❝</span>
+                            <span className="card__option-insight-claim">{ins.claim}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 );
               })}

@@ -4388,6 +4388,34 @@ body {
   color: var(--text-muted);
   font-style: italic;
 }
+/* Prior-insight claims under each option — the "why this option" surface.
+   Hangs to the right of the option radio column, italic and muted so the
+   option label stays the primary signal. */
+.card__option-insights {
+  list-style: none;
+  margin: 4px 0 8px 26px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.card__option-insight {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.card__option-insight-glyph {
+  flex: 0 0 auto;
+  color: var(--insight-color, var(--gold, #b8860b));
+  opacity: 0.7;
+  font-size: 11px;
+}
+.card__option-insight-claim {
+  font-style: italic;
+}
 .card__reset {
   align-self: flex-start;
   background: none;

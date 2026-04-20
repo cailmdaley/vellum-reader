@@ -58,13 +58,28 @@ export interface GraphFinding {
   notes?: string;
 }
 
+/** Per-option prior_insight reference — key + claim text — for the
+ *  decision-card display of "why this option." Resolved upstream in
+ *  mystra's summarizeDecisions against the analysis's `prior_insights` bag.
+ */
+export interface GraphOptionInsight {
+  key: string;
+  claim: string;
+}
+
 export interface GraphDecision {
   key: string;
   label: string;
   rationale?: string;
   selectedKey?: string;
   selectedLabel?: string;
-  excluded: Array<{ key: string; label: string; reason?: string }>;
+  selectedInsights?: GraphOptionInsight[];
+  excluded: Array<{
+    key: string;
+    label: string;
+    reason?: string;
+    insights?: GraphOptionInsight[];
+  }>;
 }
 
 export interface GraphInput {
