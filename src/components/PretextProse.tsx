@@ -284,7 +284,28 @@ function collectInlinePieces(
         case 'link':
           walk(node.children, { ...marks, href: node.url ?? null });
           break;
-        case 'crossReference':
+        case 'crossReference': {
+          // MyST cross-reference roles (`{eq}`, `{ref}`, `{numref}`, …) arrive
+          // with an identifier but no resolved children — the enumerator a
+          // full MyST xref resolver would fill in (e.g. "(1)") isn't available
+          // at this text-path layer. Render the identifier as an anchored link
+          // so the token is visible and clicking jumps to the target.
+          // MyST emits target DOM ids as html-safe slugs (colons → dashes),
+          // so mirror that transform on the href or the browser won't find it.
+          const ident =
+            (typeof node.identifier === 'string' && node.identifier) ||
+            (typeof node.label === 'string' && node.label) ||
+            '';
+          const display = nodeToText(node) || node.label || node.identifier || '';
+          if (display) {
+            const htmlSafe = ident.replace(/:/g, '-');
+            pushText(String(display), {
+              ...marks,
+              href: htmlSafe ? `#${htmlSafe}` : marks.href,
+            });
+          }
+          break;
+        }
         case 'wikiLink':
         case 'abbreviation':
           // Treat as plain text for Gate 1.
