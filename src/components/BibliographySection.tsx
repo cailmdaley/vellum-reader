@@ -51,7 +51,7 @@ function harvestDois(node: GraphNode): string[] {
 function cleanTitle(raw: string | undefined): string | undefined {
   if (!raw) return raw;
   const doc = new DOMParser().parseFromString(raw, 'text/html');
-  return doc.body.textContent ?? raw;
+  return (doc.body.textContent ?? raw).replace(/\s+/g, ' ').trim();
 }
 
 async function fetchMetadata(doi: string): Promise<DoiMetadata> {
