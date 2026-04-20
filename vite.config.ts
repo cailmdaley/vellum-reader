@@ -54,6 +54,10 @@ export default defineConfig({
         target: 'http://127.0.0.1:3100',
         changeOrigin: true,
       },
+      '/doi-metadata': {
+        target: 'http://127.0.0.1:3100',
+        changeOrigin: true,
+      },
       '/socket': {
         target: 'ws://127.0.0.1:3100',
         ws: true,

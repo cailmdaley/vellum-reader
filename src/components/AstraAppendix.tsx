@@ -25,6 +25,7 @@
 
 import type { GraphNode } from '~/utils/content-types';
 import { Card } from './Card';
+import { BibliographySection } from './BibliographySection';
 
 interface AstraAppendixProps {
   node?: GraphNode;
@@ -63,12 +64,16 @@ export function AstraAppendix({
   const outputs = node.outputs ?? [];
   const subKeys = childSubKeys ? Array.from(childSubKeys) : [];
 
+  const hasBibliography = allFindings.some((f) =>
+    (f.evidence ?? []).some((e) => !!e.doi),
+  );
   const hasAny =
     decisions.length > 0 ||
     findings.length > 0 ||
     inputs.length > 0 ||
     outputs.length > 0 ||
-    subKeys.length > 0;
+    subKeys.length > 0 ||
+    hasBibliography;
   if (!hasAny) return null;
 
   // Cards must be at least this wide for pretext to lay text cleanly —
@@ -248,6 +253,8 @@ export function AstraAppendix({
           )}
         </section>
       )}
+
+      <BibliographySection node={node} />
     </aside>
   );
 }

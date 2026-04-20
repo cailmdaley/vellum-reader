@@ -5363,6 +5363,59 @@ a.pretext-prose-frag:hover {
 #astra-appendix-findings      .astra-appendix__heading::before { background: var(--astra-finding); }
 #astra-appendix-methods       .astra-appendix__heading::before { background: var(--astra-decision); }
 #astra-appendix-enumeration   .astra-appendix__heading::before { background: var(--astra-output); }
+#astra-appendix-references    .astra-appendix__heading::before { background: var(--text-muted); opacity: 0.5; }
+
+/* Bibliography — hanging-indent reference list. One entry per unique DOI
+   cited from evidence across this fiber's findings + prior_insights.
+   Metadata resolved from /doi-metadata/ at load time on the server. */
+.astra-bibliography {
+  list-style: none;
+  margin: 0;
+  padding-left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--text);
+  counter-reset: bibliography;
+}
+.astra-bibliography__item {
+  padding-left: 1.6rem;
+  text-indent: -1.6rem;
+  counter-increment: bibliography;
+}
+.astra-bibliography__item::before {
+  content: "[" counter(bibliography) "]";
+  color: var(--text-muted);
+  opacity: 0.65;
+  font-style: italic;
+  margin-right: 0.5rem;
+}
+.astra-bibliography__authors {
+  color: var(--text);
+}
+.astra-bibliography__year {
+  color: var(--text-muted);
+}
+.astra-bibliography__title {
+  color: var(--text);
+}
+.astra-bibliography__journal {
+  color: var(--text-muted);
+}
+.astra-bibliography__doi {
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-style: italic;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--border);
+}
+.astra-bibliography__doi:hover {
+  color: var(--rubric);
+  border-bottom-color: var(--rubric);
+}
 
 /* Methods section — compact summary of decisions, inputs, sub-analyses.
    No Card primitive; hanging catalog entries on the paper surface. */
