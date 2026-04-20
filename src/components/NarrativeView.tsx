@@ -26,6 +26,7 @@ import { FiberEditor } from './FiberEditor';
 import type { LightboxImage } from './Lightbox';
 import type { Annotation, FiberContent, GraphNode, GraphLink } from '~/utils/content-types';
 import { useAdapter } from '~/contexts/AdapterContext';
+import { useTheme } from '~/contexts/ThemeContext';
 import { transformTweetEmbeds } from '~/utils/tweet-transform';
 import { parseAstraAnchor } from '~/utils/astra-anchor';
 
@@ -114,6 +115,8 @@ export function NarrativeView({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const adapter = useAdapter();
+  const { theme } = useTheme();
+  const showMarginColumn = theme.layout.marginColumn === 'persistent';
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -523,23 +526,27 @@ export function NarrativeView({
         )}
       </article>
 
-      <NarrativeCounter
-        node={currentNode}
-        refCount={refCount}
-        analysisCount={analysisCount}
-      />
-      <MarginCitations
-        nodes={graphNodes}
-        proseRef={proseRef}
-        wrapperRef={wrapperRef}
-        changedIds={changedIds}
-        currentNode={currentNode}
-        childSubKeys={childSubKeys}
-        subAnalysisLabels={subAnalysisLabels}
-        parentSubKeys={parentSubKeys}
-        parentSubLabels={parentSubLabels}
-        parentSubSlugs={parentSubSlugs}
-      />
+      {showMarginColumn && (
+        <>
+          <NarrativeCounter
+            node={currentNode}
+            refCount={refCount}
+            analysisCount={analysisCount}
+          />
+          <MarginCitations
+            nodes={graphNodes}
+            proseRef={proseRef}
+            wrapperRef={wrapperRef}
+            changedIds={changedIds}
+            currentNode={currentNode}
+            childSubKeys={childSubKeys}
+            subAnalysisLabels={subAnalysisLabels}
+            parentSubKeys={parentSubKeys}
+            parentSubLabels={parentSubLabels}
+            parentSubSlugs={parentSubSlugs}
+          />
+        </>
+      )}
       <GhostToc
         proseRef={proseRef}
         wrapperRef={wrapperRef}
