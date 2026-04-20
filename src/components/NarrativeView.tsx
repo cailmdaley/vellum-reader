@@ -17,6 +17,7 @@ import { FiberHeader } from './FiberHeader';
 import { AstraAppendix } from './AstraAppendix';
 import { MarginCitations } from './MarginCitations';
 import { NarrativeCounter } from './NarrativeCounter';
+import { GutterHoverCard } from './GutterHoverCard';
 import { PretextProse } from './PretextProse';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { Lightbox } from './Lightbox';
@@ -546,6 +547,17 @@ export function NarrativeView({
             parentSubSlugs={parentSubSlugs}
           />
         </>
+      )}
+      {theme.layout.marginColumn === 'empty-gutter-hover' && (
+        <GutterHoverCard
+          proseRef={proseRef}
+          wrapperRef={wrapperRef}
+          currentNode={currentNode}
+          nodes={graphNodes}
+          childSubKeys={childSubKeys}
+          parentSubKeys={parentSubKeys}
+          parentSubSlugs={parentSubSlugs}
+        />
       )}
       <GhostToc
         proseRef={proseRef}
