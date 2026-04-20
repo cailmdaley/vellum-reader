@@ -2,7 +2,7 @@
  * GutterHoverCard — Lightcone-theme hover preview for inline ASTRA anchors.
  *
  * Mirror of MarginCitations's hover/pin path without the persistent glyph
- * column. Under `data-theme="lightcone"` the right gutter is empty
+ * column. Under `data-theme="lightcone-margin"` the right gutter is empty
  * whitespace; hovering an `.astra-anchor` in the prose floats a
  * `MarginCardPreview` into that space at the anchor's pretext line-Y.
  * Clicking pins via `vellum:open-card` (the existing NarrativeView click

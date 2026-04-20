@@ -1,4 +1,16 @@
-export type ThemeId = 'lightcone' | 'vellum-cail';
+/**
+ * Theme identifiers and slot types.
+ *
+ * Pass 1.5 schema port: slugs renamed to the constitution's final names.
+ *   `lightcone` → `lightcone-margin` (evolution of the current empty-gutter
+ *     theme; spec info lives in the right margin column)
+ *   `vellum-cail` → `cail-personal` (power-user baseline with persistent
+ *     marginalia column)
+ * New slug:
+ *   `lightcone-linear` — single centered column, left-rail ToC, section-end
+ *     card tray (default post-Pass-9a; placeholder config now).
+ */
+export type ThemeId = 'lightcone-margin' | 'lightcone-linear' | 'cail-personal';
 
 export interface ThemePalette {
   astraFinding: string;
@@ -22,7 +34,7 @@ export interface ThemeMetrics {
 }
 
 export interface ThemeLayout {
-  marginColumn: 'persistent' | 'empty-gutter-hover';
+  marginColumn: 'persistent' | 'empty-gutter-hover' | 'none';
   inlineAnchorStyle: 'plain' | 'kind-colored-highlight';
   figurePlacement: 'inline-with-caption' | 'chip';
 }
@@ -30,7 +42,9 @@ export interface ThemeLayout {
 export type ThemeComponentSlot =
   | 'MarginColumn'
   | 'NarrativeShell'
-  | 'FindingRenderer';
+  | 'FindingRenderer'
+  | 'LeftRailToc'
+  | 'SectionCardTray';
 
 export interface ThemeConfig {
   id: ThemeId;

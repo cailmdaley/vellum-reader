@@ -1,13 +1,15 @@
 import type { ThemeConfig } from './types';
 
-// Lightcone — the default public theme. No persistent marginalia
-// column; right gutter is empty whitespace that fills on hover/click
-// with ASTRA cards. Inline ASTRA anchors are kind-colored highlights
-// in the prose. Pass 0 exports the config; later passes wire the
-// layout divergence via CSS scoped on :root[data-theme="lightcone"]
-// and the componentOverrides registry.
-export const lightconeTheme: ThemeConfig = {
-  id: 'lightcone',
+// lightcone-margin — evolution of the current Lightcone look. Persistent
+// right margin column carrying compact ASTRA chips (`label ?? id`-driven);
+// inline ASTRA anchors are kind-colored highlights in the prose. The
+// "empty-by-default, fill-on-hover" affordance lives in this theme's
+// GutterHoverCard + compact-chip stack (Pass 9b maturation).
+//
+// CSS divergence is scoped on :root[data-theme="lightcone-margin"];
+// structural divergence goes through componentOverrides later.
+export const lightconeMarginTheme: ThemeConfig = {
+  id: 'lightcone-margin',
   palette: {
     astraFinding: 'var(--portolan-verdigris)',
     astraDecision: 'var(--rubric)',

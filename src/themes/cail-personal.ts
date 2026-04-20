@@ -1,11 +1,13 @@
 import type { ThemeConfig } from './types';
 
-// Cail's personal theme — today's Vellum behavior preserved as a named
-// theme. Persistent marginalia column, rubricated anchor ink. Values
-// mirror the current :root defaults in vellum.css so a Pass-0 handoff
-// to this theme is a no-op.
-export const vellumCailTheme: ThemeConfig = {
-  id: 'vellum-cail',
+// cail-personal — the power-user baseline. Persistent marginalia column,
+// rubricated anchor ink, thumb-index, backlinks, ghost-toc all mounted.
+// Values mirror the current :root defaults in vellum.css so existing
+// Vellum renders move to this theme with no visual change. Opts into every
+// cross-theme improvement (scroll-only-if-offscreen, selected-option
+// summaries, MyST restores).
+export const cailPersonalTheme: ThemeConfig = {
+  id: 'cail-personal',
   palette: {
     astraFinding: 'var(--rubric)',
     astraDecision: 'var(--rubric)',

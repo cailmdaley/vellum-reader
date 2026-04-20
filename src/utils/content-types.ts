@@ -51,6 +51,9 @@ export interface GraphFinding {
    * not as top-level items). See themes-constitution Pass 6.
    */
   kind?: 'finding' | 'prior_insight';
+  /** Short human-readable name for compact rendering (margin chip, collapsed
+   *  card head). Falls back to `key` when absent. astra-spec feature/narrative. */
+  label?: string;
   claim: string;
   hasEvidence: boolean;
   evidence?: GraphEvidence[];
@@ -85,6 +88,8 @@ export interface GraphDecision {
 export interface GraphInput {
   id: string;
   kind: 'data' | 'analysis';
+  /** Short human-readable name for compact rendering. Falls back to `id`. */
+  label?: string;
   description?: string;
   from?: string;
   source?: string;
@@ -93,6 +98,8 @@ export interface GraphInput {
 export interface GraphOutput {
   id: string;
   kind: string;
+  /** Short human-readable name for compact rendering. Falls back to `id`. */
+  label?: string;
   description?: string;
   recipe?: string;
   from?: string;
