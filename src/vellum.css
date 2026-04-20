@@ -5631,3 +5631,188 @@ a.pretext-prose-frag:hover {
 :root[data-theme="lightcone"] .ghost-toc {
   display: none !important;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   MyST compat-island renderer styling (Pass 2).
+
+   myst-to-react emits its components with class names like
+   .myst-admonition.myst-admonition-note and ships them via Tailwind
+   utilities we intentionally do not bundle (see themes-constitution
+   scope-fence: "@myst-theme/styles stays dropped, we supply the look").
+   These rules translate that class surface into Vellum's tonal palette.
+   Theme-agnostic — scoped under .vellum-prose-compat so they only hit
+   the compat-island subtree, not native prose. */
+
+.vellum-prose-compat aside.myst-admonition,
+.vellum-prose-compat details.myst-admonition {
+  margin: 1.25em 0;
+  border-left: 3px solid var(--admonition-rule, var(--border));
+  background: var(--admonition-bg, rgba(122, 115, 104, 0.06));
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.vellum-prose-compat .myst-admonition-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.45em 0.9em 0.35em;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-variant-caps: all-small-caps;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--admonition-ink, var(--text-muted));
+  cursor: default;
+}
+
+.vellum-prose-compat details.myst-admonition > summary.myst-admonition-header {
+  cursor: pointer;
+  list-style: none;
+}
+.vellum-prose-compat details.myst-admonition > summary.myst-admonition-header::-webkit-details-marker {
+  display: none;
+}
+.vellum-prose-compat details.myst-admonition > summary.myst-admonition-header::after {
+  content: '▸';
+  margin-left: auto;
+  color: var(--admonition-ink, var(--text-muted));
+  transition: transform 120ms ease;
+  font-size: 0.85em;
+}
+.vellum-prose-compat details.myst-admonition[open] > summary.myst-admonition-header::after {
+  transform: rotate(90deg);
+}
+
+.vellum-prose-compat .myst-admonition-header-icon {
+  width: 1em;
+  height: 1em;
+  color: var(--admonition-ink, var(--text-muted));
+  flex-shrink: 0;
+}
+
+.vellum-prose-compat .myst-admonition-header-text {
+  font-size: 0.95em;
+}
+
+.vellum-prose-compat .myst-admonition-body {
+  padding: 0 0.9em 0.6em;
+}
+.vellum-prose-compat .myst-admonition-body > :first-child { margin-top: 0.5em; }
+.vellum-prose-compat .myst-admonition-body > :last-child { margin-bottom: 0; }
+
+/* Kind-specific ink. One rubricated palette, pulled from the Portolan
+   tokens so admonitions read as kin with the rest of the page rather
+   than a foreign stylesheet. Note = cool indigo (neutral aside), warning
+   = rubric red, tip = verdigris, important/attention = ochre, danger
+   = rubric saturated. */
+.vellum-prose-compat aside.myst-admonition-note,
+.vellum-prose-compat details.myst-admonition-note {
+  --admonition-rule: var(--portolan-indigo);
+  --admonition-bg: rgba(74, 90, 124, 0.07);
+  --admonition-ink: var(--portolan-indigo);
+}
+.vellum-prose-compat aside.myst-admonition-warning,
+.vellum-prose-compat details.myst-admonition-warning,
+.vellum-prose-compat aside.myst-admonition-caution,
+.vellum-prose-compat details.myst-admonition-caution {
+  --admonition-rule: var(--rubric);
+  --admonition-bg: var(--rubric-faint);
+  --admonition-ink: var(--rubric);
+}
+.vellum-prose-compat aside.myst-admonition-tip,
+.vellum-prose-compat details.myst-admonition-tip,
+.vellum-prose-compat aside.myst-admonition-hint,
+.vellum-prose-compat details.myst-admonition-hint,
+.vellum-prose-compat aside.myst-admonition-seealso,
+.vellum-prose-compat details.myst-admonition-seealso {
+  --admonition-rule: var(--portolan-verdigris);
+  --admonition-bg: rgba(74, 124, 111, 0.08);
+  --admonition-ink: var(--portolan-verdigris);
+}
+.vellum-prose-compat aside.myst-admonition-important,
+.vellum-prose-compat details.myst-admonition-important,
+.vellum-prose-compat aside.myst-admonition-attention,
+.vellum-prose-compat details.myst-admonition-attention {
+  --admonition-rule: var(--ochre);
+  --admonition-bg: var(--gold-faint);
+  --admonition-ink: var(--ochre-ink);
+}
+.vellum-prose-compat aside.myst-admonition-danger,
+.vellum-prose-compat details.myst-admonition-danger,
+.vellum-prose-compat aside.myst-admonition-error,
+.vellum-prose-compat details.myst-admonition-error {
+  --admonition-rule: var(--rubric);
+  --admonition-bg: rgba(181, 69, 58, 0.10);
+  --admonition-ink: var(--rubric);
+  border-left-width: 4px;
+}
+
+/* ── Tabs ──────────────────────────────────────────────────────────────
+   myst-to-react renders tab-set as .myst-tab-set with a row of
+   .myst-tab-item-header buttons and one .myst-tab-item-body per tab.
+   The component manages which body is active via inline display; we
+   only supply the visual chrome. */
+.vellum-prose-compat .myst-tab-set {
+  margin: 1.25em 0;
+  border-bottom: 1px solid var(--border);
+}
+.vellum-prose-compat .myst-tab-set-row {
+  display: flex;
+  gap: 0.25em;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.75em;
+}
+.vellum-prose-compat .myst-tab-item-header {
+  padding: 0.35em 0.9em;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.95em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.vellum-prose-compat .myst-tab-item-header:hover {
+  color: var(--text);
+}
+.vellum-prose-compat .myst-tab-item-header-active {
+  color: var(--text);
+  border-bottom-color: var(--rubric);
+}
+.vellum-prose-compat .myst-tab-item-body {
+  padding: 0.25em 0;
+}
+.vellum-prose-compat .myst-tab-item-body > :first-child { margin-top: 0; }
+.vellum-prose-compat .myst-tab-item-body > :last-child { margin-bottom: 0; }
+
+/* ── Proof / theorem / lemma ───────────────────────────────────────────
+   myst-to-react renders proofDirective as .myst-proof with a
+   .myst-proof-header (kind badge + optional title) and .myst-proof-body. */
+.vellum-prose-compat aside.myst-proof {
+  margin: 1.25em 0;
+  padding: 0.6em 0.9em 0.7em;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgba(122, 115, 104, 0.03);
+}
+.vellum-prose-compat .myst-proof-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  margin-bottom: 0.4em;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-variant-caps: all-small-caps;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--rubric);
+}
+.vellum-prose-compat .myst-proof-title {
+  color: var(--text);
+  font-variant-caps: normal;
+  letter-spacing: 0;
+  font-weight: 500;
+  font-style: italic;
+}
+.vellum-prose-compat .myst-proof-body > :first-child { margin-top: 0; }
+.vellum-prose-compat .myst-proof-body > :last-child { margin-bottom: 0; }
