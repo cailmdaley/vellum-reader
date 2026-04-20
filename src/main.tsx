@@ -5,6 +5,7 @@ import App from './App';
 import { createLightconeAdapter } from './api';
 import { AdapterProvider } from './contexts/AdapterContext';
 import { ModeProvider } from './contexts/ModeContext';
+import 'katex/dist/katex.min.css';
 import './vellum.css';
 
 const adapter = createLightconeAdapter();
