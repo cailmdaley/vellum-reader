@@ -31,11 +31,14 @@ export const lightconeLinearTheme: ThemeConfig = {
     cardBodyLineHeight: 1.45,
   },
   layout: {
-    // Pass 9a will flip this to a dedicated 'none' mode with the left-rail
-    // ToC + section-end tray taking the place of gutter-hover. Keeping
-    // 'empty-gutter-hover' now keeps the Pass-1.5 view sane under this
-    // slug while the structural containers are still being built.
-    marginColumn: 'empty-gutter-hover',
+    // Pass 9a seed: no right margin surface — single centered prose column,
+    // left-rail ToC on the left (LeftRailToc mounts in NarrativeView gated on
+    // themeId === 'lightcone-linear'). No gutter-hover card; section info
+    // lives in the paper-shaped AstraAppendix (findings / methods / appendix
+    // + bibliography) rendered below the narrative. Future 9a steps land
+    // exclusive-open collapsed card rows inside AstraAppendix under this
+    // theme root.
+    marginColumn: 'none',
     inlineAnchorStyle: 'kind-colored-highlight',
     figurePlacement: 'inline-with-caption',
   },

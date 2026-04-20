@@ -22,6 +22,7 @@ import { PretextProse } from './PretextProse';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { Lightbox } from './Lightbox';
 import { GhostToc } from './GhostToc';
+import { LeftRailToc } from './LeftRailToc';
 import { BacklinkNodes } from './BacklinkNodes';
 import { FiberEditor } from './FiberEditor';
 import type { LightboxImage } from './Lightbox';
@@ -116,8 +117,9 @@ export function NarrativeView({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const adapter = useAdapter();
-  const { theme } = useTheme();
+  const { theme, themeId } = useTheme();
   const showMarginColumn = theme.layout.marginColumn === 'persistent';
+  const showLeftRailToc = themeId === 'lightcone-linear';
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -567,6 +569,7 @@ export function NarrativeView({
           parentSubSlugs={parentSubSlugs}
         />
       )}
+      {showLeftRailToc && <LeftRailToc proseRef={proseRef} />}
       <GhostToc
         proseRef={proseRef}
         wrapperRef={wrapperRef}

@@ -5798,6 +5798,219 @@ a.pretext-prose-frag:hover {
 }
 
 /* ──────────────────────────────────────────────────────────────────────
+   lightcone-linear — single centered prose column + left-rail ToC (Pass 9a).
+
+   Paper-shape, not viewer-shape. The prose column centers in the viewport
+   (no left-rail chrome beyond the ToC; no persistent right margin). ASTRA
+   spec info lives in AstraAppendix below the narrative (Findings / Methods
+   / Appendix), exactly as Pass 6 already renders it. Kind-colored inline
+   anchor highlights match the lightcone-margin palette so prose-level
+   affordances read identically across themes — the difference is container,
+   not signal.
+
+   Chrome gates: every persistent right-side inhabitant from the original
+   Lightcone viewer is hidden under this theme root. GutterHoverCard does
+   not mount (theme.layout.marginColumn === 'none' in the config, which
+   NarrativeView checks before mounting).
+
+   LeftRailToc is mounted in NarrativeView only for this theme (themeId
+   check). CSS below places it at the left edge; details in the
+   `.left-rail-toc` block near line ~6000.
+   ────────────────────────────────────────────────────────────────────── */
+:root[data-theme="lightcone-linear"] {
+  --astra-finding: var(--portolan-verdigris);
+  --astra-decision: var(--rubric);
+  --astra-output: var(--portolan-indigo);
+  --astra-input: #6A7280;
+  --astra-analysis: var(--ochre-ink);
+}
+
+/* Center the prose column. .vellum-page's default margin-left comes from
+   --page-margin-left (a JS-set var in NarrativeView for the drag handle);
+   override it here so linear pages sit symmetrical inside the viewport.
+   The prose column itself has `width: 100%` inside `.vellum-prose-wrapper`,
+   so the centering happens one level up on `.vellum-page`. */
+:root[data-theme="lightcone-linear"] .vellum-page {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--prose-shell-width, 720px);
+}
+
+/* Hide every persistent right-column inhabitant. Components still mount
+   for stability (event listeners, observers); only the visual surface is
+   suppressed. Mirrors the lightcone-margin gate. */
+:root[data-theme="lightcone-linear"] .floating-island,
+:root[data-theme="lightcone-linear"] .thumb-index,
+:root[data-theme="lightcone-linear"] .backlink-nodes,
+:root[data-theme="lightcone-linear"] .ghost-toc,
+:root[data-theme="lightcone-linear"] .margin-citations,
+:root[data-theme="lightcone-linear"] .narrative-counter {
+  display: none !important;
+}
+
+/* Kind-colored inline anchor highlights. Same tonal recipe as
+   lightcone-margin — the argument for rubricated anchors is about prose
+   affordance, not theme branding, and carries identically into linear. */
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor {
+  color: inherit;
+  border-bottom: none;
+  background: var(--astra-anchor-bg, rgba(181, 69, 58, 0.10));
+  padding: 0 2px;
+  border-radius: 2px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--findings {
+  --astra-anchor-bg: rgba(74, 124, 111, 0.14);
+}
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--decisions {
+  --astra-anchor-bg: rgba(181, 69, 58, 0.12);
+}
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--outputs {
+  --astra-anchor-bg: rgba(74, 90, 124, 0.14);
+}
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--inputs {
+  --astra-anchor-bg: rgba(106, 114, 128, 0.14);
+}
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--analyses {
+  --astra-anchor-bg: rgba(154, 123, 53, 0.16);
+}
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor:hover,
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor.margin-active {
+  background: var(--astra-anchor-bg, rgba(181, 69, 58, 0.10));
+  box-shadow: inset 0 -2px 0 0 currentColor;
+}
+:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--broken {
+  background: transparent;
+  border-bottom: 1px dashed var(--text-muted);
+  color: var(--text-muted);
+}
+
+/* Scroll target offset: the ToC click uses scrollIntoView(block: 'start'),
+   which puts the heading flush at the viewport top. A little headroom
+   reads better, and the constitution wants room for a future sticky
+   chapter-head. */
+:root[data-theme="lightcone-linear"] h2.pretext-prose-line--h2,
+:root[data-theme="lightcone-linear"] .astra-appendix__section {
+  scroll-margin-top: 2rem;
+}
+
+/* ── LeftRailToc (Pass 9a) ─────────────────────────────────────────────
+   Collapsed 32px chevron at the left edge; expanded 272px panel with a
+   hierarchical section list. Fixed-position so scrolling leaves it in
+   place. The rail only renders under lightcone-linear — keep the
+   styling unscoped to the theme selector so dev-time preview under
+   other themes (future toggle) stays consistent. */
+.left-rail-toc {
+  position: fixed;
+  top: 4rem;
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  font-family: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
+  pointer-events: auto;
+}
+
+.left-rail-toc--collapsed {
+  width: 32px;
+}
+
+.left-rail-toc--expanded {
+  width: 272px;
+}
+
+.left-rail-toc__toggle {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8a8070);
+  cursor: pointer;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+.left-rail-toc__toggle:hover {
+  color: var(--ink, #1f1a15);
+  background: rgba(31, 26, 21, 0.04);
+}
+
+.left-rail-toc__chevron {
+  display: inline-block;
+  font-feature-settings: 'ss01';
+  transform: translateY(-1px);
+}
+
+.left-rail-toc__panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.25rem 1rem 0.75rem 0.25rem;
+  background: var(--bg, #fbf8f3);
+  border-right: 1px solid var(--border-faint, rgba(212, 204, 191, 0.5));
+  box-shadow: 2px 0 6px rgba(31, 26, 21, 0.04);
+  animation: left-rail-toc-fade-in 0.12s ease-out;
+}
+
+@keyframes left-rail-toc-fade-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.left-rail-toc__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.left-rail-toc__item {
+  margin: 0;
+}
+
+.left-rail-toc__link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0.18rem 0.4rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-muted, #6a6056);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.left-rail-toc__link:hover {
+  color: var(--ink, #1f1a15);
+  background: rgba(31, 26, 21, 0.03);
+}
+
+.left-rail-toc__item--active > .left-rail-toc__link {
+  color: var(--ink, #1f1a15);
+  border-left-color: var(--rubric, #b5453a);
+  font-variant-numeric: oldstyle-nums;
+}
+
+.left-rail-toc__divider {
+  height: 1px;
+  background: var(--border-faint, rgba(212, 204, 191, 0.5));
+  margin: 0.5rem 0.4rem;
+}
+
+.left-rail-toc__list--appendix .left-rail-toc__link {
+  font-size: 0.82rem;
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #8a8070);
+}
+
+/* ──────────────────────────────────────────────────────────────────────
    MyST compat-island renderer styling (Pass 2).
 
    myst-to-react emits its components with class names like
