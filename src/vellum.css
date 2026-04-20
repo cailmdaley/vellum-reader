@@ -5323,21 +5323,106 @@ a.pretext-prose-frag:hover {
   transform: translateY(-0.05em);
 }
 
-#astra-appendix-decisions .astra-appendix__heading { color: var(--astra-decision); }
-#astra-appendix-findings  .astra-appendix__heading { color: var(--astra-finding); }
-#astra-appendix-inputs    .astra-appendix__heading { color: var(--astra-input); }
-#astra-appendix-outputs   .astra-appendix__heading { color: var(--astra-output); }
+#astra-appendix-findings      .astra-appendix__heading { color: var(--astra-finding); }
+#astra-appendix-methods       .astra-appendix__heading { color: var(--astra-decision); }
+#astra-appendix-enumeration   .astra-appendix__heading { color: var(--astra-output); }
 /* Keep the label text in muted ink; only the dot carries the kind color. */
-#astra-appendix-decisions .astra-appendix__heading,
-#astra-appendix-findings  .astra-appendix__heading,
-#astra-appendix-inputs    .astra-appendix__heading,
-#astra-appendix-outputs   .astra-appendix__heading {
+#astra-appendix-findings      .astra-appendix__heading,
+#astra-appendix-methods       .astra-appendix__heading,
+#astra-appendix-enumeration   .astra-appendix__heading {
   color: var(--text-muted);
 }
-#astra-appendix-decisions .astra-appendix__heading::before { background: var(--astra-decision); }
-#astra-appendix-findings  .astra-appendix__heading::before { background: var(--astra-finding); }
-#astra-appendix-inputs    .astra-appendix__heading::before { background: var(--astra-input); }
-#astra-appendix-outputs   .astra-appendix__heading::before { background: var(--astra-output); }
+#astra-appendix-findings      .astra-appendix__heading::before { background: var(--astra-finding); }
+#astra-appendix-methods       .astra-appendix__heading::before { background: var(--astra-decision); }
+#astra-appendix-enumeration   .astra-appendix__heading::before { background: var(--astra-output); }
+
+/* Methods section — compact summary of decisions, inputs, sub-analyses.
+   No Card primitive; hanging catalog entries on the paper surface. */
+.astra-appendix__methods {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding-left: 1rem;
+}
+.astra-appendix__methods-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.astra-appendix__methods-label {
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+.astra-appendix__methods-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.96rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+.astra-appendix__methods-list li {
+  padding-left: 0.9rem;
+  text-indent: -0.9rem;
+}
+.astra-appendix__methods-list li::before {
+  content: '·';
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-right: 0.45rem;
+}
+.astra-appendix__methods-link {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--border);
+}
+.astra-appendix__methods-link:hover {
+  border-bottom-color: var(--rubric);
+  color: var(--rubric);
+}
+.astra-appendix__methods-selected {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.astra-appendix__methods-id {
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-style: italic;
+  color: var(--text-muted);
+}
+.astra-appendix__methods-desc {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+/* Appendix enumeration — inner subsections for Decisions + Outputs. */
+.astra-appendix__subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+}
+.astra-appendix__subheading {
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+  opacity: 0.75;
+  margin: 0 0 0.25rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
 
 .astra-appendix__count {
   font-family: 'EB Garamond', serif;
@@ -5380,7 +5465,6 @@ a.pretext-prose-frag:hover {
    overrides. The section heading above already names the kind. */
 #astra-appendix-decisions .astra-appendix .card,
 #astra-appendix-findings  .astra-appendix .card,
-#astra-appendix-inputs    .astra-appendix .card,
 #astra-appendix-outputs   .astra-appendix .card { border-left-color: var(--counter); }
 .astra-appendix .card--open,
 .astra-appendix .card--resolved,

@@ -246,11 +246,12 @@ export function NarrativeView({
    * `parentSubSlugs` keeps the full slug per key so the click handler can
    * navigate without rebuilding it from path parts.
    */
-  const { childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels, parentSubSlugs } = useMemo(() => {
+  const { childSubKeys, subAnalysisLabels, childSubSlugs, parentSubKeys, parentSubLabels, parentSubSlugs } = useMemo(() => {
     if (!currentNode || !graphLinks) {
       return {
         childSubKeys: undefined,
         subAnalysisLabels: undefined,
+        childSubSlugs: undefined,
         parentSubKeys: undefined,
         parentSubLabels: undefined,
         parentSubSlugs: undefined,
@@ -259,6 +260,7 @@ export function NarrativeView({
     const nodeById = new Map(graphNodes.map((n) => [n.id, n]));
     const keys = new Set<string>();
     const labels = new Map<string, string>();
+    const cSlugs = new Map<string, string>();
     for (const link of graphLinks) {
       if (link.kind !== 'contains') continue;
       if (link.source !== currentNode.id) continue;
@@ -267,6 +269,7 @@ export function NarrativeView({
       keys.add(key);
       const child = nodeById.get(link.target);
       if (child?.label) labels.set(key, child.label);
+      if (child?.slug) cSlugs.set(key, child.slug);
     }
 
     // Parent-scope: find the incoming `contains` edge whose target is this
@@ -280,6 +283,7 @@ export function NarrativeView({
       return {
         childSubKeys: keys,
         subAnalysisLabels: labels,
+        childSubSlugs: cSlugs,
         parentSubKeys: undefined,
         parentSubLabels: undefined,
         parentSubSlugs: undefined,
@@ -302,6 +306,7 @@ export function NarrativeView({
     return {
       childSubKeys: keys,
       subAnalysisLabels: labels,
+      childSubSlugs: cSlugs,
       parentSubKeys: pKeys,
       parentSubLabels: pLabels,
       parentSubSlugs: pSlugs,
@@ -523,6 +528,9 @@ export function NarrativeView({
             node={currentNode}
             width={contentWidth}
             onNavigate={(s) => navigate(`/${s}`)}
+            childSubKeys={childSubKeys}
+            subAnalysisLabels={subAnalysisLabels}
+            subAnalysisSlugs={childSubSlugs}
           />
         )}
       </article>
