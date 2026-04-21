@@ -2,9 +2,17 @@ import type { ThemeConfig } from './types';
 
 // lightcone-margin — evolution of the current Lightcone look. Persistent
 // right margin column carrying compact ASTRA chips (`label ?? id`-driven);
-// inline ASTRA anchors are kind-colored highlights in the prose. The
-// "empty-by-default, fill-on-hover" affordance lives in this theme's
-// GutterHoverCard + compact-chip stack (Pass 9b maturation).
+// inline ASTRA anchors are kind-colored highlights in the prose.
+//
+// Pass 9b step 1: the margin column is now `'compact-chips'` — the same
+// MarginCitations rail `cail-personal` uses, without the persistent
+// power-user chrome (NarrativeCounter, floating island, thumb-index,
+// backlink nodes). The "empty-gutter hover" affordance retires with this
+// change; click-to-pin on a chip expands one card at a time in the
+// gutter, matching the compact-chip + exclusive-expand shape resolved in
+// the themes-constitution 2026-04-21 crafting pass. Pass 9b step 2 will
+// tighten the chip into the 2-line kind-glyph + label + caret shape and
+// enforce exclusive-expand inside ContextCardLayer.
 //
 // CSS divergence is scoped on :root[data-theme="lightcone-margin"];
 // structural divergence goes through componentOverrides later.
@@ -29,7 +37,7 @@ export const lightconeMarginTheme: ThemeConfig = {
     cardBodyLineHeight: 1.45,
   },
   layout: {
-    marginColumn: 'empty-gutter-hover',
+    marginColumn: 'compact-chips',
     inlineAnchorStyle: 'kind-colored-highlight',
     figurePlacement: 'inline-with-caption',
     leftRailToc: 'off',

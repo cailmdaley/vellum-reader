@@ -5994,10 +5994,15 @@ a.pretext-prose-frag:hover {
    The column stays (text doesn't reflow) but every persistent inhabitant
    is hidden so the space is available for hover-card rendering. The
    components still mount; this is a visual gate only. */
+/* Suppress power-user-only chrome under lightcone-margin. MarginCitations
+   is NOT listed here — Pass 9b step 1 promoted the chip rail into
+   lightcone-margin. NarrativeCounter is React-gated to `persistent` but
+   kept in this list defensively in case a future mount path slips it in. */
 :root[data-theme="lightcone-margin"] .floating-island,
 :root[data-theme="lightcone-margin"] .thumb-index,
 :root[data-theme="lightcone-margin"] .backlink-nodes,
-:root[data-theme="lightcone-margin"] .ghost-toc {
+:root[data-theme="lightcone-margin"] .ghost-toc,
+:root[data-theme="lightcone-margin"] .narrative-counter {
   display: none !important;
 }
 

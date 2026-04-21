@@ -34,7 +34,22 @@ export interface ThemeMetrics {
 }
 
 export interface ThemeLayout {
-  marginColumn: 'persistent' | 'empty-gutter-hover' | 'none';
+  /**
+   * Right-margin column behavior.
+   *
+   * - `'persistent'` — full marginalia column: kind-glyph chips with labels,
+   *   NarrativeCounter, hover preview + click-to-pin. Used by `cail-personal`.
+   * - `'compact-chips'` — Pass 9b lightcone-margin: the same MarginCitations
+   *   chip stack mounts, but NarrativeCounter and the Cail-only persistent
+   *   chrome (thumb-index, backlink nodes, floating island) stay hidden.
+   *   Click-to-pin behaves as exclusive-expand (see ContextCardLayer).
+   * - `'empty-gutter-hover'` — legacy Pass 1b lightcone-margin: gutter is
+   *   empty; hovering inline `.astra-anchor` in the prose pops a
+   *   GutterHoverCard at the anchor's line-Y. Kept as a value only for
+   *   rollback + future power-user-opt-in.
+   * - `'none'` — no margin column at all (`lightcone-linear`).
+   */
+  marginColumn: 'persistent' | 'compact-chips' | 'empty-gutter-hover' | 'none';
   inlineAnchorStyle: 'plain' | 'kind-colored-highlight';
   figurePlacement: 'inline-with-caption' | 'chip';
   /**

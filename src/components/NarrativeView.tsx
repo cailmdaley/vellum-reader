@@ -149,7 +149,14 @@ export function NarrativeView({
   const navigate = useNavigate();
   const adapter = useAdapter();
   const { theme, themeId } = useTheme();
-  const showMarginColumn = theme.layout.marginColumn === 'persistent';
+  // Two-axis decision: (a) does the MarginCitations chip rail mount,
+  // (b) does the persistent Cail chrome (NarrativeCounter etc.) mount.
+  // `persistent` turns both on; Pass-9b `compact-chips` turns only the
+  // rail on (lightcone-margin doesn't want the power-user chrome on top).
+  const showMarginColumn =
+    theme.layout.marginColumn === 'persistent' ||
+    theme.layout.marginColumn === 'compact-chips';
+  const showNarrativeCounter = theme.layout.marginColumn === 'persistent';
   const showLeftRailToc = theme.layout.leftRailToc === 'on';
   // GhostToc and LeftRailToc are alternate takes on "left-margin section
   // navigation"; mounting both doubles up. The rail is the strict superset
@@ -662,13 +669,15 @@ export function NarrativeView({
         )}
       </article>
 
+      {showNarrativeCounter && (
+        <NarrativeCounter
+          node={currentNode}
+          refCount={refCount}
+          analysisCount={analysisCount}
+        />
+      )}
       {showMarginColumn && (
         <>
-          <NarrativeCounter
-            node={currentNode}
-            refCount={refCount}
-            analysisCount={analysisCount}
-          />
           <MarginCitations
             nodes={graphNodes}
             proseRef={proseRef}
