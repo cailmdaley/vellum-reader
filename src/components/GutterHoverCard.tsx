@@ -106,7 +106,7 @@ export function GutterHoverCard({
           if (!cn) return;
           // Broken anchors — CSS already dims them; skip the card since
           // there's nothing to resolve.
-          const broken = resolveAstraAnchor(parsed, cn, cs, ps);
+          const broken = resolveAstraAnchor(parsed, cn, cs, ps, ns);
           if (broken) return;
           const content = resolveAstraCardContent(parsed, cn, ns, pss);
           if (!content) return;

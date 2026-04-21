@@ -178,6 +178,33 @@ export const KIND_LEGEND: Record<AstraAnchorKind, string> = {
 };
 
 /**
+ * Does the graph contain *any* node hosting `kind.id`? Used as the off-page
+ * fallback during anchor resolution: a ref that doesn't resolve against the
+ * current node may still resolve via the `NarrativeView` click handler's
+ * graph walk (see `findHostForAstraRef`), in which case it should render
+ * live, not broken. Without this, cross-analysis refs get false-positive
+ * broken dashes in MarginCitations and no-hover in GutterHoverCard even
+ * though clicking them navigates fine.
+ *
+ * Decisions/findings key by `.key`; inputs/outputs by `.id` — mirrors the
+ * click-path resolver in `NarrativeView.tsx`.
+ */
+function astraRefHasHostInGraph(
+  kind: AstraAnchorKind,
+  id: string,
+  graphNodes: readonly GraphNode[],
+): boolean {
+  for (const n of graphNodes) {
+    if (kind === 'decisions' && n.decisions?.some((d) => d.key === id)) return true;
+    if (kind === 'findings' && n.findings?.some((f) => f.key === id)) return true;
+    if (kind === 'outputs' && n.outputs?.some((o) => o.id === id)) return true;
+    if (kind === 'inputs' && n.inputs?.some((i) => i.id === id)) return true;
+    // `analyses` is resolved via sub-key sets, not graph walk.
+  }
+  return false;
+}
+
+/**
  * Check whether an ASTRA anchor resolves against the current page's
  * GraphNode. Returns `null` when resolved (anchor is live) or a reason
  * string when the anchor is broken.
@@ -187,15 +214,19 @@ export const KIND_LEGEND: Record<AstraAnchorKind, string> = {
  * against the caller-supplied `childSubKeys` set — typically derived from
  * graph `contains` edges originating at the current node.
  * `../analyses.<key>` escapes one level up and resolves against
- * `parentSubKeys` — sibling sub-analyses of the current node. Anchors that
- * reach into sub-analyses (`#<sub>.category.id`) or escape further than one
- * level still render with a broken-link icon on the current page.
+ * `parentSubKeys` — sibling sub-analyses of the current node.
+ *
+ * When `graphNodes` is supplied, a ref that doesn't resolve locally still
+ * resolves live if *any* node in the graph hosts `kind.id`. This mirrors
+ * `NarrativeView`'s click-path graph-walk fallback so the visual broken
+ * affordance stays consistent with click behavior.
  */
 export function resolveAstraAnchor(
   parsed: ParsedAstraAnchor,
   node: Pick<GraphNode, 'findings' | 'decisions' | 'inputs' | 'outputs'>,
   childSubKeys?: Set<string>,
   parentSubKeys?: Set<string>,
+  graphNodes?: readonly GraphNode[],
 ): string | null {
   if (parsed.parentEscapes > 0) {
     if (parsed.parentEscapes > 1) {
@@ -215,30 +246,48 @@ export function resolveAstraAnchor(
   if (parsed.trailing && parsed.trailing.length > 0 && parsed.kind !== 'analyses') {
     return 'Sub-analysis element not resolvable on this page';
   }
+  // Local resolution, with graph-walk as off-page fallback for the four
+  // kinds whose click handler also falls back to the graph. An optionId on
+  // decisions must still match locally — the graph walk only confirms the
+  // decision exists somewhere, not that the specific option does — so a
+  // cross-analysis option ref stays broken. That's the honest signal:
+  // clicking it would land on the decision, not the option.
   switch (parsed.kind) {
-    case 'findings':
-      return node.findings?.some((f) => f.key === parsed.id)
-        ? null
-        : `No finding "${parsed.id}"`;
+    case 'findings': {
+      if (node.findings?.some((f) => f.key === parsed.id)) return null;
+      if (graphNodes && astraRefHasHostInGraph('findings', parsed.id, graphNodes)) return null;
+      return `No finding "${parsed.id}"`;
+    }
     case 'decisions': {
       const decision = node.decisions?.find((d) => d.key === parsed.id);
-      if (!decision) return `No decision "${parsed.id}"`;
-      if (parsed.optionId) {
-        const hit =
-          decision.selectedKey === parsed.optionId ||
-          decision.excluded.some((e) => e.key === parsed.optionId);
-        if (!hit) return `No option "${parsed.optionId}" on decision "${parsed.id}"`;
+      if (decision) {
+        if (parsed.optionId) {
+          const hit =
+            decision.selectedKey === parsed.optionId ||
+            decision.excluded.some((e) => e.key === parsed.optionId);
+          if (!hit) return `No option "${parsed.optionId}" on decision "${parsed.id}"`;
+        }
+        return null;
       }
-      return null;
+      if (
+        !parsed.optionId &&
+        graphNodes &&
+        astraRefHasHostInGraph('decisions', parsed.id, graphNodes)
+      ) {
+        return null;
+      }
+      return `No decision "${parsed.id}"`;
     }
-    case 'outputs':
-      return node.outputs?.some((o) => o.id === parsed.id)
-        ? null
-        : `No output "${parsed.id}"`;
-    case 'inputs':
-      return node.inputs?.some((i) => i.id === parsed.id)
-        ? null
-        : `No input "${parsed.id}"`;
+    case 'outputs': {
+      if (node.outputs?.some((o) => o.id === parsed.id)) return null;
+      if (graphNodes && astraRefHasHostInGraph('outputs', parsed.id, graphNodes)) return null;
+      return `No output "${parsed.id}"`;
+    }
+    case 'inputs': {
+      if (node.inputs?.some((i) => i.id === parsed.id)) return null;
+      if (graphNodes && astraRefHasHostInGraph('inputs', parsed.id, graphNodes)) return null;
+      return `No input "${parsed.id}"`;
+    }
     case 'analyses':
       if (!childSubKeys) return 'Sub-analysis lookup pending';
       return childSubKeys.has(parsed.id) ? null : `No sub-analysis "${parsed.id}"`;

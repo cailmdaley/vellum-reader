@@ -285,7 +285,7 @@ export function MarginCitations({
         // Resolve against the page's GraphNode — broken anchors still get a
         // glyph, just with the broken affordance.
         const broken = currentNode
-          ? resolveAstraAnchor(parsed, currentNode, childSubKeys, parentSubKeys)
+          ? resolveAstraAnchor(parsed, currentNode, childSubKeys, parentSubKeys, nodes)
           : 'No page node for anchor resolution';
         const label = currentNode
           ? resolveAstraLabel(parsed, currentNode, subAnalysisLabels, parentSubLabels)
