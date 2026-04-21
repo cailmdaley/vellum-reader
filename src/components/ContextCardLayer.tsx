@@ -33,6 +33,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Card, type CardContent } from './Card';
 import { marginaliaWidth, readCanvasLeft, readCanvasWidth } from '~/utils/canvas-geometry';
+import { useTheme } from '~/contexts/ThemeContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,6 +130,12 @@ function clampSpawn(x: number, y: number, width: number): { x: number; y: number
 export function ContextCardLayer({
   onNavigate,
 }: ContextCardLayerProps) {
+  const { theme } = useTheme();
+  const exclusive = theme.layout.cardStacking === 'exclusive';
+  // Stash in a ref so the once-registered open-card listener always reads the
+  // current theme's stacking rule without re-registering on theme change.
+  const exclusiveRef = useRef(exclusive);
+  exclusiveRef.current = exclusive;
   const [cards, setCards] = useState<FloatingCard[]>([]);
   // Scroll offset drives canvas-mode rendering: a canvas-pinned card
   // stores page coords and we subtract the current scroll to produce
@@ -219,13 +226,20 @@ export function ContextCardLayer({
       } = ev.detail;
       const key = contentKey(content);
       setCards((prev) => {
+        const isExclusive = exclusiveRef.current;
         // Repeat click on the same finding/decision/etc → lift the
         // existing card to front instead of stacking a duplicate. All
         // lookup + mutation lives inside the updater so there's no
         // sync/async mismatch with batched state.
+        //
+        // Under `cardStacking: 'exclusive'` (lightcone-margin), the match
+        // becomes the sole card in the layer — any others that might
+        // have lingered from a prior theme switch are dismissed.
         const match = prev.find((c) => c.key === key);
         if (match) {
-          return [...prev.filter((c) => c.id !== match.id), match];
+          return isExclusive
+            ? [match]
+            : [...prev.filter((c) => c.id !== match.id), match];
         }
         const id = `${content.type}__${Date.now()}__${Math.random().toString(36).slice(2, 6)}`;
         const width = widthOverride ?? initialCardWidth();
@@ -239,7 +253,7 @@ export function ContextCardLayer({
           x: viewportPos.x + window.scrollX,
           y: viewportPos.y + window.scrollY,
         };
-        return [...prev, {
+        const spawned: FloatingCard = {
           id,
           key,
           content,
@@ -248,7 +262,10 @@ export function ContextCardLayer({
           y: pos.y,
           width,
           height: heightOverride ?? null,
-        }];
+        };
+        // Exclusive stacking: the new card replaces whatever was pinned.
+        // Non-exclusive: append to the stack; older cards stay pinned.
+        return isExclusive ? [spawned] : [...prev, spawned];
       });
       // The pinned card is intentionally the hover preview that stopped
       // going away — no prose-body fetch, no header-duplicating swap.

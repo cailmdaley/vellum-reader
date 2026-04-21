@@ -62,6 +62,20 @@ export interface ThemeLayout {
    * `lightcone-margin`: 'off' (the margin theme uses gutter hover, not a rail).
    */
   leftRailToc: 'on' | 'off';
+  /**
+   * Pinned-card stacking behavior in `ContextCardLayer`.
+   *
+   * - `'stack'` — repeated pins accumulate; matching-key reclicks lift the
+   *   existing card to front (cail-personal power-user default; the canvas
+   *   holds as many cards as the user pins).
+   * - `'exclusive'` — one pinned card at a time. Pinning a new card dismisses
+   *   any others; matching-key reclicks still lift to front but no other cards
+   *   coexist. Resolves the Pass 9b step 2 exclusive-expand requirement from
+   *   the themes-constitution 2026-04-21 crafting pass: compact-chip margin
+   *   rail with one-card-at-a-time expansion (Hypothes.is / Genius / Substack
+   *   convergent shape).
+   */
+  cardStacking: 'stack' | 'exclusive';
 }
 
 export type ThemeComponentSlot =

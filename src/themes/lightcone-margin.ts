@@ -41,5 +41,6 @@ export const lightconeMarginTheme: ThemeConfig = {
     inlineAnchorStyle: 'kind-colored-highlight',
     figurePlacement: 'inline-with-caption',
     leftRailToc: 'off',
+    cardStacking: 'exclusive',
   },
 };

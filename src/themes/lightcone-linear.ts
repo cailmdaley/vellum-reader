@@ -42,5 +42,9 @@ export const lightconeLinearTheme: ThemeConfig = {
     inlineAnchorStyle: 'kind-colored-highlight',
     figurePlacement: 'inline-with-caption',
     leftRailToc: 'on',
+    // Pinned cards are rare under linear (no margin rail); when they do land
+    // from AstraAppendix or an inline anchor, keep stacking so multiple
+    // expanded cards can sit side-by-side on the canvas.
+    cardStacking: 'stack',
   },
 };
