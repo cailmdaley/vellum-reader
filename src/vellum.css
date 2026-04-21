@@ -6207,11 +6207,49 @@ a.pretext-prose-frag:hover {
   margin: 0.5rem 0.4rem;
 }
 
-.left-rail-toc__list--appendix .left-rail-toc__link {
+/* Hierarchical children — individual findings / decisions / inputs / outputs
+   nested under their parent narrative section. Smaller type, indented rule
+   against the section's rubric, truncation for long labels (chip-style
+   aliases tend to be short but ASTRA authors can write long ones). */
+.left-rail-toc__children {
+  list-style: none;
+  margin: 0 0 0.25rem 0;
+  padding: 0;
+  border-left: 1px solid var(--border-faint, rgba(212, 204, 191, 0.5));
+  margin-left: 0.6rem;
+}
+
+.left-rail-toc__child {
+  margin: 0;
+}
+
+.left-rail-toc__child-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0.08rem 0.4rem 0.08rem 0.7rem;
+  font: inherit;
   font-size: 0.82rem;
-  font-variant: small-caps;
-  letter-spacing: 0.04em;
   color: var(--text-muted, #8a8070);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  margin-left: -1px; /* align the active bar with the children rule */
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.left-rail-toc__child-link:hover {
+  color: var(--ink, #1f1a15);
+  background: rgba(31, 26, 21, 0.03);
+}
+
+.left-rail-toc__child--active > .left-rail-toc__child-link {
+  color: var(--ink, #1f1a15);
+  border-left-color: var(--rubric, #b5453a);
+  font-variant-numeric: oldstyle-nums;
 }
 
 /* ──────────────────────────────────────────────────────────────────────

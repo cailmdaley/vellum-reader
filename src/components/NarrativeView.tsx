@@ -623,7 +623,7 @@ export function NarrativeView({
           parentSubSlugs={parentSubSlugs}
         />
       )}
-      {showLeftRailToc && <LeftRailToc proseRef={proseRef} />}
+      {showLeftRailToc && <LeftRailToc proseRef={proseRef} node={currentNode} />}
       <GhostToc
         proseRef={proseRef}
         wrapperRef={wrapperRef}
