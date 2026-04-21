@@ -5647,6 +5647,7 @@ a.pretext-prose-frag:hover {
 .astra-appendix__row--finding  .astra-appendix__row-head { border-left-color: var(--astra-finding); }
 .astra-appendix__row--decision .astra-appendix__row-head { border-left-color: var(--astra-decision); }
 .astra-appendix__row--output   .astra-appendix__row-head { border-left-color: var(--astra-output); }
+.astra-appendix__row--input    .astra-appendix__row-head { border-left-color: var(--astra-input); }
 
 .astra-appendix__row--open .astra-appendix__row-head {
   background: color-mix(in oklab, var(--paper) 92%, var(--counter) 8%);

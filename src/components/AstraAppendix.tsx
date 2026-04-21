@@ -34,6 +34,7 @@ import { useEffect, useState } from 'react';
 import type {
   GraphDecision,
   GraphFinding,
+  GraphInput,
   GraphNode,
   GraphOutput,
 } from '~/utils/content-types';
@@ -64,7 +65,11 @@ interface AstraAppendixProps {
 /** Row identity in the exclusive-open tray. `kind:key` keeps findings /
  *  decisions / outputs disjoint even when an ASTRA author reuses an id
  *  across sections. */
-type RowId = `finding:${string}` | `decision:${string}` | `output:${string}`;
+type RowId =
+  | `finding:${string}`
+  | `decision:${string}`
+  | `output:${string}`
+  | `input:${string}`;
 
 /** CustomEvent payload for cross-component row expansion. Dispatched by
  *  NarrativeView's anchor-click handler under lightcone-linear. */
@@ -86,15 +91,14 @@ export function AstraAppendix({
   const [openRow, setOpenRow] = useState<RowId | null>(null);
 
   // Cross-component: prose-link click → expand the matching tray row.
-  // Inputs have no full-Card appendix entry; in that case we fall through
-  // to the default float-card path in NarrativeView (it pre-dispatches
-  // expand, sees no row match, then opens its own card).
+  // Under lightcone-linear, inputs are promoted from the Methods bullet list
+  // into their own CollapsedRow tray within the Methods section, so ref
+  // clicks to `#inputs.id` expand a row rather than opening a float card.
   useEffect(() => {
     if (!collapsedTray) return;
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<ExpandAppendixRowDetail>).detail;
       if (!detail) return;
-      if (detail.kind === 'input') return;
       const rowId = `${detail.kind}:${detail.id}` as RowId;
       setOpenRow(rowId);
       // Defer scroll until React has rendered the expanded card; two RAFs
@@ -106,7 +110,9 @@ export function AstraAppendix({
               ? `astra-finding-${detail.id}`
               : detail.kind === 'decision'
                 ? `astra-decision-${detail.id}`
-                : `astra-output-${detail.id}`;
+                : detail.kind === 'output'
+                  ? `astra-output-${detail.id}`
+                  : `astra-input-${detail.id}`;
           const el = document.getElementById(domId);
           if (!el) return;
           const rect = el.getBoundingClientRect();
@@ -243,18 +249,46 @@ export function AstraAppendix({
             {inputs.length > 0 && (
               <div className="astra-appendix__methods-group">
                 <div className="astra-appendix__methods-label">Inputs</div>
-                <ul className="astra-appendix__methods-list">
-                  {inputs.map((input) => (
-                    <li key={input.id}>
-                      <span className="astra-appendix__methods-id">{input.id}</span>
-                      {input.description && (
-                        <span className="astra-appendix__methods-desc">
-                          {' '}— {input.description}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                {collapsedTray ? (
+                  <div className="astra-appendix__stack">
+                    {inputs.map((input) => {
+                      const rowId: RowId = `input:${input.id}`;
+                      return (
+                        <div
+                          key={input.id}
+                          id={`astra-input-${input.id}`}
+                          className="astra-appendix__item"
+                        >
+                          <CollapsedRow
+                            open={openRow === rowId}
+                            onToggle={() => toggle(rowId)}
+                            kind="input"
+                            title={input.label ?? input.id}
+                            summary={compactInputSummary(input)}
+                          >
+                            <Card
+                              width={cardWidth}
+                              content={{ type: 'input', input, hostNode: node }}
+                            />
+                          </CollapsedRow>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <ul className="astra-appendix__methods-list">
+                    {inputs.map((input) => (
+                      <li key={input.id}>
+                        <span className="astra-appendix__methods-id">{input.id}</span>
+                        {input.description && (
+                          <span className="astra-appendix__methods-desc">
+                            {' '}— {input.description}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
@@ -401,7 +435,7 @@ export function AstraAppendix({
 interface CollapsedRowProps {
   open: boolean;
   onToggle: () => void;
-  kind: 'finding' | 'decision' | 'output';
+  kind: 'finding' | 'decision' | 'output' | 'input';
   title: string;
   summary?: string;
   children: React.ReactNode;
@@ -445,6 +479,17 @@ function compactDecisionSummary(d: GraphDecision): string | undefined {
  *  so the row head stays one line. */
 function compactFindingSummary(f: GraphFinding): string | undefined {
   const text = f.claim?.trim();
+  if (!text) return undefined;
+  return text.length > 80 ? text.slice(0, 77) + '…' : text;
+}
+
+/** For inputs, the first line of the description — or the `from:` pointer
+ *  if no description, since inputs are often catalog references rather than
+ *  prose. Truncated to keep the row head one line. */
+function compactInputSummary(i: GraphInput): string | undefined {
+  const text =
+    i.description?.trim().split('\n')[0] ??
+    (i.from ? `from: ${i.from}` : i.source ? `from: ${i.source}` : undefined);
   if (!text) return undefined;
   return text.length > 80 ? text.slice(0, 77) + '…' : text;
 }

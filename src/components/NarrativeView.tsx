@@ -439,7 +439,12 @@ export function NarrativeView({
       // scrolls it into view. Inputs have no tray entry — fall through to
       // the float-card path so the reader still has a surface.
       if (themeId === 'lightcone-linear' && !parsed.parentEscapes) {
-        if (parsed.kind === 'findings' || parsed.kind === 'decisions' || parsed.kind === 'outputs') {
+        if (
+          parsed.kind === 'findings' ||
+          parsed.kind === 'decisions' ||
+          parsed.kind === 'outputs' ||
+          parsed.kind === 'inputs'
+        ) {
           document.dispatchEvent(
             new CustomEvent('vellum:expand-appendix-row', {
               detail: {
@@ -448,7 +453,9 @@ export function NarrativeView({
                     ? 'finding'
                     : parsed.kind === 'decisions'
                       ? 'decision'
-                      : 'output',
+                      : parsed.kind === 'outputs'
+                        ? 'output'
+                        : 'input',
                 id: parsed.id,
               },
             }),
