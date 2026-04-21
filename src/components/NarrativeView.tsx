@@ -59,6 +59,36 @@ function nodeText(node: any): string {
   return '';
 }
 
+/**
+ * Walk the full graph to locate a node that hosts an ASTRA ref. Used as a
+ * last-ditch resolver before we give up on a click: if the user clicked
+ * `#findings.foo` but `foo` lives on another analysis, navigate there with
+ * the hash so that analysis's AstraAppendix auto-expands the row on mount.
+ *
+ * Without this fallback every "off-page" ref silently no-ops, which was
+ * the named gap in the themes-constitution Pass 9a checklist. Decisions
+ * and findings are keyed by `.key`; inputs and outputs by `.id` — mirroring
+ * the local-lookup shape in handleProseClick.
+ */
+function findHostForAstraRef(
+  graphNodes: GraphNode[],
+  kind: 'decisions' | 'findings' | 'outputs' | 'inputs',
+  id: string,
+): GraphNode | undefined {
+  for (const node of graphNodes) {
+    if (kind === 'decisions') {
+      if (node.decisions?.some((d) => d.key === id)) return node;
+    } else if (kind === 'findings') {
+      if (node.findings?.some((f) => f.key === id)) return node;
+    } else if (kind === 'outputs') {
+      if (node.outputs?.some((o) => o.id === id)) return node;
+    } else if (kind === 'inputs') {
+      if (node.inputs?.some((i) => i.id === id)) return node;
+    }
+  }
+  return undefined;
+}
+
 const STATUS_WORDS = new Set([
   'active', 'open', 'closed', 'suspended', 'resolved', 'unresolved', 'blocked',
 ]);
@@ -470,7 +500,9 @@ export function NarrativeView({
       // Parent-escape refs (`../findings.id`, `../decisions.id`, `../outputs.id`,
       // `../inputs.id`) resolve against the parent node and navigate there,
       // carrying a hash so the parent's AstraAppendix can auto-expand the
-      // targeted row after load. Without this, off-page refs silently no-op.
+      // targeted row after load. If the ref doesn't exist on the parent,
+      // fall through to the graph-walk fallback below — the author may have
+      // written `../` loosely when the true host is a sibling or cousin.
       if (parsed.parentEscapes === 1 && parentNode && parsed.kind !== 'analyses') {
         const host = parentNode;
         const found =
@@ -483,33 +515,64 @@ export function NarrativeView({
                 : parsed.kind === 'inputs'
                   ? host.inputs?.find((i) => i.id === parsed.id)
                   : null;
-        if (!found) return;
-        navigate(`/${host.slug}#${parsed.kind}.${parsed.id}`);
-        return;
+        if (found) {
+          navigate(`/${host.slug}#${parsed.kind}.${parsed.id}`);
+          return;
+        }
+        // fall through to graph-walk fallback
       }
+      // Graph-walk fallback for any non-analyses ASTRA ref that doesn't
+      // resolve against `currentNode` (or `parentNode` for `../`): search
+      // the full graph for a node hosting `kind.id` and navigate there
+      // with the hash. `AstraAppendix` auto-expands the row on mount from
+      // the hash, so the landing state mirrors a local tray click. This
+      // closes the "off-page refs silently no-op" gap named in the Pass
+      // 9a checklist without requiring a broken-ref modal for the common
+      // case — modals are reserved for refs that truly don't exist anywhere.
+      const offPageNavigate = (
+        kind: 'decisions' | 'findings' | 'outputs' | 'inputs',
+      ): boolean => {
+        const host = findHostForAstraRef(graphNodes, kind, parsed.id);
+        if (!host || host.slug === currentNode.slug) return false;
+        navigate(`/${host.slug}#${kind}.${parsed.id}`);
+        return true;
+      };
+
       switch (parsed.kind) {
         case 'decisions': {
           const decision = currentNode.decisions?.find((d) => d.key === parsed.id);
-          if (!decision) return;
-          openCard({ type: 'decision', decision, hostSlug: currentNode.slug });
+          if (decision) {
+            openCard({ type: 'decision', decision, hostSlug: currentNode.slug });
+            return;
+          }
+          if (offPageNavigate('decisions')) return;
           return;
         }
         case 'findings': {
           const finding = currentNode.findings?.find((f) => f.key === parsed.id);
-          if (!finding) return;
-          openCard({ type: 'finding', finding, hostSlug: currentNode.slug, hostNode: currentNode });
+          if (finding) {
+            openCard({ type: 'finding', finding, hostSlug: currentNode.slug, hostNode: currentNode });
+            return;
+          }
+          if (offPageNavigate('findings')) return;
           return;
         }
         case 'outputs': {
           const out = currentNode.outputs?.find((o) => o.id === parsed.id);
-          if (!out) return;
-          openCard({ type: 'output', output: out, hostNode: currentNode });
+          if (out) {
+            openCard({ type: 'output', output: out, hostNode: currentNode });
+            return;
+          }
+          if (offPageNavigate('outputs')) return;
           return;
         }
         case 'inputs': {
           const inp = currentNode.inputs?.find((i) => i.id === parsed.id);
-          if (!inp) return;
-          openCard({ type: 'input', input: inp, hostNode: currentNode });
+          if (inp) {
+            openCard({ type: 'input', input: inp, hostNode: currentNode });
+            return;
+          }
+          if (offPageNavigate('inputs')) return;
           return;
         }
         case 'analyses': {
