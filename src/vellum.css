@@ -5566,6 +5566,108 @@ a.pretext-prose-frag:hover {
   border-left-color: var(--border);
 }
 
+/* ------------------------------------------------------------------
+   Lightcone-linear — exclusive-open collapsed tray.
+
+   Pass 9a. The appendix findings / decisions / outputs collapse to
+   single-line rows under this theme. Clicking a row head toggles it;
+   AstraAppendix enforces exclusivity (one open at a time). Row head
+   reads as: kind-colored caret · title · compact summary. Row body
+   mounts the full Card under the head with a left rail tying it to
+   the head so the reader can see the expanded card belongs to the
+   clicked entry.
+   ------------------------------------------------------------------ */
+
+.astra-appendix--collapsed-tray .astra-appendix__item {
+  /* Collapse the dotted sibling hairline — row heads already sit on
+     their own border, and the row + hairline double up visually. */
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.astra-appendix__row {
+  border-bottom: 1px dotted var(--border);
+}
+.astra-appendix__row:last-child {
+  border-bottom: none;
+}
+
+.astra-appendix__row-head {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.25rem 0.45rem 0.75rem;
+  cursor: pointer;
+  font-family: var(--font-serif, "EB Garamond", Georgia, serif);
+  line-height: 1.3;
+  border-left: 2px solid var(--border);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.astra-appendix__row-head:hover {
+  background: color-mix(in oklab, var(--paper) 96%, var(--counter) 4%);
+}
+.astra-appendix__row-head:focus-visible {
+  outline: 2px solid var(--counter);
+  outline-offset: -2px;
+}
+
+.astra-appendix__row-caret {
+  color: var(--text-muted, #7A7368);
+  font-size: 0.85em;
+  width: 0.75em;
+  flex: 0 0 auto;
+}
+
+.astra-appendix__row-title {
+  color: var(--text, #1a1a1a);
+  font-weight: 500;
+  flex: 0 1 auto;
+}
+
+.astra-appendix__row-summary {
+  color: var(--text-muted, #7A7368);
+  font-style: italic;
+  font-size: 0.9em;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.astra-appendix__row-summary::before {
+  content: " · ";
+  font-style: normal;
+  opacity: 0.6;
+}
+
+/* Kind-colored rails pick up the Pass 9a structural palette. */
+.astra-appendix__row--finding  .astra-appendix__row-head { border-left-color: var(--astra-finding); }
+.astra-appendix__row--decision .astra-appendix__row-head { border-left-color: var(--astra-decision); }
+.astra-appendix__row--output   .astra-appendix__row-head { border-left-color: var(--astra-output); }
+
+.astra-appendix__row--open .astra-appendix__row-head {
+  background: color-mix(in oklab, var(--paper) 92%, var(--counter) 8%);
+  border-left-width: 3px;
+}
+.astra-appendix__row--open .astra-appendix__row-title {
+  font-weight: 600;
+}
+
+.astra-appendix__row-body {
+  padding: 0.25rem 0 0.75rem 0;
+  border-left: 1px dashed var(--border);
+  margin-left: 0.25rem;
+}
+/* Inside the row body, the Card already ships appendix-scoped chrome —
+   strip its redundant left rail so the dashed rail is the only vertical. */
+.astra-appendix__row-body .card {
+  border-left: none;
+  padding-left: 1rem;
+}
+
 /* File viewer page — read and edit surface */
 .vellum-file-viewer-page {
   display: flex;

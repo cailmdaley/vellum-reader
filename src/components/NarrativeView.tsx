@@ -433,6 +433,29 @@ export function NarrativeView({
       if (!parsed) return; // plain heading anchor — let the default fire
       e.preventDefault();
       if (!currentNode) return;
+      // Under lightcone-linear the appendix collapses into an exclusive-open
+      // tray; prose ref clicks drive that tray rather than opening a float
+      // card. Dispatch first; AstraAppendix expands the matching row and
+      // scrolls it into view. Inputs have no tray entry — fall through to
+      // the float-card path so the reader still has a surface.
+      if (themeId === 'lightcone-linear' && !parsed.parentEscapes) {
+        if (parsed.kind === 'findings' || parsed.kind === 'decisions' || parsed.kind === 'outputs') {
+          document.dispatchEvent(
+            new CustomEvent('vellum:expand-appendix-row', {
+              detail: {
+                kind:
+                  parsed.kind === 'findings'
+                    ? 'finding'
+                    : parsed.kind === 'decisions'
+                      ? 'decision'
+                      : 'output',
+                id: parsed.id,
+              },
+            }),
+          );
+          return;
+        }
+      }
       switch (parsed.kind) {
         case 'decisions': {
           const decision = currentNode.decisions?.find((d) => d.key === parsed.id);
@@ -489,7 +512,7 @@ export function NarrativeView({
       return;
     }
     openCard({ type: 'fiber', node });
-  }, [graphNodes, navigate, currentNode, parentSubSlugs, content.slug]);
+  }, [graphNodes, navigate, currentNode, parentSubSlugs, content.slug, themeId]);
 
   return (
     <div className="vellum-prose-wrapper" ref={wrapperRef}>
