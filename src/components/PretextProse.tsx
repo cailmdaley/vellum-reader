@@ -136,6 +136,12 @@ type MarkState = {
   href: string | null;
   code: boolean;
   strike: boolean;
+  /**
+   * Native `abbr[title]` tooltip. Set when walking a MyST `abbreviation`
+   * node; the renderer wraps the piece in `<abbr title=...>` so hover shows
+   * the expansion. Pass 7 step 3.
+   */
+  title: string | null;
 };
 
 const EMPTY_MARKS: MarkState = {
@@ -144,6 +150,7 @@ const EMPTY_MARKS: MarkState = {
   href: null,
   code: false,
   strike: false,
+  title: null,
 };
 
 type InlinePiece = {
@@ -152,6 +159,7 @@ type InlinePiece = {
   breakMode: 'normal' | 'never';
   className: string;
   href: string | null;
+  title: string | null;
 };
 
 type Variant = 'body' | HeadingDepth;
@@ -245,6 +253,7 @@ function collectInlinePieces(
       prev.font === font &&
       prev.className === className &&
       prev.href === marks.href &&
+      prev.title === marks.title &&
       prev.breakMode === 'normal'
     ) {
       prev.text += text;
@@ -256,6 +265,7 @@ function collectInlinePieces(
       breakMode: 'normal',
       className,
       href: marks.href,
+      title: marks.title,
     });
   }
 
@@ -307,10 +317,21 @@ function collectInlinePieces(
           break;
         }
         case 'wikiLink':
-        case 'abbreviation':
           // Treat as plain text for Gate 1.
           pushText(nodeToText(node), marks);
           break;
+        case 'abbreviation': {
+          // MyST `{abbr}` role. Native `<abbr title="…">` semantics: walk
+          // the children with a `title` mark carrying the expansion so the
+          // browser shows the tooltip on hover and assistive tech reads the
+          // expansion. Pass 7 step 3.
+          const title =
+            typeof node.title === 'string' && node.title.length > 0
+              ? node.title
+              : null;
+          walk(node.children, { ...marks, title: title ?? marks.title });
+          break;
+        }
         case 'break':
           // Explicit soft break — render as a space (pretext handles wrap).
           pushText(' ', marks);
@@ -809,6 +830,7 @@ type InlineLineLayout = {
     font: string;
     className: string;
     href: string | null;
+    title: string | null;
   }>;
   marker?: { text: string; font: string; left: number };
   blockquoteRailLefts: number[];
@@ -860,6 +882,7 @@ type TableCellLineFragment = {
   font: string;
   className: string;
   href: string | null;
+  title: string | null;
 };
 
 type TableCellLine = {
@@ -946,6 +969,7 @@ function layoutBlocks(
               font: piece?.font ?? inlineFont(block.variant, EMPTY_MARKS),
               className: piece?.className ?? 'pretext-prose-frag',
               href: piece?.href ?? null,
+              title: piece?.title ?? null,
             };
           });
           items.push({
@@ -1164,6 +1188,7 @@ function layoutTableBlock(block: TableBlock, contentWidth: number): TableLayout 
             font: piece?.font ?? inlineFont('body', EMPTY_MARKS),
             className: piece?.className ?? 'pretext-prose-frag',
             href: piece?.href ?? null,
+            title: piece?.title ?? null,
           };
         });
         lines.push({ top: lineIdx * cell.lineHeight, fragments });
@@ -1467,11 +1492,27 @@ function renderLine(
                   href={frag.href}
                   className={frag.className}
                   style={fragStyle}
+                  title={frag.title ?? undefined}
                   data-pretext-line-top={item.top}
                   data-pretext-line-height={item.lineHeight}
                 >
                   {frag.text}
                 </a>,
+              );
+            } else if (frag.title) {
+              // Pass 7 step 3 — render `{abbr}` expansions as native `<abbr
+              // title=…>` so the browser handles the hover tooltip and
+              // screen readers announce the expansion. The dotted underline
+              // styling comes from `abbr[title]` UA defaults plus scoped CSS.
+              pieces.push(
+                <abbr
+                  key={fragIdx}
+                  title={frag.title}
+                  className={frag.className}
+                  style={fragStyle}
+                >
+                  {frag.text}
+                </abbr>,
               );
             } else {
               pieces.push(
@@ -1686,9 +1727,21 @@ function renderTable(item: TableLayout, idx: number): ReactNode {
                         href={frag.href}
                         className={frag.className}
                         style={fragStyle}
+                        title={frag.title ?? undefined}
                       >
                         {frag.text}
                       </a>,
+                    );
+                  } else if (frag.title) {
+                    pieces.push(
+                      <abbr
+                        key={fragIdx}
+                        title={frag.title}
+                        className={frag.className}
+                        style={fragStyle}
+                      >
+                        {frag.text}
+                      </abbr>,
                     );
                   } else {
                     pieces.push(
