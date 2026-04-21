@@ -38,6 +38,7 @@ import { MarginCardPreview } from './MarginCardPreview';
 import type { CardContent } from './Card';
 import { marginaliaWidth, readCanvasWidth } from '~/utils/canvas-geometry';
 import { resolveAstraCardContent as resolveAstraCardContentFromParsed } from '~/utils/astra-card-content';
+import { useTheme } from '~/contexts/ThemeContext';
 
 type FiberGlyph = {
   kind: 'fiber';
@@ -119,7 +120,23 @@ interface MarginCitationsProps {
 
 /** Delay (ms) before a prose-link hover surfaces the tooltip. Glyph hovers are immediate. */
 const LINK_HOVER_DELAY_MS = 250;
-const CANVAS_RAIL_TOP = 172;
+
+/**
+ * Top-most legal Y for a glyph group, in canvas coordinates.
+ *
+ * Under `cail-personal` (and any theme that mounts NarrativeCounter), the
+ * counter occupies the rail top; chips sit below it. The original value 172
+ * was tuned against that layout — masthead height + counter block.
+ *
+ * Under `lightcone-margin` NarrativeCounter is gated off
+ * (`marginColumn === 'compact-chips'`), so the floor can sit higher — just
+ * below the masthead. A lower CANVAS_RAIL_TOP lets the first chip anchor
+ * near the first line of prose instead of leaving a visibly empty band
+ * beneath the title block. Tuned alongside the chip rail promotion in
+ * Pass 9b step 1; see post-pass-9b-scout-note item 2.
+ */
+const CANVAS_RAIL_TOP_WITH_COUNTER = 172;
+const CANVAS_RAIL_TOP_NO_COUNTER = 92;
 /** Min vertical gap between distinct glyph groups. Glyphs inside a group share a Y. */
 const MIN_GROUP_GAP = 16;
 /** Max y-distance treated as "same line" when grouping glyphs horizontally. */
@@ -137,6 +154,16 @@ export function MarginCitations({
   parentSubLabels,
   parentSubSlugs,
 }: MarginCitationsProps) {
+  const { theme } = useTheme();
+  // NarrativeCounter mounts only under `persistent`. Keep the rail-top
+  // branch keyed on that single condition so adding a new marginColumn
+  // value doesn't silently shift chip positioning.
+  const canvasRailTop =
+    theme.layout.marginColumn === 'persistent'
+      ? CANVAS_RAIL_TOP_WITH_COUNTER
+      : CANVAS_RAIL_TOP_NO_COUNTER;
+  const canvasRailTopRef = useRef(canvasRailTop);
+  canvasRailTopRef.current = canvasRailTop;
   const [groups, setGroups] = useState<GlyphGroup[]>([]);
   const [railLeft, setRailLeft] = useState(0);
   const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -322,7 +349,7 @@ export function MarginCitations({
           grouped.push({ top: item.top, items: [item] });
         }
       }
-      let lastTop = CANVAS_RAIL_TOP - MIN_GROUP_GAP;
+      let lastTop = canvasRailTopRef.current - MIN_GROUP_GAP;
       for (const group of grouped) {
         const t = Math.max(group.top, lastTop + MIN_GROUP_GAP);
         lastTop = t;
@@ -455,7 +482,7 @@ export function MarginCitations({
   // time the parent re-renders with a new graphNodes or currentNode identity.
   useEffect(() => {
     scheduleMeasureRef.current?.();
-  }, [nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels]);
+  }, [nodes, currentNode, childSubKeys, subAnalysisLabels, parentSubKeys, parentSubLabels, canvasRailTop]);
 
   if (groups.length === 0) return null;
 
