@@ -41,6 +41,12 @@ export const lightconeMarginTheme: ThemeConfig = {
     inlineAnchorStyle: 'kind-colored-highlight',
     figurePlacement: 'inline-with-caption',
     leftRailToc: 'off',
+    // Pass 9b step 4: per-content `label ?? id` + caret, no kind-name text.
+    // Every chip carries its own content label so readers scan the margin
+    // for what's there, not for kind categories. Portolan bearing-line
+    // suppression (kind-name repeat dimming) doesn't apply in this shape;
+    // CSS gates those rules on `:root:not([data-theme="lightcone-margin"])`.
+    chipShape: 'label-caret',
     cardStacking: 'exclusive',
   },
 };

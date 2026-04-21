@@ -63,6 +63,22 @@ export interface ThemeLayout {
    */
   leftRailToc: 'on' | 'off';
   /**
+   * Margin-chip content shape for ASTRA glyphs.
+   *
+   * - `'kind-name'` — legacy power-user baseline: `{kind-glyph, KindName}`
+   *   where `KindName` is the fixed legend ("Finding", "Decision", …). The
+   *   portolan-bearing-line CSS suppresses repeats of the same kind on later
+   *   rows so a column of same-kind pins reads as "Finding · · ·". Used by
+   *   `cail-personal`. Unused under `lightcone-linear` (no margin column).
+   * - `'label-caret'` — lightcone-margin compact-chip: `{kind-glyph, label ??
+   *   id, ›}` where the second span is the chip's own content label (per the
+   *   schema port's `label?` field + fallback to id). Every chip is
+   *   per-content so the portolan suppression doesn't apply — the reader
+   *   scans labels to see what's in the margin, not kind categories. Resolves
+   *   post-pass-9b scout-note item 1.
+   */
+  chipShape: 'kind-name' | 'label-caret';
+  /**
    * Pinned-card stacking behavior in `ContextCardLayer`.
    *
    * - `'stack'` — repeated pins accumulate; matching-key reclicks lift the

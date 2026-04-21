@@ -1728,13 +1728,48 @@ body {
   overflow: hidden;
 }
 /* Repeated dots wear a lighter weight — a column of "• • •" reads as a
-   portolan bearing line rather than a repeat of the first bright pin. */
-.margin-glyph-row:has(.margin-glyph--astra-findings) ~ .margin-glyph-row:has(.margin-glyph--astra-findings) .margin-glyph__dot,
-.margin-glyph-row:has(.margin-glyph--astra-decisions) ~ .margin-glyph-row:has(.margin-glyph--astra-decisions) .margin-glyph__dot,
-.margin-glyph-row:has(.margin-glyph--astra-outputs) ~ .margin-glyph-row:has(.margin-glyph--astra-outputs) .margin-glyph__dot,
-.margin-glyph-row:has(.margin-glyph--astra-inputs) ~ .margin-glyph-row:has(.margin-glyph--astra-inputs) .margin-glyph__dot,
-.margin-glyph-row:has(.margin-glyph--astra-analyses) ~ .margin-glyph-row:has(.margin-glyph--astra-analyses) .margin-glyph__dot {
+   portolan bearing line rather than a repeat of the first bright pin.
+   Scoped to kind-name chips (cail-personal): under lightcone-margin each
+   chip carries its own per-content label + caret, so dimming same-kind
+   dots breaks margin-scan legibility. */
+:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-findings) ~ .margin-glyph-row:has(.margin-glyph--astra-findings) .margin-glyph__dot,
+:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-decisions) ~ .margin-glyph-row:has(.margin-glyph--astra-decisions) .margin-glyph__dot,
+:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-outputs) ~ .margin-glyph-row:has(.margin-glyph--astra-outputs) .margin-glyph__dot,
+:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-inputs) ~ .margin-glyph-row:has(.margin-glyph--astra-inputs) .margin-glyph__dot,
+:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-analyses) ~ .margin-glyph-row:has(.margin-glyph--astra-analyses) .margin-glyph__dot {
   opacity: 0.7;
+}
+
+/* lightcone-margin compact-chip: `{kind-glyph, label ?? id, ›}`. Each chip
+   is its own content; stack glyph+label horizontally with the caret pushed
+   right. Label color inherits from the kind (the per-kind rules above hit
+   `.margin-glyph__kind-name`; mirror for `__astra-label`). */
+.margin-glyph--astra .margin-glyph__astra-label {
+  font-size: 0.72rem;
+  font-family: 'Spectral', 'EB Garamond', Georgia, serif;
+  font-weight: 400;
+  margin-left: 4px;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+.margin-glyph--astra-findings  .margin-glyph__astra-label { color: var(--astra-finding); }
+.margin-glyph--astra-decisions .margin-glyph__astra-label { color: var(--astra-decision); }
+.margin-glyph--astra-outputs   .margin-glyph__astra-label { color: var(--astra-output); }
+.margin-glyph--astra-inputs    .margin-glyph__astra-label { color: var(--astra-input); }
+.margin-glyph--astra-analyses  .margin-glyph__astra-label { color: var(--astra-analysis); }
+.margin-glyph--astra .margin-glyph__caret {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.5;
+  margin-left: 4px;
+  color: var(--text-muted);
+}
+.margin-glyph:hover .margin-glyph__caret,
+.margin-glyph--active .margin-glyph__caret {
+  opacity: 1;
 }
 
 .margin-glyph--astra-broken {

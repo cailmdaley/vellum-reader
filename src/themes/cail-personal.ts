@@ -34,6 +34,8 @@ export const cailPersonalTheme: ThemeConfig = {
     inlineAnchorStyle: 'plain',
     figurePlacement: 'chip',
     leftRailToc: 'on',
+    // Power-user baseline: kind-name + portolan-bearing-line suppression.
+    chipShape: 'kind-name',
     // Power-user baseline: pins stack, no auto-dismiss. Cail's flow pins
     // several cards side-by-side while reading; the margin rail is the
     // persistent surface and the canvas is the scratchpad.

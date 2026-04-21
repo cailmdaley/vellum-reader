@@ -519,7 +519,7 @@ export function MarginCitations({
               if (!content) return;
               pinCardAtGroup({ content, groupTop: gt, railLeft });
             },
-          }))}
+          }, theme.layout.chipShape))}
         </div>
       ))}
 
@@ -615,7 +615,12 @@ interface GlyphRenderCtx {
   groupTop: number;
 }
 
-function renderGlyph(item: GlyphItem, key: string, ctx: GlyphRenderCtx) {
+function renderGlyph(
+  item: GlyphItem,
+  key: string,
+  ctx: GlyphRenderCtx,
+  chipShape: 'kind-name' | 'label-caret' = 'kind-name',
+) {
   const active = ctx.activeKey === key;
   if (item.kind === 'fiber') {
     const cls =
@@ -685,7 +690,14 @@ function renderGlyph(item: GlyphItem, key: string, ctx: GlyphRenderCtx) {
       }
     >
       <span className="margin-glyph__dot" aria-hidden="true">{symbol}</span>
-      <span className="margin-glyph__kind-name">{kindName}</span>
+      {chipShape === 'label-caret' ? (
+        <>
+          <span className="margin-glyph__astra-label">{item.label}</span>
+          <span className="margin-glyph__caret" aria-hidden="true">›</span>
+        </>
+      ) : (
+        <span className="margin-glyph__kind-name">{kindName}</span>
+      )}
       {item.broken && (
         <span className="margin-glyph__broken" aria-hidden="true">⚠</span>
       )}

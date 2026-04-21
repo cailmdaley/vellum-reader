@@ -42,6 +42,10 @@ export const lightconeLinearTheme: ThemeConfig = {
     inlineAnchorStyle: 'kind-colored-highlight',
     figurePlacement: 'inline-with-caption',
     leftRailToc: 'on',
+    // No margin column mounts under linear; value is only meaningful as a
+    // type-system placeholder. Kept at the cail-personal default to avoid
+    // implying any intent to switch.
+    chipShape: 'kind-name',
     // Pinned cards are rare under linear (no margin rail); when they do land
     // from AstraAppendix or an inline anchor, keep stacking so multiple
     // expanded cards can sit side-by-side on the canvas.
