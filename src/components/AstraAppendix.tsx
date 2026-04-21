@@ -94,13 +94,19 @@ export function AstraAppendix({
   // Under lightcone-linear, inputs are promoted from the Methods bullet list
   // into their own CollapsedRow tray within the Methods section, so ref
   // clicks to `#inputs.id` expand a row rather than opening a float card.
+  //
+  // Under other themes (cail-personal), the appendix renders full cards
+  // inline rather than a collapsed tray, so the expand-row request degrades
+  // to a scroll-into-view on the target card — this keeps LeftRailToc child
+  // clicks navigable under cail-personal without changing the rail's event.
   useEffect(() => {
-    if (!collapsedTray) return;
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<ExpandAppendixRowDetail>).detail;
       if (!detail) return;
-      const rowId = `${detail.kind}:${detail.id}` as RowId;
-      setOpenRow(rowId);
+      if (collapsedTray) {
+        const rowId = `${detail.kind}:${detail.id}` as RowId;
+        setOpenRow(rowId);
+      }
       // Defer scroll until React has rendered the expanded card; two RAFs
       // survive both the state commit and pretext's measure pass.
       requestAnimationFrame(() => {

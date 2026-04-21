@@ -32,5 +32,6 @@ export const lightconeMarginTheme: ThemeConfig = {
     marginColumn: 'empty-gutter-hover',
     inlineAnchorStyle: 'kind-colored-highlight',
     figurePlacement: 'inline-with-caption',
+    leftRailToc: 'off',
   },
 };

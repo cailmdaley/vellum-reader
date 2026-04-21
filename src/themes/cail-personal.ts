@@ -1,10 +1,13 @@
 import type { ThemeConfig } from './types';
 
 // cail-personal — the power-user baseline. Persistent marginalia column,
-// rubricated anchor ink, thumb-index, backlinks, ghost-toc all mounted.
-// Values mirror the current :root defaults in vellum.css so existing
-// Vellum renders move to this theme with no visual change. Opts into every
-// cross-theme improvement (scroll-only-if-offscreen, selected-option
+// rubricated anchor ink, thumb-index, backlinks all mounted. The hierarchical
+// LeftRailToc is opted in (`leftRailToc: 'on'`) and GhostToc is retired to
+// avoid a duplicate left-margin navigation surface — the rail is a strict
+// superset (scroll-spy + nested appendix children via `label ?? id`). Values
+// otherwise mirror the current :root defaults in vellum.css so existing
+// Vellum renders move to this theme with minimal visual change. Opts into
+// every cross-theme improvement (scroll-only-if-offscreen, selected-option
 // summaries, MyST restores).
 export const cailPersonalTheme: ThemeConfig = {
   id: 'cail-personal',
@@ -30,5 +33,6 @@ export const cailPersonalTheme: ThemeConfig = {
     marginColumn: 'persistent',
     inlineAnchorStyle: 'plain',
     figurePlacement: 'chip',
+    leftRailToc: 'on',
   },
 };

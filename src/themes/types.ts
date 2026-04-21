@@ -37,6 +37,16 @@ export interface ThemeLayout {
   marginColumn: 'persistent' | 'empty-gutter-hover' | 'none';
   inlineAnchorStyle: 'plain' | 'kind-colored-highlight';
   figurePlacement: 'inline-with-caption' | 'chip';
+  /**
+   * Whether the hierarchical LeftRailToc mounts under this theme. When `'on'`,
+   * GhostToc is suppressed to avoid a duplicate left-margin navigation surface
+   * (the rail is a strict superset: scroll-spy + nested appendix children).
+   *
+   * `lightcone-linear`: 'on' (primary nav).
+   * `cail-personal`:    'on' (opted in — retires ghost-toc).
+   * `lightcone-margin`: 'off' (the margin theme uses gutter hover, not a rail).
+   */
+  leftRailToc: 'on' | 'off';
 }
 
 export type ThemeComponentSlot =

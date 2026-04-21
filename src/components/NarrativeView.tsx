@@ -149,7 +149,11 @@ export function NarrativeView({
   const adapter = useAdapter();
   const { theme, themeId } = useTheme();
   const showMarginColumn = theme.layout.marginColumn === 'persistent';
-  const showLeftRailToc = themeId === 'lightcone-linear';
+  const showLeftRailToc = theme.layout.leftRailToc === 'on';
+  // GhostToc and LeftRailToc are alternate takes on "left-margin section
+  // navigation"; mounting both doubles up. The rail is the strict superset
+  // (scroll-spy + nested appendix children), so when it's on we retire ghost.
+  const showGhostToc = !showLeftRailToc;
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -687,10 +691,12 @@ export function NarrativeView({
         />
       )}
       {showLeftRailToc && <LeftRailToc proseRef={proseRef} node={currentNode} />}
-      <GhostToc
-        proseRef={proseRef}
-        wrapperRef={wrapperRef}
-      />
+      {showGhostToc && (
+        <GhostToc
+          proseRef={proseRef}
+          wrapperRef={wrapperRef}
+        />
+      )}
       <BacklinkNodes nodes={backlinkNodes} />
       <TextAnnotationLayer
         slug={content.slug}

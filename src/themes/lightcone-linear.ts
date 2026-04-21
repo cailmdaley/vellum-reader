@@ -41,5 +41,6 @@ export const lightconeLinearTheme: ThemeConfig = {
     marginColumn: 'none',
     inlineAnchorStyle: 'kind-colored-highlight',
     figurePlacement: 'inline-with-caption',
+    leftRailToc: 'on',
   },
 };

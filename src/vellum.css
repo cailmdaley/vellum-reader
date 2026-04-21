@@ -6101,9 +6101,10 @@ a.pretext-prose-frag:hover {
 /* ── LeftRailToc (Pass 9a) ─────────────────────────────────────────────
    Collapsed 32px chevron at the left edge; expanded 272px panel with a
    hierarchical section list. Fixed-position so scrolling leaves it in
-   place. The rail only renders under lightcone-linear — keep the
-   styling unscoped to the theme selector so dev-time preview under
-   other themes (future toggle) stays consistent. */
+   place. Mounted under any theme whose `layout.leftRailToc === 'on'`
+   (currently lightcone-linear + cail-personal). GhostToc is suppressed
+   wherever the rail is on. Styling stays unscoped to the theme selector
+   so appearance is consistent across themes. */
 .left-rail-toc {
   position: fixed;
   top: 4rem;
