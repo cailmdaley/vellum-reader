@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArticleProvider } from '@myst-theme/providers';
 import { FiberHeader } from './FiberHeader';
+import { AuthoringLintStrip } from './AuthoringLintStrip';
 import { AstraAppendix } from './AstraAppendix';
 import { MarginCitations } from './MarginCitations';
 import { NarrativeCounter } from './NarrativeCounter';
@@ -620,11 +621,14 @@ export function NarrativeView({
         onClick={handleProseClick}
       >
         {editorBuffer === null && (
-          <FiberHeader
-            frontmatter={content.frontmatter ?? {}}
-            graphNode={currentNode}
-            lede={lede}
-          />
+          <>
+            <FiberHeader
+              frontmatter={content.frontmatter ?? {}}
+              graphNode={currentNode}
+              lede={lede}
+            />
+            <AuthoringLintStrip messages={content.messages} />
+          </>
         )}
 
         {editorBuffer !== null ? (

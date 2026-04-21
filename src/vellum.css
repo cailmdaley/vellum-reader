@@ -6437,3 +6437,123 @@ a.pretext-prose-frag:hover {
 }
 .vellum-prose-compat .myst-proof-body > :first-child { margin-top: 0; }
 .vellum-prose-compat .myst-proof-body > :last-child { margin-bottom: 0; }
+
+/* ── Authoring lint strip (Pass 8 step 2) ─────────────────────────────
+ * Compact single-line surface under the fiber masthead that shows
+ * `myst-parser` lint messages emitted during the page's parse (see
+ * `AuthoringLintStrip.tsx`, `mystra/src/types/content-server.ts:LintMessage`).
+ * Top severity drives the glyph color; expanded form groups rows by
+ * severity and shows ruleId + reason + source:line:column.
+ * Theme-agnostic — shared palette tokens only.
+ */
+.vellum-authoring-lint {
+  margin: 1rem 0 1.25rem;
+  padding: 0;
+  font-family: var(--font-spectral, var(--ui-font, system-ui));
+  font-size: 0.82rem;
+  color: var(--ink-muted, #7A7368);
+}
+.vellum-authoring-lint__toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  width: 100%;
+  padding: 0.35em 0.6em;
+  background: transparent;
+  border: 1px solid rgba(122, 115, 104, 0.25);
+  border-radius: 2px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.vellum-authoring-lint__toggle:hover {
+  background: rgba(122, 115, 104, 0.05);
+  border-color: rgba(122, 115, 104, 0.45);
+}
+.vellum-authoring-lint--error .vellum-authoring-lint__toggle {
+  border-color: rgba(181, 69, 58, 0.45);
+}
+.vellum-authoring-lint__glyph {
+  font-size: 0.7em;
+  line-height: 1;
+  display: inline-block;
+  transform: translateY(-0.15em);
+}
+.vellum-authoring-lint__glyph[data-severity='error'],
+.vellum-authoring-lint__row-glyph[data-severity='error'] {
+  color: var(--rubric, #B5453A);
+}
+.vellum-authoring-lint__glyph[data-severity='warning'],
+.vellum-authoring-lint__row-glyph[data-severity='warning'] {
+  color: #C08A2E;
+}
+.vellum-authoring-lint__glyph[data-severity='info'],
+.vellum-authoring-lint__row-glyph[data-severity='info'] {
+  color: var(--ink-muted, #7A7368);
+}
+.vellum-authoring-lint__summary {
+  color: var(--ink, #1F1A15);
+  font-variant-numeric: tabular-nums;
+}
+.vellum-authoring-lint__label {
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  margin-left: auto;
+}
+.vellum-authoring-lint__caret {
+  font-size: 0.8em;
+  color: var(--ink-muted);
+}
+.vellum-authoring-lint__list {
+  list-style: none;
+  margin: 0.5em 0 0;
+  padding: 0.4em 0.6em;
+  border: 1px solid rgba(122, 115, 104, 0.2);
+  border-top: none;
+  border-radius: 0 0 2px 2px;
+  background: rgba(122, 115, 104, 0.03);
+  font-size: 0.82rem;
+}
+.vellum-authoring-lint__row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: baseline;
+  column-gap: 0.6em;
+  padding: 0.25em 0;
+  border-bottom: 1px dotted rgba(122, 115, 104, 0.15);
+}
+.vellum-authoring-lint__row:last-child { border-bottom: none; }
+.vellum-authoring-lint__row-glyph {
+  font-size: 0.7em;
+  line-height: 1;
+  transform: translateY(-0.1em);
+}
+.vellum-authoring-lint__rule {
+  font-family: var(--font-mono, 'IBM Plex Mono', ui-monospace, monospace);
+  font-size: 0.78em;
+  color: var(--ink-muted);
+  background: rgba(122, 115, 104, 0.08);
+  padding: 0 0.4em;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.vellum-authoring-lint__reason {
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.vellum-authoring-lint__loc {
+  font-family: var(--font-mono, 'IBM Plex Mono', ui-monospace, monospace);
+  font-size: 0.78em;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.vellum-authoring-lint__note {
+  grid-column: 3 / -1;
+  color: var(--ink-muted);
+  font-style: italic;
+  margin-top: 0.15em;
+}

@@ -18,6 +18,27 @@ export interface FiberContent {
   frontmatter: Record<string, any>;
   references?: any;
   dependencies?: string[];
+  /**
+   * Authoring-lint messages emitted by `myst-parser` during the page's
+   * parse (Pass 8). Mirror of mystra's `PageContent.messages` — see
+   * `mystra/src/types/content-server.ts:LintMessage`. Absent when the
+   * page had zero warnings; callers should treat `undefined` as `[]`.
+   */
+  messages?: LintMessage[];
+}
+
+/**
+ * Vellum-side mirror of `mystra/src/types/content-server.ts:LintMessage`.
+ * Kept in sync by convention — any field added there should appear here.
+ */
+export interface LintMessage {
+  reason: string;
+  severity: 'error' | 'warning' | 'info';
+  ruleId?: string;
+  source?: string;
+  line?: number;
+  column?: number;
+  note?: string;
 }
 
 /**
