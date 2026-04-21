@@ -1701,6 +1701,26 @@ body {
   height: 100%;
   object-fit: cover;
 }
+/* Pass 9b step 7 follow-up: subtle ring on hover / active for figure chips.
+   The generic .margin-glyph--active .margin-glyph__dot { transform: scale(1.2) }
+   rule makes a 20×15 raster thumb look pixelated; a 1px rubricated outline
+   reads as "attention" without scaling the image. Active wins over hover so
+   pinned chips stay visibly distinguished from transient hovers. */
+.margin-glyph:hover .margin-glyph__dot--figure {
+  outline: 1px solid var(--rubric, currentColor);
+  outline-offset: 1px;
+}
+.margin-glyph--active .margin-glyph__dot--figure {
+  outline: 1px solid var(--rubric, currentColor);
+  outline-offset: 2px;
+}
+/* Cancel the default scale(1.2) transform for figure dots — scaling a 20×15
+   raster thumb reads as pixelation, not attention. The outline carries the
+   hover / active signal instead. */
+.margin-glyph:hover .margin-glyph__dot--figure,
+.margin-glyph--active .margin-glyph__dot--figure {
+  transform: none;
+}
 .margin-glyph--astra .margin-glyph__kind-name {
   font-size: 0.7rem;
   font-family: 'Spectral', 'EB Garamond', Georgia, serif;
