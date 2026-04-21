@@ -1680,6 +1680,27 @@ body {
   font-size: 0.85rem;
   line-height: 1;
 }
+/* Pass 9b step 7 prep: when an ASTRA chip resolves to a figure-bearing
+   host (output/finding with a figure-kind evidence entry), the leading
+   dot slot becomes a small thumbnail. Restrained default — 20×15 so it
+   reads "chip with preview" rather than "inline image", preserving the
+   compact-chip rail's vertical rhythm. Visual tuning (size, border,
+   hover lift, broken-state fallback) is the chrome-equipped follow-up. */
+.margin-glyph__dot--figure {
+  width: 20px;
+  height: 15px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 2px;
+  vertical-align: middle;
+  background: var(--surface-warm, #f6efe0);
+}
+.margin-glyph__thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .margin-glyph--astra .margin-glyph__kind-name {
   font-size: 0.7rem;
   font-family: 'Spectral', 'EB Garamond', Georgia, serif;

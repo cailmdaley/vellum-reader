@@ -108,6 +108,26 @@ export interface ThemeLayout {
    *   margin rail once per-anchor thumbnails land.
    */
   figureGallery: 'off' | 'section-end';
+  /**
+   * Per-anchor figure thumbnails in the margin rail.
+   *
+   * - `'off'` — ASTRA chips render as plain kind/label chips regardless of
+   *   whether the anchored host carries figures (`cail-personal`,
+   *   `lightcone-linear` — no margin rail at all).
+   * - `'on'` — when an ASTRA chip's href matches a collected figure's
+   *   anchor (`#outputs.<id>` or `#findings.<key>` per
+   *   `collectFigures(currentNode)`), the chip's leading glyph becomes a
+   *   small thumbnail of that figure instead of the kind symbol. The
+   *   chip's label and caret behave as the `chipShape` says; only the
+   *   dot slot changes. Section-end `FigureGallery` remains the overflow
+   *   / gather surface.
+   *
+   * Pass 9b step 7 prep: this flag gates the structural wiring only; the
+   * visual tune (thumbnail size, hover affordance, contrast with the
+   * dashed-broken rule) lands in a chrome-equipped iteration. Default off
+   * everywhere until then.
+   */
+  marginFigureThumbs: 'off' | 'on';
 }
 
 export type ThemeComponentSlot =

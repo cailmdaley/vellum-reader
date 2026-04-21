@@ -55,5 +55,9 @@ export const lightconeLinearTheme: ThemeConfig = {
     // bounds density" — a trailing gallery would reintroduce the overflow
     // bucket the paper-shaped pseudo-sections are designed to avoid.
     figureGallery: 'off',
+    // No margin rail under `lightcone-linear` (`marginColumn: 'none'`), so
+    // this flag has no render target. Set explicitly to `'off'` to prevent
+    // accidental activation if a future theme-compose shares layout shapes.
+    marginFigureThumbs: 'off',
   },
 };

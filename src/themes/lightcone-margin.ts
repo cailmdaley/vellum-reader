@@ -54,5 +54,12 @@ export const lightconeMarginTheme: ThemeConfig = {
     // adapter lands (chrome-equipped follow-up), the trailing gallery is
     // the primary figure surface under `lightcone-margin`.
     figureGallery: 'section-end',
+    // Pass 9b step 7 prep: structural wiring lands default-off. The chrome-
+    // equipped follow-up flips this to `'on'` and tunes thumbnail size,
+    // caret-hover contrast, and line-Y under the compact-chip rail. Keeping
+    // default-off here means the rail visual is unchanged this iteration;
+    // the data pipeline (`collectFigures` + `indexFiguresByAnchor`) is
+    // resolved and the render branch exists, ready to light up on toggle.
+    marginFigureThumbs: 'off',
   },
 };

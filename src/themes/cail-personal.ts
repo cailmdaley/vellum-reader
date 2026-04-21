@@ -46,5 +46,9 @@ export const cailPersonalTheme: ThemeConfig = {
     // output cards in the appendix. Adding a trailing grid duplicates
     // without new information. Cail can opt in by flipping this flag.
     figureGallery: 'off',
+    // Power-user baseline: kind-name chips carry signal; thumbnails would
+    // duplicate the existing evidence-thumbnail surface in finding cards
+    // plus the appendix's figure-kind output cards. Cail can opt in.
+    marginFigureThumbs: 'off',
   },
 };

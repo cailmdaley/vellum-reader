@@ -20,8 +20,9 @@
  * with a MIN_GAP floor so overlapping Y values don't collide.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GraphNode } from '~/utils/content-types';
+import { collectFigures, indexFiguresByAnchor, type CollectedFigure } from '~/utils/collect-figures';
 import { useHoverGrace } from '~/hooks/useHoverGrace';
 import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
 import { glyphForNode, statusClass } from '~/utils/fiber-status';
@@ -155,6 +156,18 @@ export function MarginCitations({
   parentSubSlugs,
 }: MarginCitationsProps) {
   const { theme } = useTheme();
+  // Per-anchor figure lookup for the margin-chip thumbnail render branch.
+  // Cheap memo: only re-indexes when the page's GraphNode identity changes.
+  // When multiple figures share one anchor (e.g. a finding with several
+  // figure-kind evidence entries), the first one wins as the chip thumbnail
+  // — the section-end FigureGallery carries the rest.
+  const figureByAnchor = useMemo<Map<string, CollectedFigure>>(() => {
+    if (theme.layout.marginFigureThumbs !== 'on' || !currentNode) return new Map();
+    const grouped = indexFiguresByAnchor(collectFigures(currentNode));
+    const first = new Map<string, CollectedFigure>();
+    for (const [anchor, figs] of grouped) if (figs[0]) first.set(anchor, figs[0]);
+    return first;
+  }, [theme.layout.marginFigureThumbs, currentNode]);
   // NarrativeCounter mounts only under `persistent`. Keep the rail-top
   // branch keyed on that single condition so adding a new marginColumn
   // value doesn't silently shift chip positioning.
@@ -512,6 +525,7 @@ export function MarginCitations({
             scheduleClose,
             setActiveKey,
             groupTop: group.top,
+            figureByAnchor,
             pinItem: (it, gt) => {
               const content: CardContent | null = it.kind === 'fiber'
                 ? { type: 'fiber', node: it.node }
@@ -613,6 +627,13 @@ interface GlyphRenderCtx {
   setActiveKey: React.Dispatch<React.SetStateAction<string | null>>;
   pinItem: (item: GlyphItem, groupTop: number) => void;
   groupTop: number;
+  /**
+   * Per-anchor figure lookup. Non-empty only when `theme.layout.marginFigureThumbs
+   * === 'on'` and the current page is an ASTRA graph node. When an ASTRA chip's
+   * href hits this map, the chip's leading dot slot renders as a <img> thumbnail
+   * instead of the kind symbol. Empty map is the no-op case.
+   */
+  figureByAnchor: Map<string, CollectedFigure>;
 }
 
 function renderGlyph(
@@ -657,9 +678,11 @@ function renderGlyph(
   }
 
   // ASTRA anchor glyph
+  const figure = ctx.figureByAnchor.get(item.href) ?? null;
   const cls =
     `margin-glyph margin-glyph--astra margin-glyph--astra-${item.anchorKind}` +
     (item.broken ? ' margin-glyph--astra-broken' : '') +
+    (figure ? ' margin-glyph--astra-figure' : '') +
     (active ? ' margin-glyph--active' : '');
   const symbol = KIND_SYMBOL[item.anchorKind];
   const kindName = KIND_LEGEND[item.anchorKind];
@@ -689,7 +712,19 @@ function renderGlyph(
           : `${kindName}: ${item.label}`
       }
     >
-      <span className="margin-glyph__dot" aria-hidden="true">{symbol}</span>
+      {figure ? (
+        <span className="margin-glyph__dot margin-glyph__dot--figure" aria-hidden="true">
+          <img
+            className="margin-glyph__thumb"
+            src={figure.src}
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
+        </span>
+      ) : (
+        <span className="margin-glyph__dot" aria-hidden="true">{symbol}</span>
+      )}
       {chipShape === 'label-caret' ? (
         <>
           <span className="margin-glyph__astra-label">{item.label}</span>
