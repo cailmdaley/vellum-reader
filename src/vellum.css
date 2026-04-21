@@ -1771,6 +1771,12 @@ body {
 .margin-glyph--active .margin-glyph__caret {
   opacity: 1;
 }
+/* Broken-anchor chips already show a ⚠ sigil and drop to 0.55 opacity —
+   the caret would read as "navigable" which it isn't. Suppress it so the
+   warning sits cleanly after the label. */
+.margin-glyph--astra-broken .margin-glyph__caret {
+  display: none;
+}
 
 .margin-glyph--astra-broken {
   opacity: 0.55;

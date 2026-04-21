@@ -335,8 +335,17 @@ export function resolveAstraLabel(
     return parentSubLabels?.get(parsed.id) ?? parsed.id;
   }
   switch (parsed.kind) {
-    case 'findings':
-      return parsed.id;
+    case 'findings': {
+      // `label?` added to findings/insights by astra-spec feature/narrative
+      // (see GraphFinding in content-types.ts). Margin chip + ToC rail
+      // resolve `label ?? key` per themes-constitution §6. Without this
+      // the chip falls back to the raw snake_case id
+      // (e.g. `bao_detection_highest_significance`) which tanks
+      // margin-scan legibility under `lightcone-margin`'s label-caret
+      // chip shape.
+      const finding = node.findings?.find((f) => f.key === parsed.id);
+      return finding?.label ?? parsed.id;
+    }
     case 'decisions': {
       const decision = node.decisions?.find((d) => d.key === parsed.id);
       if (!decision) return parsed.id;
@@ -347,10 +356,14 @@ export function resolveAstraLabel(
       }
       return decision.label ?? parsed.id;
     }
-    case 'outputs':
-      return node.outputs?.find((o) => o.id === parsed.id)?.id ?? parsed.id;
-    case 'inputs':
-      return node.inputs?.find((i) => i.id === parsed.id)?.id ?? parsed.id;
+    case 'outputs': {
+      const output = node.outputs?.find((o) => o.id === parsed.id);
+      return output?.label ?? output?.id ?? parsed.id;
+    }
+    case 'inputs': {
+      const input = node.inputs?.find((i) => i.id === parsed.id);
+      return input?.label ?? input?.id ?? parsed.id;
+    }
     case 'analyses':
       return subAnalysisLabels?.get(parsed.id) ?? parsed.id;
   }
