@@ -677,8 +677,15 @@ function renderGlyph(
     );
   }
 
-  // ASTRA anchor glyph
-  const figure = ctx.figureByAnchor.get(item.href) ?? null;
+  // ASTRA anchor glyph. Broken anchors short-circuit the figure branch: the
+  // ⚠ marker is the load-bearing signal for the reader, and a thumbnail next
+  // to it would make the chip read as "this figure is broken" when the real
+  // failure is the anchor itself not resolving. Fall back to the kind glyph +
+  // ⚠ instead. (Defensive — `collectFigures` only walks the current fiber's
+  // resolved ASTRA tree, so a broken anchor with a figure collected off its
+  // href shouldn't happen today; this keeps that assumption from leaking into
+  // visual state if `figureByAnchor` is ever sourced more widely.)
+  const figure = item.broken ? null : (ctx.figureByAnchor.get(item.href) ?? null);
   const cls =
     `margin-glyph margin-glyph--astra margin-glyph--astra-${item.anchorKind}` +
     (item.broken ? ' margin-glyph--astra-broken' : '') +
