@@ -1241,6 +1241,107 @@ body {
   gap: 5px;
 }
 
+/* ── Preprint masthead (Pass 6) ─────────────────────────────
+   Authors row sits immediately under the title, inside the cartouche
+   (above the rubric rule). Keywords + publication metadata sit below
+   the rule, anchored to the page masthead as a secondary register.
+   Everything is optional: missing fields simply render nothing. */
+.vellum-fiber-header__authors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1em 1.1em;
+  margin: 0.25rem 0 0.4rem;
+  font-family: 'Spectral', Georgia, serif;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  color: var(--ink);
+  font-variant-numeric: oldstyle-nums;
+}
+
+.vellum-fiber-header__author {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+}
+
+.vellum-fiber-header__author-name {
+  font-style: italic;
+}
+
+.vellum-fiber-header__orcid {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  padding: 0 0.3em;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  text-decoration: none;
+  line-height: 1.3;
+  vertical-align: baseline;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+.vellum-fiber-header__orcid:hover { opacity: 1; }
+
+/* Masthead meta below the rubric rule. Pushed down past the rule
+   using the same narrative-counter var the ::after line snaps to, so
+   keyword chips and pubmeta sit visually beneath the threshold. */
+.vellum-fiber-header__masthead-meta {
+  position: relative;
+  margin-top: calc(var(--narrative-counter-height, 0.4rem) + 0.9rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.vellum-fiber-header__keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+}
+
+.vellum-fiber-header__keyword {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  opacity: 0.82;
+}
+
+.vellum-fiber-header__pubmeta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.8rem;
+  row-gap: 0.15rem;
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.vellum-fiber-header__pubmeta dt {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  opacity: 0.72;
+  padding-top: 0.1em;
+}
+.vellum-fiber-header__pubmeta dd {
+  margin: 0;
+  color: var(--ink);
+}
+.vellum-fiber-header__pubmeta dd a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .vellum-tag {
   background: var(--gold-faint);
   color: var(--gold);
