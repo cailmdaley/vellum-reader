@@ -92,6 +92,22 @@ export interface ThemeLayout {
    *   convergent shape).
    */
   cardStacking: 'stack' | 'exclusive';
+  /**
+   * Section-end figure gallery.
+   *
+   * - `'off'` — no trailing gallery. Figures live only inside their host
+   *   cards (`cail-personal` today — the persistent margin rail + finding
+   *   cards already surface figures), or inline beneath their owning
+   *   finding/output (`lightcone-linear` — structure bounds density).
+   * - `'section-end'` — mount `FigureGallery` below the narrative prose
+   *   (after `AstraAppendix`). Walks `collectFigures(currentNode)`,
+   *   renders each as a thumbnail + caption strip, click opens the
+   *   lightbox with the full gallery carousel. `lightcone-margin`
+   *   default — until the per-anchor margin adapter lands, the trailing
+   *   gallery is the primary figure surface. Overflow bucket for the
+   *   margin rail once per-anchor thumbnails land.
+   */
+  figureGallery: 'off' | 'section-end';
 }
 
 export type ThemeComponentSlot =

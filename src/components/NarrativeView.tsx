@@ -16,6 +16,7 @@ import { ArticleProvider } from '@myst-theme/providers';
 import { FiberHeader } from './FiberHeader';
 import { AuthoringLintStrip } from './AuthoringLintStrip';
 import { AstraAppendix } from './AstraAppendix';
+import { FigureGallery } from './FigureGallery';
 import { MarginCitations } from './MarginCitations';
 import { NarrativeCounter } from './NarrativeCounter';
 import { GutterHoverCard } from './GutterHoverCard';
@@ -666,6 +667,10 @@ export function NarrativeView({
             subAnalysisLabels={subAnalysisLabels}
             subAnalysisSlugs={childSubSlugs}
           />
+        )}
+
+        {editorBuffer === null && theme.layout.figureGallery === 'section-end' && (
+          <FigureGallery node={currentNode} />
         )}
       </article>
 

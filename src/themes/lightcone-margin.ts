@@ -48,5 +48,11 @@ export const lightconeMarginTheme: ThemeConfig = {
     // CSS gates those rules on `:root:not([data-theme="lightcone-margin"])`.
     chipShape: 'label-caret',
     cardStacking: 'exclusive',
+    // Pass 9b step 6: section-end FigureGallery mounts below the narrative
+    // prose. Walks outputs + finding-evidence for kind=figure via
+    // `collectFigures(currentNode)`. Until the per-anchor margin-rail figure
+    // adapter lands (chrome-equipped follow-up), the trailing gallery is
+    // the primary figure surface under `lightcone-margin`.
+    figureGallery: 'section-end',
   },
 };

@@ -40,5 +40,11 @@ export const cailPersonalTheme: ThemeConfig = {
     // several cards side-by-side while reading; the margin rail is the
     // persistent surface and the canvas is the scratchpad.
     cardStacking: 'stack',
+    // Power-user baseline: no section-end gallery. Figures are already
+    // visible through (a) the persistent margin rail (kind-name chips),
+    // (b) finding cards with inline evidence thumbnails, (c) figure-kind
+    // output cards in the appendix. Adding a trailing grid duplicates
+    // without new information. Cail can opt in by flipping this flag.
+    figureGallery: 'off',
   },
 };

@@ -5811,6 +5811,118 @@ a.pretext-prose-frag:hover {
   padding-left: 1rem;
 }
 
+/* ------------------------------------------------------------------
+   FigureGallery (Pass 9b step 6)
+   Section-end trailing grid of every output + finding-evidence figure
+   in the fiber. Mounted under `lightcone-margin` only via
+   theme.layout.figureGallery === 'section-end'. Shares the cartouche
+   divider language with AstraAppendix so the two read as sibling
+   plates below the narrative.
+   ------------------------------------------------------------------ */
+.astra-figure-gallery {
+  margin-top: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.astra-figure-gallery__divider {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+  opacity: 0.85;
+}
+
+.astra-figure-gallery__divider-label {
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-style: normal;
+  text-transform: lowercase;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+}
+
+.astra-figure-gallery__count {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.astra-figure-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem 1rem;
+}
+
+.astra-figure-gallery__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: zoom-in;
+}
+
+.astra-figure-gallery__tile:focus-visible {
+  outline: 2px solid var(--rubric);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.astra-figure-gallery__thumb {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface, #faf8f3);
+  aspect-ratio: 4 / 3;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.astra-figure-gallery__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.astra-figure-gallery__tile:hover .astra-figure-gallery__thumb {
+  border-color: var(--rubric);
+}
+
+.astra-figure-gallery__caption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.astra-figure-gallery__label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  word-break: break-word;
+}
+
+.astra-figure-gallery__desc {
+  font-family: 'Spectral', 'EB Garamond', serif;
+  font-size: 0.88rem;
+  line-height: 1.38;
+  color: var(--text);
+  opacity: 0.88;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* File viewer page — read and edit surface */
 .vellum-file-viewer-page {
   display: flex;

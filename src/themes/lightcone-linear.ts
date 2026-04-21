@@ -50,5 +50,10 @@ export const lightconeLinearTheme: ThemeConfig = {
     // from AstraAppendix or an inline anchor, keep stacking so multiple
     // expanded cards can sit side-by-side on the canvas.
     cardStacking: 'stack',
+    // Figures group under their owning finding/output in the narrative +
+    // AstraAppendix, not in a trailing grid. Per constitution §3: "structure
+    // bounds density" — a trailing gallery would reintroduce the overflow
+    // bucket the paper-shaped pseudo-sections are designed to avoid.
+    figureGallery: 'off',
   },
 };
