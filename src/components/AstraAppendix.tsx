@@ -125,6 +125,37 @@ export function AstraAppendix({
     return () => document.removeEventListener('vellum:expand-appendix-row', handler);
   }, [collapsedTray]);
 
+  // Parent-escape refs (`../decisions.id`) navigate here with a hash like
+  // `#decisions.id`; re-dispatch the expand event once per mount/node-change
+  // so the target tray row opens and scrolls into view on arrival. Runs after
+  // a RAF to let the initial render mount the row DOM nodes the handler
+  // above scrolls to.
+  useEffect(() => {
+    if (!collapsedTray) return;
+    if (!node) return;
+    const hash = window.location.hash.replace(/^#/, '');
+    if (!hash) return;
+    const m = hash.match(/^(findings|decisions|outputs|inputs)\.([^.]+)$/);
+    if (!m) return;
+    const kindFromHash =
+      m[1] === 'findings'
+        ? ('finding' as const)
+        : m[1] === 'decisions'
+          ? ('decision' as const)
+          : m[1] === 'outputs'
+            ? ('output' as const)
+            : ('input' as const);
+    requestAnimationFrame(() => {
+      document.dispatchEvent(
+        new CustomEvent('vellum:expand-appendix-row', {
+          detail: { kind: kindFromHash, id: m[2] },
+        }),
+      );
+    });
+    // Clear the hash so subsequent navigations don't re-trigger.
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }, [collapsedTray, node?.slug]);
+
   if (!node) return null;
 
   const decisions = node.decisions ?? [];

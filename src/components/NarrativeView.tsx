@@ -248,7 +248,7 @@ export function NarrativeView({
    * `parentSubSlugs` keeps the full slug per key so the click handler can
    * navigate without rebuilding it from path parts.
    */
-  const { childSubKeys, subAnalysisLabels, childSubSlugs, parentSubKeys, parentSubLabels, parentSubSlugs } = useMemo(() => {
+  const { childSubKeys, subAnalysisLabels, childSubSlugs, parentSubKeys, parentSubLabels, parentSubSlugs, parentNode } = useMemo(() => {
     if (!currentNode || !graphLinks) {
       return {
         childSubKeys: undefined,
@@ -257,6 +257,7 @@ export function NarrativeView({
         parentSubKeys: undefined,
         parentSubLabels: undefined,
         parentSubSlugs: undefined,
+        parentNode: undefined,
       };
     }
     const nodeById = new Map(graphNodes.map((n) => [n.id, n]));
@@ -289,8 +290,10 @@ export function NarrativeView({
         parentSubKeys: undefined,
         parentSubLabels: undefined,
         parentSubSlugs: undefined,
+        parentNode: undefined,
       };
     }
+    const parent = nodeById.get(inbound.source);
     const pKeys = new Set<string>();
     const pLabels = new Map<string, string>();
     const pSlugs = new Map<string, string>();
@@ -312,6 +315,7 @@ export function NarrativeView({
       parentSubKeys: pKeys,
       parentSubLabels: pLabels,
       parentSubSlugs: pSlugs,
+      parentNode: parent,
     };
   }, [currentNode, graphLinks, graphNodes]);
 
@@ -463,6 +467,26 @@ export function NarrativeView({
           return;
         }
       }
+      // Parent-escape refs (`../findings.id`, `../decisions.id`, `../outputs.id`,
+      // `../inputs.id`) resolve against the parent node and navigate there,
+      // carrying a hash so the parent's AstraAppendix can auto-expand the
+      // targeted row after load. Without this, off-page refs silently no-op.
+      if (parsed.parentEscapes === 1 && parentNode && parsed.kind !== 'analyses') {
+        const host = parentNode;
+        const found =
+          parsed.kind === 'decisions'
+            ? host.decisions?.find((d) => d.key === parsed.id)
+            : parsed.kind === 'findings'
+              ? host.findings?.find((f) => f.key === parsed.id)
+              : parsed.kind === 'outputs'
+                ? host.outputs?.find((o) => o.id === parsed.id)
+                : parsed.kind === 'inputs'
+                  ? host.inputs?.find((i) => i.id === parsed.id)
+                  : null;
+        if (!found) return;
+        navigate(`/${host.slug}#${parsed.kind}.${parsed.id}`);
+        return;
+      }
       switch (parsed.kind) {
         case 'decisions': {
           const decision = currentNode.decisions?.find((d) => d.key === parsed.id);
@@ -519,7 +543,7 @@ export function NarrativeView({
       return;
     }
     openCard({ type: 'fiber', node });
-  }, [graphNodes, navigate, currentNode, parentSubSlugs, content.slug, themeId]);
+  }, [graphNodes, navigate, currentNode, parentSubSlugs, parentNode, content.slug, themeId]);
 
   return (
     <div className="vellum-prose-wrapper" ref={wrapperRef}>
