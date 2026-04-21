@@ -54,12 +54,15 @@ export const lightconeMarginTheme: ThemeConfig = {
     // adapter lands (chrome-equipped follow-up), the trailing gallery is
     // the primary figure surface under `lightcone-margin`.
     figureGallery: 'section-end',
-    // Pass 9b step 7 prep: structural wiring lands default-off. The chrome-
-    // equipped follow-up flips this to `'on'` and tunes thumbnail size,
-    // caret-hover contrast, and line-Y under the compact-chip rail. Keeping
-    // default-off here means the rail visual is unchanged this iteration;
-    // the data pipeline (`collectFigures` + `indexFiguresByAnchor`) is
-    // resolved and the render branch exists, ready to light up on toggle.
-    marginFigureThumbs: 'off',
+    // Pass 9b step 7 flip (iter 34): thumbnails live on the compact-chip rail.
+    // When an ASTRA anchor resolves to a finding/output carrying a figure-kind
+    // evidence entry, the chip's leading dot slot renders as a small <img>
+    // instead of the kind symbol. The section-end FigureGallery remains the
+    // full-size surface — the rail thumb is a "there's a figure here" cue.
+    // Broken anchors short-circuit the lookup (MarginCitations.tsx ~688) so
+    // the ⚠ remains the load-bearing signal on failed anchors. Visual tuning
+    // (size 20×15, rounded border, warm-surface fallback) lives in the
+    // `.margin-glyph__dot--figure` block in vellum.css.
+    marginFigureThumbs: 'on',
   },
 };
