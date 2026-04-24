@@ -34,7 +34,10 @@ export interface WorkspaceMountProps {
 export function WorkspaceMount({ initialSlug = '' }: WorkspaceMountProps) {
   const initialPath = initialSlug ? `/${initialSlug.replace(/^\/+/, '')}` : '/';
   return (
-    <MemoryRouter initialEntries={[initialPath]}>
+    <MemoryRouter
+      initialEntries={[initialPath]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <ThemeProvider theme={null} setTheme={() => {}} renderers={vellumRenderers}>
         <DecisionFlipProvider>
           <ModeProvider>
