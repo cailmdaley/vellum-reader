@@ -177,7 +177,11 @@ export function FiberPage() {
   }, [currentNode, graph.links, graph.nodes]);
 
   return (
-    <div className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}`}>
+    <div
+      className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}`}
+      role="region"
+      aria-label={currentNode ? `Vellum — ${currentNode.label}` : 'Vellum'}
+    >
       <HotReloadListener onReload={reloadCurrentFiber} />
       <CanvasDivider />
       {/* The right side of every tab. The draggable divider and this aside

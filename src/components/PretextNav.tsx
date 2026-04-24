@@ -45,6 +45,13 @@ interface NavPiece {
   className: string;
   /** null for separator pieces, slug string for clickable items */
   slug: string | null;
+  /**
+   * Purely decorative pieces (status glyph, inter-piece spaces) stay
+   * clickable visually but are hidden from the a11y tree — otherwise
+   * every fiber renders as two separate 'link' nodes (glyph + label).
+   * Only the label piece carries role="link".
+   */
+  decorative: boolean;
 }
 
 interface NavLineFragment {
@@ -52,6 +59,7 @@ interface NavLineFragment {
   text: string;
   className: string;
   slug: string | null;
+  decorative: boolean;
 }
 
 interface NavLine {
@@ -78,6 +86,7 @@ function buildNavPieces(items: NavItem[]): NavPiece[] {
         breakMode: 'never',
         className: glyphCls,
         slug: item.slug,
+        decorative: true,
       });
       // Space between glyph and label — never break here
       pieces.push({
@@ -86,16 +95,18 @@ function buildNavPieces(items: NavItem[]): NavPiece[] {
         breakMode: 'never',
         className: cls,
         slug: item.slug,
+        decorative: true,
       });
     }
 
-    // Label text
+    // Label text — the single a11y-visible link for this item
     pieces.push({
       text: item.label,
       font: labelFont,
       breakMode: 'normal',
       className: cls,
       slug: item.slug,
+      decorative: false,
     });
 
     // Separator between items (not after the last one)
@@ -106,6 +117,7 @@ function buildNavPieces(items: NavItem[]): NavPiece[] {
         breakMode: 'normal',
         className: 'pretext-nav-sep',
         slug: null,
+        decorative: false,
       });
     }
   }
@@ -131,6 +143,7 @@ function layoutNav(
         text: frag.text,
         className: piece?.className ?? 'pretext-nav-frag',
         slug: piece?.slug ?? null,
+        decorative: piece?.decorative ?? false,
       };
     });
     lines.push({
@@ -203,6 +216,22 @@ export function PretextNav({ items, width: _width, onNavigate }: PretextNavProps
             cursor: frag.slug != null ? 'pointer' : undefined,
           };
           if (frag.slug != null) {
+            // Decorative pieces (status glyph, inter-piece spaces) stay
+            // visually clickable but are hidden from the a11y tree —
+            // otherwise every item renders as two separate 'link' nodes.
+            if (frag.decorative) {
+              return (
+                <span
+                  key={fragIdx}
+                  className={frag.className}
+                  style={style}
+                  aria-hidden="true"
+                  onClick={() => onNavigate(frag.slug!)}
+                >
+                  {frag.text}
+                </span>
+              );
+            }
             return (
               <span
                 key={fragIdx}
