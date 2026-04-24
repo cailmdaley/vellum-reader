@@ -101,6 +101,7 @@ export function ColumnHeader({ deltaCount = 0, children }: { deltaCount?: number
               key={id}
               className={`vellum-mode-tab${mode === id ? ' vellum-mode-tab--active' : ''}`}
               onClick={() => setMode(id)}
+              aria-label={`${label} view`}
               aria-current={mode === id ? 'true' : undefined}
             >
               {label}

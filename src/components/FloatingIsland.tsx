@@ -277,6 +277,7 @@ export function FloatingIsland({
               className={`thumb-index__mode thumb-index__mode--${id}${mode === id ? ' thumb-index__mode--active' : ''}`}
               onClick={() => setMode(id)}
               title={`${full} (${MODES.indexOf(MODES.find(m => m.id === id)!) + 1})`}
+              aria-label={`${full} view`}
               aria-current={mode === id ? 'true' : undefined}
             >
               <span className="thumb-index__mode-full">{full}</span>
