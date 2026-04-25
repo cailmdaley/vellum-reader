@@ -428,7 +428,7 @@ function DecisionCard({
       title={title}
       body={body}
       meta={meta}
-      ariaLabel={`Decision: ${decision.label}${effectiveOption ? ` — ${effectiveOption.label}` : ''}`}
+      ariaLabel={`Decision: ${decision.label.trim()}${effectiveOption ? ` — ${effectiveOption.label.trim()}` : ''}`}
       onClose={onClose}
       onOpenPage={handleOpenPage}
       openPageLabel="Open decision page"
@@ -698,7 +698,7 @@ function FindingCard({
       title={title}
       body={finding.claim}
       meta={finding.notes ?? finding.scope ?? null}
-      ariaLabel={`Finding${finding.hasEvidence ? ' (with evidence)' : ' (open)'}: ${finding.claim}`}
+      ariaLabel={`Finding${finding.hasEvidence ? ' (with evidence)' : ' (open)'}: ${finding.claim.trim()}`}
       onClose={onClose}
       className={className}
       below={() => {
@@ -734,7 +734,7 @@ function PlotCard({
       title={title}
       body={null}
       meta={content.src}
-      ariaLabel={`Figure: ${caption}`}
+      ariaLabel={`Figure: ${caption.trim()}`}
       onClose={onClose}
       className={className}
       below={({ innerWidth }) => (
