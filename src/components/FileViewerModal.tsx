@@ -95,22 +95,37 @@ export function FileViewerModal({
             <span className="vellum-file-viewer-page__status">{statusText}</span>
           )}
           <div className="vellum-modal-actions">
-            {annotations.length > 0 && headerAnnotationActions?.map((action) => (
-              <button
-                key={action.id}
-                type="button"
-                className="vellum-modal-btn vellum-modal-btn--bulk"
-                title={action.title ?? action.label}
-                onClick={(e) => {
-                  void action.onInvoke(annotationsRef.current, {
-                    anchor: e.currentTarget as HTMLElement,
-                  });
-                }}
-              >
-                {action.label}
-                <span className="vellum-modal-btn__count">{annotations.length}</span>
-              </button>
-            ))}
+            {annotations.length > 0 && headerAnnotationActions?.map((action) => {
+              // `applicableTo` prefilters: the button renders only when at
+              // least one annotation matches, and `onInvoke` receives just
+              // the matching subset. Without filtering, hosts (e.g.
+              // portolan's "Clear sent") would receive every annotation
+              // and act on annotations the user did not target.
+              const applicable = action.applicableTo
+                ? annotations.filter(action.applicableTo)
+                : annotations;
+              if (applicable.length === 0) return null;
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  className="vellum-modal-btn vellum-modal-btn--bulk"
+                  title={action.title ?? action.label}
+                  onClick={(e) => {
+                    const matched = action.applicableTo
+                      ? annotationsRef.current.filter(action.applicableTo)
+                      : annotationsRef.current;
+                    void action.onInvoke(matched, {
+                      anchor: e.currentTarget as HTMLElement,
+                      refreshAnnotations: handleRefresh,
+                    });
+                  }}
+                >
+                  {action.label}
+                  <span className="vellum-modal-btn__count">{applicable.length}</span>
+                </button>
+              );
+            })}
             {save && (
               <button
                 type="button"
