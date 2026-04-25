@@ -14,6 +14,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArticleProvider } from '@myst-theme/providers';
 import { FiberHeader } from './FiberHeader';
+import { ThemePicker } from './ThemePicker';
+import { FindingsProvider } from '~/contexts/FindingsContext';
+import { MarginFindingsStepper } from './MarginFindingsStepper';
 import { AuthoringLintStrip } from './AuthoringLintStrip';
 import { AstraAppendix } from './AstraAppendix';
 import { FigureGallery } from './FigureGallery';
@@ -135,6 +138,37 @@ function stripFrontmatterNodes(mdast: any, frontmatter: Record<string, any>, gra
   }
 
   return { mdast: { ...mdast, children: children.slice(i) }, lede };
+}
+
+/**
+ * Inject a sentinel mdast node — `{ type: 'astraFindingsStepper' }` —
+ * at the end of the findings narrative section, so PretextProse renders
+ * the stepper inline right after the findings prose. Safe to call with
+ * no findings heading or no findings; returns the tree unchanged.
+ *
+ * The section ends at the next heading of depth ≤ 2 or the end of the
+ * children list; the sentinel goes in just before that boundary so it
+ * sits within the findings section, not under "Methods".
+ */
+function injectFindingsStepper(mdast: any, findingsCount: number): any {
+  if (!mdast || findingsCount <= 0) return mdast;
+  const children: any[] = Array.isArray(mdast.children) ? [...mdast.children] : [];
+  const headingIdx = children.findIndex(
+    (c) =>
+      c?.type === 'heading' &&
+      (c.identifier === 'findings' || c.label === 'findings'),
+  );
+  if (headingIdx < 0) return mdast;
+  // Walk forward to the next depth-≤2 heading, or the end.
+  let end = headingIdx + 1;
+  while (end < children.length) {
+    const c = children[end];
+    if (c?.type === 'heading' && (c.depth ?? 99) <= 2) break;
+    end++;
+  }
+  const sentinel = { type: 'astraFindingsStepper' };
+  children.splice(end, 0, sentinel);
+  return { ...mdast, children };
 }
 
 export function NarrativeView({
@@ -368,8 +402,25 @@ export function NarrativeView({
       content.frontmatter ?? {},
       currentNode?.verdict,
     );
-    return { mdast: transformTweetEmbeds(stripped.mdast), lede: stripped.lede };
-  }, [content.mdast, content.frontmatter, currentNode?.verdict]);
+    const firstClassFindings = (currentNode?.findings ?? []).filter(
+      (f) => f.kind !== 'prior_insight',
+    );
+    // Inline stepper only in themes without a margin column. Margin themes
+    // render the stepper as an absolute-positioned card anchored to the
+    // findings heading (MarginFindingsStepper, below in the render).
+    const shouldInjectInline =
+      !showMarginColumn && firstClassFindings.length > 0;
+    const withStepper = shouldInjectInline
+      ? injectFindingsStepper(stripped.mdast, firstClassFindings.length)
+      : stripped.mdast;
+    return { mdast: transformTweetEmbeds(withStepper), lede: stripped.lede };
+  }, [
+    content.mdast,
+    content.frontmatter,
+    currentNode?.verdict,
+    currentNode?.findings,
+    showMarginColumn,
+  ]);
 
   // Outgoing cites from this fiber — counted for the marginalia counter
   // ("N refs" row). The graph builder emits one cites edge per
@@ -627,9 +678,27 @@ export function NarrativeView({
         className="vellum-prose vellum-prose--pretext"
         ref={proseRef}
         onClick={handleProseClick}
+        // Without aria-label the article's accessible name is auto-computed
+        // from descendant text, producing run-on strings like "themelinear
+        // marginpersonalPortolanportolanrootPortolan charts were medieval…"
+        // (theme-picker buttons + tags + h1 + lede). Naming the article
+        // after the fiber gives screen readers a clean landmark to land on,
+        // mirrors the FiberHeader's title resolution, and matches the same
+        // fix applied at the modal-container level (portolan 98bffa4).
+        aria-label={
+          content.frontmatter?.name ??
+          content.frontmatter?.title ??
+          currentNode?.label ??
+          'Untitled'
+        }
       >
         {editorBuffer === null && (
           <>
+            {/* Theme picker sits above the fiber title in every theme —
+                the FloatingIsland (where it used to live) is hidden in
+                lightcone-linear, so any chrome common to all three themes
+                belongs inside the prose column itself. */}
+            <ThemePicker />
             <FiberHeader
               frontmatter={content.frontmatter ?? {}}
               graphNode={currentNode}
@@ -651,10 +720,24 @@ export function NarrativeView({
             references={content.references ?? { cite: {}, footnotes: {} }}
             frontmatter={content.frontmatter ?? {}}
           >
-            <PretextProse
-              mdast={cleanAst}
-              contentWidth={contentWidth}
-            />
+            <FindingsProvider
+              findings={currentNode?.findings ?? []}
+              hostNode={currentNode}
+            >
+              <PretextProse
+                mdast={cleanAst}
+                contentWidth={contentWidth}
+              />
+              {/* Margin placement of the stepper, for themes whose layout
+                  carries a margin column. Sits beside the findings prose
+                  as a card rather than interrupting the narrative flow. */}
+              {showMarginColumn && (currentNode?.findings?.length ?? 0) > 0 && (
+                <MarginFindingsStepper
+                  proseRef={proseRef}
+                  wrapperRef={wrapperRef}
+                />
+              )}
+            </FindingsProvider>
           </ArticleProvider>
         )}
 
