@@ -7,7 +7,6 @@ import { FloatingIsland } from '~/components/FloatingIsland';
 import { HotReloadListener, type ReloadEvent } from '~/components/HotReloadListener';
 import { IndexView } from '~/components/IndexView';
 import { useCollection } from '~/contexts/CollectionContext';
-import { MapView } from '~/components/MapView';
 import { NarrativeView } from '~/components/NarrativeView';
 import { WorkspaceView } from '~/components/WorkspaceView';
 import { Canvas } from '~/components/Canvas';
@@ -21,8 +20,7 @@ import type { AstraGraph, FiberContent } from '~/utils/content-types';
 const MODE_KEYS: Record<string, Mode> = {
   '1': 'narrative',
   '2': 'workspace',
-  '3': 'map',
-  '4': 'delta',
+  '3': 'delta',
 };
 
 export function FiberPage() {
@@ -160,8 +158,8 @@ export function FiberPage() {
 
   // Carry the Workspace anatomy selection across mode switches: leaving
   // Workspace, if the user picked a different fiber in the right panel than
-  // the URL points at, promote that selection to the URL so Narrative and Map
-  // focus on it too.
+  // the URL points at, promote that selection to the URL so Narrative
+  // focuses on it too.
   const prevMode = useRef(mode);
   useEffect(() => {
     if (prevMode.current === 'workspace' && mode !== 'workspace' && anatomySlug && anatomySlug !== slug) {
@@ -201,9 +199,9 @@ export function FiberPage() {
           <CanvasDivider />
           {/* The right side of every tab. The draggable divider and this aside
               are always on screen, but what fills the aside is decided by the
-              active tab: Narrative leaves it empty for now, Workspace will show
+              active tab: Narrative leaves it empty for now, and Workspace shows
               the selected fiber's decomposition (decisions, findings, inputs,
-              outputs) as a column of cards, and Map is not built yet. */}
+              outputs) as a column of cards. */}
           <Canvas>
             {mode === 'workspace' && anatomyNode ? (
               <WorkspaceAnatomy
@@ -249,9 +247,9 @@ export function FiberPage() {
         </div>
       )}
 
-      {/* Workspace and Map both consume the AstraGraph. While it's still
-          loading, WorkspaceView's `nodeBySlug.get(currentSlug)` lookup misses
-          and the view renders "Fiber X not found" — a transient flash that
+      {/* Workspace consumes the AstraGraph. While it's still loading,
+          WorkspaceView's `nodeBySlug.get(currentSlug)` lookup misses and
+          the view renders "Fiber X not found" — a transient flash that
           looks like a real error. Show a loading indicator until the graph
           lands; the "not found" branch then signals a genuine miss. */}
       {mode === 'workspace' && graphLoading && (
@@ -273,22 +271,9 @@ export function FiberPage() {
         />
       )}
 
-      {mode === 'map' && graphLoading && (
-        <div className="vellum-loading">Loading <em>{slug || 'map'}</em>…</div>
-      )}
-
-      {mode === 'map' && !graphLoading && (
-        <MapView
-          nodes={graph.nodes}
-          links={graph.links}
-          currentSlug={slug}
-          changedIds={changedIds}
-        />
-      )}
-
       {/* Pinned cards are a Narrative-only affordance — they're anchored
           to prose line-y coordinates that don't exist in other modes, so
-          rendering them on Delta/Workspace/Map looks like ghost UI. */}
+          rendering them on Delta/Workspace looks like ghost UI. */}
       {mode === 'narrative' && <ContextCardLayer onNavigate={(s) => navigate(`/${s}`)} />}
 
       {mode === 'delta' && (

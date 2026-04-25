@@ -26,9 +26,6 @@ export default defineConfig({
             '@codemirror/view',
             '@replit/codemirror-vim',
           ],
-          // d3-* are only used by MapView; separate so the reader-only path
-          // doesn't pay for the graph visualization.
-          d3: ['d3-force', 'd3-selection', 'd3-zoom'],
           // MyST prose renderer is large enough to warrant its own vendor chunk.
           myst: ['myst-to-react', '@myst-theme/providers'],
         },

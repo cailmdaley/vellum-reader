@@ -32,7 +32,6 @@ import { PretextNav, type NavItem } from './PretextNav';
 const MODES: { id: Mode; letter: string; full: string }[] = [
   { id: 'narrative', letter: 'N', full: 'Narrative' },
   { id: 'workspace', letter: 'W', full: 'Workspace' },
-  { id: 'map', letter: 'M', full: 'Map' },
   { id: 'delta', letter: 'Δ', full: 'Delta' },
 ];
 
@@ -40,7 +39,7 @@ const MODES: { id: Mode; letter: string; full: string }[] = [
  * Width tier for progressive disclosure. Measured via ResizeObserver
  * on the thumb-index root element.
  *   wide   (>350px): full mode labels (Narrative, Workspace…), all nav
- *   medium (200–350px): short labels (N, W, M, Δ), parent + proximal siblings
+ *   medium (200–350px): short labels (N, W, Δ), parent + proximal siblings
  *   narrow (<200px): letters only, parent arrow, search icon
  */
 type WidthTier = 'wide' | 'medium' | 'narrow';

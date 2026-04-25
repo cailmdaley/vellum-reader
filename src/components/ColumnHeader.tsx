@@ -20,7 +20,6 @@ import { statusGlyph } from '~/utils/fiber-status';
 const MODES: { id: Mode; label: string }[] = [
   { id: 'narrative', label: 'Narrative' },
   { id: 'workspace', label: 'Workspace' },
-  { id: 'map', label: 'Map' },
   { id: 'delta', label: 'Delta' },
 ];
 

@@ -532,8 +532,6 @@ body {
 .thumb-index__mode--narrative.thumb-index__mode--active,
 .thumb-index__mode--workspace:hover,
 .thumb-index__mode--workspace.thumb-index__mode--active,
-.thumb-index__mode--map:hover,
-.thumb-index__mode--map.thumb-index__mode--active,
 .thumb-index__mode--delta:hover,
 .thumb-index__mode--delta.thumb-index__mode--active {
   color: var(--counter);
@@ -2467,47 +2465,6 @@ body {
   color: var(--gold);
 }
 
-/* ── Map View ── */
-.vellum-map {
-  width: 100%;
-  height: calc(100vh - 5rem);
-  position: relative;
-  overflow: hidden;
-}
-
-.vellum-map__canvas {
-  width: 100%;
-  height: 100%;
-  background: #E8DDD0;
-  border-radius: 2px;
-}
-
-.vellum-map__canvas svg {
-  display: block;
-}
-
-.vellum-map__tooltip {
-  display: none;
-  position: fixed;
-  z-index: 10000;
-  background: var(--prose-bg);
-  border: 1px solid rgba(122, 115, 104, 0.35);
-  border-radius: 6px;
-  padding: 8px 12px;
-  max-width: 280px;
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 13px;
-  color: var(--text);
-  line-height: 1.4;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  pointer-events: none;
-}
-
-.map-node:hover {
-  filter: brightness(1.1);
-}
-
-/* ── Error state ── */
 /* ── Index View — auto-generated root listing ── */
 /* ── Index view: the title plate ───────────────────────────────────────
    The root index is a catalog of open threads, not a nav menu. Treated

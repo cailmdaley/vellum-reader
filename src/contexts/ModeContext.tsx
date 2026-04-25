@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-export type Mode = 'narrative' | 'workspace' | 'map' | 'delta';
+export type Mode = 'narrative' | 'workspace' | 'delta';
 
 interface ModeContextValue {
   mode: Mode;
