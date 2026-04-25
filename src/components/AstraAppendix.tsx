@@ -30,7 +30,7 @@
  * nothing.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type {
   GraphDecision,
   GraphFinding,
@@ -479,6 +479,13 @@ interface CollapsedRowProps {
 }
 
 function CollapsedRow({ open, onToggle, kind, title, summary, children }: CollapsedRowProps) {
+  // Stable per-row ids so screen readers can follow the disclosure
+  // relationship between head (aria-expanded) and body (the panel that
+  // appears). Without aria-controls + id, the button announces "expanded"
+  // but the panel below is just a generic <div> with no semantic tie-back.
+  const reactId = useId();
+  const bodyId = `astra-appendix-row-body-${reactId}`;
+  const headId = `astra-appendix-row-head-${reactId}`;
   return (
     <div
       className={
@@ -489,8 +496,10 @@ function CollapsedRow({ open, onToggle, kind, title, summary, children }: Collap
     >
       <button
         type="button"
+        id={headId}
         className="astra-appendix__row-head"
         aria-expanded={open}
+        aria-controls={bodyId}
         onClick={onToggle}
       >
         <span className="astra-appendix__row-caret" aria-hidden>
@@ -501,7 +510,16 @@ function CollapsedRow({ open, onToggle, kind, title, summary, children }: Collap
           <span className="astra-appendix__row-summary">{summary}</span>
         )}
       </button>
-      {open && <div className="astra-appendix__row-body">{children}</div>}
+      {open && (
+        <div
+          className="astra-appendix__row-body"
+          id={bodyId}
+          role="region"
+          aria-labelledby={headId}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }
