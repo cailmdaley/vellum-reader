@@ -22,6 +22,10 @@ export {
   useAdapter,
   useReadOnlyAdapter,
 } from './contexts/AdapterContext';
+export {
+  AnnotationActionsProvider,
+  useAnnotationActions,
+} from './contexts/AnnotationActionsContext';
 export { createLightconeAdapter } from './api';
 export { FileReader } from './components/FileReader';
 export type { FileReaderProps } from './components/FileReader';

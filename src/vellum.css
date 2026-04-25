@@ -6186,6 +6186,32 @@ a.pretext-prose-frag:hover {
   padding: 4px 10px;
 }
 
+/* Narrative bulk-action toolbar — same button shape as
+   .vellum-modal-btn--bulk but mounted above the FiberHeader masthead
+   so it doesn't depend on theme chrome. Quiet by default; surfaces
+   only when the host registered bulkActions and ≥1 annotation exists. */
+.vellum-narrative-action-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 6px 0 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px dotted var(--border);
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.vellum-narrative-action-bar__caption {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.vellum-narrative-action-bar__buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 .vellum-modal-btn__count {
   display: inline-block;
   min-width: 16px;

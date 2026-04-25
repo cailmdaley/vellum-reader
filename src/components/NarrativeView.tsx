@@ -25,6 +25,7 @@ import { NarrativeCounter } from './NarrativeCounter';
 import { GutterHoverCard } from './GutterHoverCard';
 import { PretextProse } from './PretextProse';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
+import { NarrativeAnnotationActionsBar } from './NarrativeAnnotationActionsBar';
 import { Lightbox } from './Lightbox';
 import { GhostToc } from './GhostToc';
 import { LeftRailToc } from './LeftRailToc';
@@ -33,6 +34,7 @@ import { FiberEditor } from './FiberEditor';
 import type { LightboxImage } from './Lightbox';
 import type { Annotation, FiberContent, GraphNode, GraphLink } from '~/utils/content-types';
 import { useAdapter } from '~/contexts/AdapterContext';
+import { useAnnotationActions } from '~/contexts/AnnotationActionsContext';
 import { useTheme } from '~/contexts/ThemeContext';
 import { transformTweetEmbeds } from '~/utils/tweet-transform';
 import { parseAstraAnchor } from '~/utils/astra-anchor';
@@ -241,6 +243,14 @@ export function NarrativeView({
   // (scroll-spy + nested appendix children), so when it's on we retire ghost.
   const showGhostToc = !showLeftRailToc;
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  // Bumped by NarrativeAnnotationActionsBar after a bulk action mutates
+  // the annotation set, so the fetch effect re-reads from the adapter
+  // without forcing a full route remount.
+  const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
+  const refreshAnnotations = useCallback(() => {
+    setAnnotationRefreshKey((n) => n + 1);
+  }, []);
+  const { bulkActions: annotationBulkActions } = useAnnotationActions();
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
 
@@ -340,7 +350,7 @@ export function NarrativeView({
     return () => {
       cancelled = true;
     };
-  }, [adapter, content.slug]);
+  }, [adapter, content.slug, annotationRefreshKey]);
 
   const backlinkNodes = useMemo(() => {
     if (!currentNode || !graphLinks) return [];
@@ -746,6 +756,16 @@ export function NarrativeView({
                 lightcone-linear, so any chrome common to all three themes
                 belongs inside the prose column itself. */}
             <ThemePicker />
+            {/* Annotation bulk-action bar surfaces above the masthead so
+                the actions are visible regardless of whether the
+                FloatingIsland chrome is gated by the active theme.
+                Renders only when both annotations exist on the page and
+                the host registered actions via AnnotationActionsProvider. */}
+            <NarrativeAnnotationActionsBar
+              annotations={annotations}
+              bulkActions={annotationBulkActions}
+              onRefreshAnnotations={refreshAnnotations}
+            />
             <FiberHeader
               frontmatter={content.frontmatter ?? {}}
               graphNode={currentNode}
