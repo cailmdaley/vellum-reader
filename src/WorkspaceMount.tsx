@@ -17,6 +17,7 @@ import { TweetEmbedRenderer } from './components/TweetEmbed';
 import { CollectionProvider } from './contexts/CollectionContext';
 import { DecisionFlipProvider } from './contexts/DecisionFlipContext';
 import { ModeProvider } from './contexts/ModeContext';
+import { VellumThemeProvider } from './contexts/ThemeContext';
 
 const vellumRenderers = mergeRenderers(
   [
@@ -45,16 +46,23 @@ export function WorkspaceMount({ initialSlug = '', eyebrow }: WorkspaceMountProp
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <ThemeProvider theme={null} setTheme={() => {}} renderers={vellumRenderers}>
-        <CollectionProvider eyebrow={eyebrow}>
-          <DecisionFlipProvider>
-            <ModeProvider>
-              <Routes>
-                <Route path="/" element={<FiberPage />} />
-                <Route path="*" element={<FiberPage />} />
-              </Routes>
-            </ModeProvider>
-          </DecisionFlipProvider>
-        </CollectionProvider>
+        {/* VellumThemeProvider mirrors App.tsx: without it ThemePicker's
+            setThemeId is the default no-op, and embedded hosts (portolan's
+            workspace modal) get a theme picker that does nothing on click.
+            The provider also writes data-theme onto <html>, which is the
+            selector backing :root[data-theme=…] scoped CSS. */}
+        <VellumThemeProvider>
+          <CollectionProvider eyebrow={eyebrow}>
+            <DecisionFlipProvider>
+              <ModeProvider>
+                <Routes>
+                  <Route path="/" element={<FiberPage />} />
+                  <Route path="*" element={<FiberPage />} />
+                </Routes>
+              </ModeProvider>
+            </DecisionFlipProvider>
+          </CollectionProvider>
+        </VellumThemeProvider>
       </ThemeProvider>
     </MemoryRouter>
   );

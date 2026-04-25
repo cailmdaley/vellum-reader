@@ -1152,6 +1152,67 @@ body {
 }
 .vellum-prose tr:last-child td { border-bottom: none; }
 
+/* ── Theme Picker ──────────────────────────────────────────
+   Small-caps row above the FiberHeader: "theme · linear · margin ·
+   personal". Sits in the prose column in every theme so the
+   linear-only readers can still flip to margin / personal. The label
+   is set in the same key as muted prose meta; the options ride a hair
+   lighter, rubricated in gold when active so they read as the page's
+   tiny piece of UI chrome rather than as headings. */
+.theme-picker {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.55em;
+  margin: 0 0 0.85rem;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: lowercase;
+  color: var(--text-muted);
+}
+
+.theme-picker__label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  opacity: 0.55;
+  margin-right: 0.3em;
+}
+
+.theme-picker__option {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1.5px solid transparent;
+  padding: 1px 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+  opacity: 0.78;
+}
+
+.theme-picker__option:hover {
+  color: var(--ink);
+  opacity: 1;
+}
+
+.theme-picker__option:focus-visible {
+  outline: none;
+  color: var(--ink);
+  border-bottom-color: var(--gold);
+}
+
+.theme-picker__option--active {
+  color: var(--ink);
+  border-bottom-color: var(--gold);
+  opacity: 1;
+}
+
 /* ── Fiber Header (title plate) ────────────────────────────
    Cartouche treatment: a hairline rule below the title with a centered
    rubric ornament punctuating the threshold into the body. The title
