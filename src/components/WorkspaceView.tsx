@@ -268,6 +268,14 @@ function FiberRow({
   return (
     <div
       role="listitem"
+      // Without aria-label the listitem's accessible name auto-concats from
+      // descendant text — status glyph + title + tags + button glyph all run
+      // together (e.g. "●Agent filters portolan-agent session↗"). Naming
+      // the row with status word + title gives screen readers a clean
+      // announcement and matches how a sighted user would describe it.
+      // Status is omitted when the fiber has none (e.g. untracked) to
+      // avoid the leading-space " fiber: name" form.
+      aria-label={status ? `${status} fiber: ${node.label}` : `fiber: ${node.label}`}
       className={`fiber-row${selected ? ' fiber-row--selected' : ''}${changed ? ' fiber-row--changed' : ''}${node.tempered ? ' fiber-row--tempered' : ''}`}
       onClick={onSelect}
       onDoubleClick={onOpenInNarrative}
@@ -279,7 +287,11 @@ function FiberRow({
         }
       }}
     >
-      <span className={`fiber-row__dot fiber-row__dot--${status}`} title={status}>
+      <span
+        className={`fiber-row__dot fiber-row__dot--${status}`}
+        title={status}
+        aria-hidden="true"
+      >
         {statusGlyph(node.status)}
       </span>
       <div className="fiber-row__body">
