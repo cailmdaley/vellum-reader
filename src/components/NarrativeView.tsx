@@ -120,7 +120,19 @@ function stripFrontmatterNodes(mdast: any, frontmatter: Record<string, any>, gra
 
   if (i < children.length && children[i].type === 'heading') {
     const text = nodeText(children[i]).trim().toLowerCase();
-    const fmName = (frontmatter.name ?? '').trim().toLowerCase();
+    // Match against `name` *or* `title` — mystra serves frontmatter with
+    // `name` renamed to `title`, so reading only `.name` here missed
+    // every fiber whose body opened with a heading that duplicated its
+    // title (e.g. /desi-bao). FiberHeader has been falling back to
+    // `.title` since forever; without the same fallback here, the
+    // demoteHeadingsIfBodyHasH1 pass downstream picks up the duplicate
+    // as a "legitimate" body heading and demotes it to h2 instead of
+    // dropping it — leaving the page with two side-by-side identical
+    // headings (h1 masthead + h2 body) and the duplicate heading
+    // announced twice by AT.
+    const fmName = (frontmatter.name ?? frontmatter.title ?? '')
+      .trim()
+      .toLowerCase();
     if (fmName && (fmName.startsWith(text) || text.startsWith(fmName))) i++;
   }
 
