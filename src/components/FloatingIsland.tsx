@@ -290,8 +290,12 @@ export function FloatingIsland({
               aria-label={`${full} view`}
               aria-current={mode === id ? 'true' : undefined}
             >
-              <span className="thumb-index__mode-full">{full}</span>
-              <span className="thumb-index__mode-short">{letter}</span>
+              {/* Visible label is duplicated by the button's aria-label
+                  ("${full} view"), and parent generic name calculation
+                  vacuums child text into long run-on names — so hide both
+                  the long form and the short letter from AT. */}
+              <span className="thumb-index__mode-full" aria-hidden="true">{full}</span>
+              <span className="thumb-index__mode-short" aria-hidden="true">{letter}</span>
               {id === 'delta' && deltaCount > 0 && (
                 <span className="thumb-index__delta-badge">{deltaCount}</span>
               )}
@@ -320,7 +324,7 @@ export function FloatingIsland({
               title="Search (/ )"
               aria-label="Open search"
             >
-              ⌕
+              <span aria-hidden="true">⌕</span>
             </button>
           )}
           {showResults && searchExpanded && query.trim().length > 0 && (() => {
