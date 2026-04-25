@@ -75,13 +75,19 @@ export function FileViewerModal({
   return (
     <div
       className="vellum-modal-scrim"
+      role="presentation"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="vellum-modal-shell" role="dialog" aria-modal="true">
+      <div
+        className="vellum-modal-shell"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vellum-file-modal-path"
+      >
         <header className="vellum-modal-header">
-          <span className="vellum-modal-path" title={path}>
+          <span className="vellum-modal-path" id="vellum-file-modal-path" title={path}>
             {path}
             {dirty && <span className="vellum-file-viewer-page__dirty" aria-hidden="true"> •</span>}
           </span>
