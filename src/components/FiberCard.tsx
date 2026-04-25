@@ -18,7 +18,7 @@
  * real measurement, so the height is always accurate and never guessed.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
 import { ArticleProvider, ThemeProvider, useNodeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
@@ -325,11 +325,19 @@ export function FiberCard({
   }, [titleText, outcomeText, highlightText, width, hasTags, hideTitle]);
 
   // ── Click interception for wikilinks ────────────────────────────────────────
-  const handleProseClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!onNavigate) return;
-      const target = e.target as HTMLElement;
-      const anchor = target.closest('a');
+  // Attach via addEventListener instead of an onClick prop. React installs
+  // an onclick=noop on every element with an onClick prop (the
+  // trapClickOnNonInteractiveElement Mobile-Safari workaround), which makes
+  // the prose container surface as `generic [clickable]` in the a11y tree
+  // with its name computed from concatenated descendant text. Going through
+  // a ref keeps the wikilink delegation working without contaminating
+  // accessible-name calculation.
+  useEffect(() => {
+    const node = proseRef.current;
+    if (!node || !onNavigate) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest('a');
       if (!anchor) return;
       const href = anchor.getAttribute('href');
       if (!href) return;
@@ -337,9 +345,10 @@ export function FiberCard({
         e.preventDefault();
         onNavigate(href.slice(1));
       }
-    },
-    [onNavigate],
-  );
+    };
+    node.addEventListener('click', handler);
+    return () => node.removeEventListener('click', handler);
+  }, [onNavigate]);
 
   return (
     <div
@@ -424,7 +433,6 @@ export function FiberCard({
         <div
           ref={proseRef}
           className="fiber-card__prose"
-          onClick={handleProseClick}
         >
           <FiberProseRoot
             kind={(content!.kind as any) ?? 'Article'}
