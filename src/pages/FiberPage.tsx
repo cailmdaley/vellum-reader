@@ -231,7 +231,7 @@ export function FiberPage() {
 
       {mode === 'narrative' && !contentLoading && slug && !content?.mdast && (
         <div className="vellum-error">
-          Fiber <em>{slug}</em> not found. Is mystra running on port 3100?
+          Fiber <em>{slug}</em> not found in this collection.
         </div>
       )}
 
