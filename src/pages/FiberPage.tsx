@@ -32,6 +32,7 @@ export function FiberPage() {
   const slug = location.pathname.replace(/^\/+|\/+$/g, '');
   const [content, setContent] = useState<FiberContent | null>(null);
   const [graph, setGraph] = useState<AstraGraph>({ nodes: [], links: [] });
+  const [graphLoading, setGraphLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(true);
   const [contentVersion, setContentVersion] = useState(0);
   const [graphVersion, setGraphVersion] = useState(0);
@@ -67,10 +68,12 @@ export function FiberPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setGraphLoading(true);
 
     adapter.getAstraGraph().then((nextGraph) => {
       if (cancelled) return;
       setGraph(nextGraph);
+      setGraphLoading(false);
     });
 
     return () => {
@@ -232,7 +235,16 @@ export function FiberPage() {
         </div>
       )}
 
-      {mode === 'workspace' && (
+      {/* Workspace and Map both consume the AstraGraph. While it's still
+          loading, WorkspaceView's `nodeBySlug.get(currentSlug)` lookup misses
+          and the view renders "Fiber X not found" — a transient flash that
+          looks like a real error. Show a loading indicator until the graph
+          lands; the "not found" branch then signals a genuine miss. */}
+      {mode === 'workspace' && graphLoading && (
+        <div className="vellum-loading">Loading <em>{slug || 'workspace'}</em>…</div>
+      )}
+
+      {mode === 'workspace' && !graphLoading && (
         <WorkspaceView
           nodes={graph.nodes}
           links={graph.links}
@@ -247,7 +259,11 @@ export function FiberPage() {
         />
       )}
 
-      {mode === 'map' && (
+      {mode === 'map' && graphLoading && (
+        <div className="vellum-loading">Loading <em>{slug || 'map'}</em>…</div>
+      )}
+
+      {mode === 'map' && !graphLoading && (
         <MapView
           nodes={graph.nodes}
           links={graph.links}
