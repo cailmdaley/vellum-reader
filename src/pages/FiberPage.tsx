@@ -14,6 +14,7 @@ import { Canvas } from '~/components/Canvas';
 import { CanvasDivider } from '~/components/CanvasDivider';
 import { WorkspaceAnatomy } from '~/components/WorkspaceAnatomy';
 import { useMode, type Mode } from '~/contexts/ModeContext';
+import { useTheme } from '~/contexts/ThemeContext';
 import { useDelta } from '~/utils/use-delta';
 import type { AstraGraph, FiberContent } from '~/utils/content-types';
 
@@ -28,6 +29,7 @@ export function FiberPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, setMode } = useMode();
+  const { themeId } = useTheme();
   const { eyebrow } = useCollection();
   const adapter = useAdapter();
   const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
@@ -188,20 +190,30 @@ export function FiberPage() {
       aria-label={currentNode ? `Vellum — ${currentNode.label}` : 'Vellum'}
     >
       <HotReloadListener onReload={reloadCurrentFiber} />
-      <CanvasDivider />
-      {/* The right side of every tab. The draggable divider and this aside
-          are always on screen, but what fills the aside is decided by the
-          active tab: Narrative leaves it empty for now, Workspace will show
-          the selected fiber's decomposition (decisions, findings, inputs,
-          outputs) as a column of cards, and Map is not built yet. */}
-      <Canvas>
-        {mode === 'workspace' && anatomyNode ? (
-          <WorkspaceAnatomy
-            node={anatomyNode}
-            onNavigate={(s) => navigate(`/${s}`)}
-          />
-        ) : null}
-      </Canvas>
+      {/* Canvas + drag rail are presentation chrome for the margin/personal
+          themes. Under lightcone-linear the whole right-side reservation
+          goes away — the theme centers a single prose column — so we don't
+          mount the components at all. Keeping them mounted was reserving
+          ~420px of viewport via --canvas-width and leaving the prose
+          stranded in the left half. */}
+      {themeId !== 'lightcone-linear' && (
+        <>
+          <CanvasDivider />
+          {/* The right side of every tab. The draggable divider and this aside
+              are always on screen, but what fills the aside is decided by the
+              active tab: Narrative leaves it empty for now, Workspace will show
+              the selected fiber's decomposition (decisions, findings, inputs,
+              outputs) as a column of cards, and Map is not built yet. */}
+          <Canvas>
+            {mode === 'workspace' && anatomyNode ? (
+              <WorkspaceAnatomy
+                node={anatomyNode}
+                onNavigate={(s) => navigate(`/${s}`)}
+              />
+            ) : null}
+          </Canvas>
+        </>
+      )}
       <FloatingIsland
         currentNode={currentNode}
         graphNodes={graph.nodes}
