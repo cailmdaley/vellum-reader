@@ -589,7 +589,7 @@ function EvidenceRow({
     <div className={`card__evidence card__evidence--${evidence.kind}`}>
       <div className="card__evidence-header">
         <span className="card__evidence-glyph" aria-hidden="true">{glyph}</span>
-        <span className="card__evidence-label">{label}</span>
+        <h4 className="card__evidence-label">{label}</h4>
         {evidence.doi && (
           <a
             className="card__evidence-source"
@@ -998,16 +998,18 @@ function IngredientsPanel({
   return (
     <div className="card__ingredients">
       {recipe && (
-        <div className="card__detail-recipe">
-          <span className="card__detail-label">
+        <dl className="card__detail-recipe">
+          <dt className="card__detail-label">
             {forwardedFrom ? `recipe · forwarded from ${forwardedFrom}` : 'recipe'}
-          </span>
-          <code className="card__detail-code">{recipe}</code>
-        </div>
+          </dt>
+          <dd className="card__detail-recipe-value">
+            <code className="card__detail-code">{recipe}</code>
+          </dd>
+        </dl>
       )}
       {hasChips && (
         <>
-          <div className="card__ingredients-label">Inputs</div>
+          <h5 className="card__ingredients-label">Inputs</h5>
           <ul className="card__ingredients-list">
             {recipeInputs!.map((inp) => (
               <li key={inp} className="card__ingredient-chip" title={inp}>
@@ -1075,12 +1077,14 @@ function DagNode({
       <span className="card__dag-id">{id}</span>
       {shortDescr && <span className="card__dag-descr"> — {shortDescr}</span>}
       {provenance && (
-        <div className="card__dag-provenance">
-          <span className="card__detail-label">
+        <dl className="card__dag-provenance">
+          <dt className="card__detail-label">
             {resolved?.kind === 'output' ? 'recipe' : 'from'}
-          </span>
-          <code className="card__detail-code">{provenance}</code>
-        </div>
+          </dt>
+          <dd className="card__dag-provenance-value">
+            <code className="card__detail-code">{provenance}</code>
+          </dd>
+        </dl>
       )}
       {upstream && upstream.length > 0 && (
         <ul className="card__dag card__dag--nested">

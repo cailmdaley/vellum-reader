@@ -4700,6 +4700,12 @@ body {
 .card__evidence--code    .card__evidence-glyph { color: var(--astra-input);   opacity: 1; }
 .card__evidence--insight .card__evidence-glyph { color: var(--astra-finding); opacity: 1; }
 .card__evidence-label {
+  /* Promoted from <span> to <h4> so AT users navigating by heading inside
+     the FindingCard article landmark hear "Quote" / "Figure" / "Code" /
+     "Finding" as evidence-row sub-section markers. UA stylesheet would
+     otherwise inject ~1.33em block margins; reset to 0 since the row
+     already controls vertical rhythm via .card__evidence margin-bottom. */
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 500;
@@ -4751,6 +4757,10 @@ button.card__evidence-source--artifact:hover {
   gap: 4px;
 }
 .card__ingredients-label {
+  /* Promoted from <div> to <h5> so AT users get a heading marker for the
+     "Inputs" sub-section inside the IngredientsPanel of an output card.
+     Reset UA heading margins; the panel parent owns the vertical rhythm. */
+  margin: 0;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10px;
   text-transform: uppercase;
@@ -4842,10 +4852,23 @@ button.card__evidence-source--artifact:hover {
   margin-right: 6px;
 }
 .card__detail-recipe {
+  /* Promoted from <div> wrapper to <dl><dt>label</dt><dd>code</dd></dl>
+     so AT users get definition-list semantics on the kind:value pair.
+     Reset UA dl margin and dd margin-left so the flex layout looks
+     identical to the previous div+span+code shape. */
+  margin: 0;
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 2px 6px;
+}
+.card__detail-recipe > dt,
+.card__detail-recipe > dd {
+  margin: 0;
+  /* Each becomes a flex item alongside the other; min-width:0 lets the
+     <code> child wrap inside the wrap-wrap parent without forcing its
+     own intrinsic min-content width to push siblings out of view. */
+  min-width: 0;
 }
 .card__detail-code {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
@@ -4897,12 +4920,20 @@ button.card__evidence-source--artifact:hover {
   font-style: italic;
 }
 .card__dag-provenance {
+  /* Promoted from <div> to <dl><dt>label</dt><dd>code</dd></dl>; same
+     definition-list semantics rationale as .card__detail-recipe above. */
   margin-top: 2px;
+  margin-bottom: 0;
   margin-left: 16px;
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 2px 6px;
+}
+.card__dag-provenance > dt,
+.card__dag-provenance > dd {
+  margin: 0;
+  min-width: 0;
 }
 .card__evidence-quote {
   /* Override the global `.vellum-prose blockquote` rule that would otherwise
