@@ -267,6 +267,16 @@ export function TextAnnotationLayer({
       const range = findAnnotationInDom(prose, ann);
       if (!range) continue;
 
+      // Screen-reader name for the mark element. Without this, AT users
+      // hear the *visual* substring covered by the mark, which is often a
+      // mid-word fragment (the highlight aligns with the original
+      // selection, not word boundaries). Naming the mark with its comment
+      // gives AT a meaningful label to announce instead of a fragment like
+      // "arkdown files. One fiber is one directory and one".
+      const annLabel = ann.comment?.trim()
+        ? `Annotation: ${ann.comment.trim()}`
+        : 'Annotation';
+
       try {
         const rects = Array.from(range.getClientRects());
         if (rects.length === 0) continue;
@@ -274,6 +284,7 @@ export function TextAnnotationLayer({
         const mark = document.createElement('mark');
         mark.className = 'ann-highlight';
         mark.dataset.annotationId = ann.id;
+        mark.setAttribute('aria-label', annLabel);
 
         try {
           range.surroundContents(mark);
@@ -316,6 +327,7 @@ export function TextAnnotationLayer({
             const nextMark = document.createElement('mark');
             nextMark.className = 'ann-highlight';
             nextMark.dataset.annotationId = ann.id;
+            nextMark.setAttribute('aria-label', annLabel);
             try {
               subRange.surroundContents(nextMark);
               markEls.push(nextMark);
