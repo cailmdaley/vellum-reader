@@ -59,6 +59,17 @@ function shortLabel(node: GraphNode): string {
   return tail.replace(/-/g, ' ');
 }
 
+/** Strip MyST wikilink syntax for plain-text previews.
+ *  `[[slug]]` → "slug" (with dashes/underscores/slashes humanised);
+ *  `[[slug|display]]` → "display". Used in the search-result outcome
+ *  preview so screen readers announce "See annotation actions landed"
+ *  instead of "See [[annotation-actions-landed]]". */
+function stripWikilinks(text: string): string {
+  return text.replace(/\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]/g, (_, slug: string, display?: string) =>
+    display ?? slug.replace(/[-_/]/g, ' ').trim(),
+  );
+}
+
 interface FloatingIslandProps {
   currentNode?: GraphNode;
   graphNodes: GraphNode[];
@@ -362,7 +373,7 @@ export function FloatingIsland({
                   <span className="search-result__glyph">{statusGlyph(hit.status)}</span>
                   <span className="search-result__body">
                     <span className="search-result__title">{hit.title}</span>
-                    {hit.outcome && <span className="search-result__outcome">{hit.outcome}</span>}
+                    {hit.outcome && <span className="search-result__outcome">{stripWikilinks(hit.outcome)}</span>}
                   </span>
                 </a>
               ))

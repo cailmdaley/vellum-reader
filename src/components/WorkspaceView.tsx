@@ -27,12 +27,15 @@ interface WorkspaceViewProps {
 
 type StatusFilter = 'all' | 'active' | 'open' | 'closed' | 'attention';
 
-const STATUS_TABS: Array<{ key: StatusFilter; label: string }> = [
-  { key: 'all', label: 'all' },
-  { key: 'active', label: '◐ active' },
-  { key: 'open', label: '○ open' },
-  { key: 'attention', label: '◈ attention' },
-  { key: 'closed', label: '● closed' },
+// `label` is the visible text (with status glyph for sighted users).
+// `srLabel` is the screen-reader announcement; the glyph alone reads as
+// punctuation noise, so the SR string spells out the intent.
+const STATUS_TABS: Array<{ key: StatusFilter; label: string; srLabel: string }> = [
+  { key: 'all', label: 'all', srLabel: 'Show all fibers' },
+  { key: 'active', label: '◐ active', srLabel: 'Show only active fibers' },
+  { key: 'open', label: '○ open', srLabel: 'Show only open fibers' },
+  { key: 'attention', label: '◈ attention', srLabel: 'Show only fibers needing attention' },
+  { key: 'closed', label: '● closed', srLabel: 'Show only closed fibers' },
 ];
 
 function hasOpenDecision(node: GraphNode): boolean {
@@ -158,22 +161,26 @@ export function WorkspaceView({
         <p className="workspace-empty">No sub-fibers. This fiber is a leaf.</p>
       ) : (
         <>
-          <div className="workspace-filters">
+          <div className="workspace-filters" role="group" aria-label="Filter fibers">
             <input
               type="search"
               className="workspace-filters__search"
               placeholder="Search title, slug, tag, outcome…"
+              aria-label="Search fibers in workspace by title, slug, tag, or outcome"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               spellCheck={false}
             />
 
-            <div className="workspace-filters__row">
+            <div className="workspace-filters__row" role="group" aria-label="Filter by status">
               {STATUS_TABS.map((tab) => (
                 <button
                   key={tab.key}
                   className={`workspace-chip${statusFilter === tab.key ? ' workspace-chip--active' : ''}`}
                   onClick={() => setStatusFilter(tab.key)}
+                  aria-pressed={statusFilter === tab.key}
+                  aria-label={tab.srLabel}
+                  title={tab.srLabel}
                 >
                   {tab.label}
                 </button>
@@ -182,38 +189,46 @@ export function WorkspaceView({
                 <button
                   className={`workspace-chip workspace-chip--gold${openDecisionsOnly ? ' workspace-chip--active' : ''}`}
                   onClick={() => setOpenDecisionsOnly((v) => !v)}
+                  aria-pressed={openDecisionsOnly}
+                  aria-label={`Only fibers with open decisions, ${counts.openDecisions} total`}
                   title="Only fibers with open decisions"
                 >
-                  ◇ {counts.openDecisions}
+                  <span aria-hidden="true">◇ </span>{counts.openDecisions}
                 </button>
               )}
               {counts.tempered > 0 && (
                 <button
                   className={`workspace-chip workspace-chip--teal${temperedOnly ? ' workspace-chip--active' : ''}`}
                   onClick={() => setTemperedOnly((v) => !v)}
+                  aria-pressed={temperedOnly}
+                  aria-label={`Only human-reviewed (tempered) fibers, ${counts.tempered} total`}
                   title="Only human-reviewed (tempered) fibers"
                 >
-                  ⬡ {counts.tempered}
+                  <span aria-hidden="true">⬡ </span>{counts.tempered}
                 </button>
               )}
               {counts.changed > 0 && (
                 <button
                   className={`workspace-chip workspace-chip--gold${changedOnly ? ' workspace-chip--active' : ''}`}
                   onClick={() => setChangedOnly((v) => !v)}
+                  aria-pressed={changedOnly}
+                  aria-label={`Only fibers changed since the last delta checkpoint, ${counts.changed} total`}
                   title="Only fibers changed since the last delta checkpoint"
                 >
-                  ⧖ {counts.changed}
+                  <span aria-hidden="true">⧖ </span>{counts.changed}
                 </button>
               )}
             </div>
 
             {tagHistogram.length > 0 && (
-              <div className="workspace-filters__tags">
+              <div className="workspace-filters__tags" role="group" aria-label="Filter by tag">
                 {tagHistogram.map(([tag, count]) => (
                   <button
                     key={tag}
                     className={`workspace-tag${activeTags.has(tag) ? ' workspace-tag--active' : ''}`}
                     onClick={() => toggleTag(tag)}
+                    aria-pressed={activeTags.has(tag)}
+                    aria-label={`Filter by tag ${tag}, ${count} ${count === 1 ? 'fiber' : 'fibers'}`}
                   >
                     {tag} <span className="workspace-tag__count">{count}</span>
                   </button>

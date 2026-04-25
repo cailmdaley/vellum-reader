@@ -2471,8 +2471,14 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* Eyebrow above "Index" — opt in by setting `data-eyebrow="..."` on the
+   title. The default rule paints the eyebrow with that attribute's value,
+   so callers (vellum standalone, portolan adapter) just hand the city or
+   collection name and the cartouche reads correctly. The :not() override
+   keeps the pseudo-element out of the document for callers that don't
+   provide one — no stray vertical gap above "Index". */
 .index-view__title::before {
-  content: 'lightcone';
+  content: attr(data-eyebrow);
   display: block;
   font-family: 'Spectral', 'EB Garamond', serif;
   font-style: italic;
@@ -2483,6 +2489,10 @@ body {
   opacity: 0.7;
   margin-bottom: 0.9rem;
   font-weight: 400;
+}
+
+.index-view__title:not([data-eyebrow])::before {
+  content: none;
 }
 
 .index-view__count {

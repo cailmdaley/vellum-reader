@@ -6,6 +6,7 @@ import { DeltaView } from '~/components/DeltaView';
 import { FloatingIsland } from '~/components/FloatingIsland';
 import { HotReloadListener, type ReloadEvent } from '~/components/HotReloadListener';
 import { IndexView } from '~/components/IndexView';
+import { useCollection } from '~/contexts/CollectionContext';
 import { MapView } from '~/components/MapView';
 import { NarrativeView } from '~/components/NarrativeView';
 import { WorkspaceView } from '~/components/WorkspaceView';
@@ -27,6 +28,7 @@ export function FiberPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, setMode } = useMode();
+  const { eyebrow } = useCollection();
   const adapter = useAdapter();
   const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
   const slug = location.pathname.replace(/^\/+|\/+$/g, '');
@@ -226,12 +228,12 @@ export function FiberPage() {
       )}
 
       {mode === 'narrative' && !contentLoading && !slug && (
-        <IndexView nodes={graph.nodes} links={graph.links} onNavigate={(s) => navigate(`/${s}`)} />
+        <IndexView nodes={graph.nodes} links={graph.links} onNavigate={(s) => navigate(`/${s}`)} eyebrow={eyebrow} />
       )}
 
       {mode === 'narrative' && !contentLoading && slug && !content?.mdast && (
         <div className="vellum-error">
-          Fiber <em>{slug}</em> not found. Is mystra running on port 3100?
+          Fiber <em>{slug}</em> not found in this collection.
         </div>
       )}
 

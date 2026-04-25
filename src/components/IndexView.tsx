@@ -18,9 +18,14 @@ interface IndexViewProps {
   nodes: GraphNode[];
   links: GraphLink[];
   onNavigate: (slug: string) => void;
+  /** Optional eyebrow above the "Index" title — typically the collection or
+   *  city name. When omitted, the eyebrow space collapses; the CSS rule on
+   *  `.index-view__title:not([data-eyebrow])::before` removes the pseudo
+   *  entirely so there's no stray gap. */
+  eyebrow?: string;
 }
 
-export function IndexView({ nodes, links, onNavigate }: IndexViewProps) {
+export function IndexView({ nodes, links, onNavigate, eyebrow }: IndexViewProps) {
   const rootFibers = useMemo(() => {
     const parentedIds = new Set(
       links.filter((l) => l.kind === 'contains').map((l) => l.target),
@@ -45,7 +50,7 @@ export function IndexView({ nodes, links, onNavigate }: IndexViewProps) {
 
   return (
     <div className="index-view">
-      <h1 className="index-view__title">Index</h1>
+      <h1 className="index-view__title" data-eyebrow={eyebrow || undefined}>Index</h1>
       <p className="index-view__count">{rootFibers.length} fibers</p>
 
       {active.length > 0 && (
