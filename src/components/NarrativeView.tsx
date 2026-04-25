@@ -141,6 +141,37 @@ function stripFrontmatterNodes(mdast: any, frontmatter: Record<string, any>, gra
 }
 
 /**
+ * Demote every heading by one depth-level (capped at depth 6) when the
+ * body still carries a depth-1 heading after frontmatter stripping. The
+ * canonical document `<h1>` is the FiberHeader masthead; any surviving
+ * body h1 produces two h1s on the page, which breaks the canonical
+ * single-h1 a11y pattern (screen-reader heading-jump can't tell which
+ * is the real title).
+ *
+ * The strip-frontmatter pass already drops a leading body h1 when its
+ * text matches the frontmatter name — so this demotion runs only on
+ * fibers whose first body heading is *not* a duplicate title (i.e. a
+ * legitimate body heading that happens to be h1). Demoting all
+ * headings by one keeps relative hierarchy and makes FiberHeader the
+ * sole h1 on the page.
+ *
+ * No-op when the body has no h1 — the common case.
+ */
+function demoteHeadingsIfBodyHasH1(mdast: any): any {
+  if (!mdast || !Array.isArray(mdast.children)) return mdast;
+  const hasH1 = mdast.children.some(
+    (c: any) => c?.type === 'heading' && c.depth === 1,
+  );
+  if (!hasH1) return mdast;
+  const demoted = mdast.children.map((c: any) => {
+    if (c?.type !== 'heading') return c;
+    const depth = typeof c.depth === 'number' ? c.depth : 1;
+    return { ...c, depth: Math.min(6, depth + 1) };
+  });
+  return { ...mdast, children: demoted };
+}
+
+/**
  * Inject a sentinel mdast node — `{ type: 'astraFindingsStepper' }` —
  * at the end of the findings narrative section, so PretextProse renders
  * the stepper inline right after the findings prose. Safe to call with
@@ -402,6 +433,10 @@ export function NarrativeView({
       content.frontmatter ?? {},
       currentNode?.verdict,
     );
+    // After stripping a duplicate-title h1, any surviving body h1 means
+    // the author wrote a legitimate body h1 that wasn't the title — keep
+    // the FiberHeader as sole page h1 by demoting body headings.
+    const demoted = demoteHeadingsIfBodyHasH1(stripped.mdast);
     const firstClassFindings = (currentNode?.findings ?? []).filter(
       (f) => f.kind !== 'prior_insight',
     );
@@ -411,8 +446,8 @@ export function NarrativeView({
     const shouldInjectInline =
       !showMarginColumn && firstClassFindings.length > 0;
     const withStepper = shouldInjectInline
-      ? injectFindingsStepper(stripped.mdast, firstClassFindings.length)
-      : stripped.mdast;
+      ? injectFindingsStepper(demoted, firstClassFindings.length)
+      : demoted;
     return { mdast: transformTweetEmbeds(withStepper), lede: stripped.lede };
   }, [
     content.mdast,
