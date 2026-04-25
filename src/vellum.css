@@ -2369,7 +2369,9 @@ body {
   box-shadow: inset 3px 0 0 var(--gold);
 }
 .fiber-row--changed::after {
-  content: '⧖';
+  /* Decorative changed marker — visible but hidden from AT (the row's
+     own state class drives any consumer behavior). */
+  content: '⧖' / '';
   position: absolute;
   right: 4px;
   top: 4px;
@@ -2942,7 +2944,8 @@ body {
 
 /* ── Tempered margin glyphs ── */
 .margin-glyph--tempered::after {
-  content: '⬡';
+  /* Decorative tempered hexagon — hidden from AT. */
+  content: '⬡' / '';
   position: absolute;
   right: -10px;
   top: 50%;
@@ -5723,7 +5726,9 @@ a.pretext-prose-frag:hover {
   text-indent: -0.9rem;
 }
 .astra-appendix__methods-list li::before {
-  content: '·';
+  /* Decorative bullet — visible but hidden from AT (the listitem
+     semantics already convey "this is a list entry"). */
+  content: '·' / '';
   color: var(--text-muted);
   opacity: 0.6;
   margin-right: 0.45rem;
@@ -6603,7 +6608,9 @@ a.pretext-prose-frag:hover {
   display: none;
 }
 .vellum-prose-compat details.myst-admonition > summary.myst-admonition-header::after {
-  content: '▸';
+  /* Decorative disclosure caret — `<details>/<summary>` aria-expanded
+     already conveys the state to AT. */
+  content: '▸' / '';
   margin-left: auto;
   color: var(--admonition-ink, var(--text-muted));
   transition: transform 120ms ease;
