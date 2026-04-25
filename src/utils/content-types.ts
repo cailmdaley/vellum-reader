@@ -208,15 +208,30 @@ export interface AnnotationBulkAction {
   id: string;
   label: string;
   title?: string;
+  /** Narrow the annotation list this action applies to. When provided, the
+   *  host shows the button only if at least one annotation matches, the
+   *  count badge reflects the filtered count, and `onInvoke` receives only
+   *  the matching subset. Omit for actions that target every annotation. */
+  applicableTo?: (annotation: Annotation) => boolean;
   onInvoke: (
     annotations: Annotation[],
-    ctx: { anchor: HTMLElement },
+    ctx: {
+      anchor: HTMLElement;
+      /** Ask the host to re-read annotations from the adapter. Use after
+       *  a mutation (e.g. marking sent, bulk-deleting) so the UI reflects
+       *  the new state without a full page reload. */
+      refreshAnnotations: () => void;
+    },
   ) => void | Promise<void>;
 }
 
 export interface Annotation {
   id: string;
   slug: string;
+  /** ms epoch when the annotation was last successfully dispatched to a
+   *  worker. Undefined = never sent. Used by hosts to offer a "Clear sent"
+   *  bulk action that targets only dispatched annotations. */
+  sentAt?: number;
   /** 'text' (paragraph-anchored) or 'image' (lightbox marker). Defaults to 'text'. */
   kind: 'text' | 'image';
   selectedText: string;

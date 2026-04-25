@@ -43,6 +43,7 @@ export function FileViewerModal({
   onClose,
 }: FileViewerModalProps) {
   const [cacheBustKey, setCacheBustKey] = useState(0);
+  const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [save, setSave] = useState<(() => Promise<void>) | null>(null);
@@ -54,16 +55,24 @@ export function FileViewerModal({
     setCacheBustKey((n) => n + 1);
   }, []);
 
+  const refreshAnnotations = useCallback(() => {
+    setAnnotationRefreshKey((n) => n + 1);
+  }, []);
+
   const handleSaveReady = useCallback((fn: (() => Promise<void>) | null) => {
     setSave(() => fn);
   }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
+      if (e.key !== 'Escape') return;
+      // Don't swallow Escape while focus is inside a CodeMirror editor —
+      // vim needs it to exit insert mode, finish search, cancel completion,
+      // etc. Click-outside and the X button still close the modal.
+      const target = e.target;
+      if (target instanceof Element && target.closest('.cm-editor')) return;
+      e.stopPropagation();
+      onClose();
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
@@ -95,22 +104,37 @@ export function FileViewerModal({
             <span className="vellum-file-viewer-page__status">{statusText}</span>
           )}
           <div className="vellum-modal-actions">
-            {annotations.length > 0 && headerAnnotationActions?.map((action) => (
-              <button
-                key={action.id}
-                type="button"
-                className="vellum-modal-btn vellum-modal-btn--bulk"
-                title={action.title ?? action.label}
-                onClick={(e) => {
-                  void action.onInvoke(annotationsRef.current, {
-                    anchor: e.currentTarget as HTMLElement,
-                  });
-                }}
-              >
-                {action.label}
-                <span className="vellum-modal-btn__count">{annotations.length}</span>
-              </button>
-            ))}
+            {annotations.length > 0 && headerAnnotationActions?.map((action) => {
+              // Narrow the annotation list via `applicableTo` (defaults to
+              // every annotation). Hide the button entirely if nothing
+              // applies, so single-purpose actions like "Clear sent" don't
+              // clutter the chrome when there's nothing for them to do.
+              const applicable = action.applicableTo
+                ? annotations.filter(action.applicableTo)
+                : annotations;
+              if (applicable.length === 0) return null;
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  className="vellum-modal-btn vellum-modal-btn--bulk"
+                  title={action.title ?? action.label}
+                  onClick={(e) => {
+                    const filter = action.applicableTo;
+                    const subset = filter
+                      ? annotationsRef.current.filter(filter)
+                      : annotationsRef.current;
+                    void action.onInvoke(subset, {
+                      anchor: e.currentTarget as HTMLElement,
+                      refreshAnnotations,
+                    });
+                  }}
+                >
+                  {action.label}
+                  <span className="vellum-modal-btn__count">{applicable.length}</span>
+                </button>
+              );
+            })}
             {save && (
               <button
                 type="button"
@@ -155,6 +179,7 @@ export function FileViewerModal({
             onSaveStateChange={setSaveState}
             onSaveReady={handleSaveReady}
             onAnnotationsChange={setAnnotations}
+            annotationRefreshKey={annotationRefreshKey}
           />
         </div>
       </div>

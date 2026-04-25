@@ -154,11 +154,17 @@ function buildAnnotationDecorations(docLength: number, annotations: Annotation[]
     const from = Math.max(0, Math.min(docLength, a.from ?? 0));
     const to = Math.max(from, Math.min(docLength, a.to ?? from));
     if (from === to) continue;
+    // Sent annotations get a modifier class so hosts can mute them — the
+    // annotation is still there, but the visual "pending work" weight is
+    // reduced. Title still shows the comment so hover inspection works.
+    const cls = a.sentAt
+      ? 'vellum-annotation-mark vellum-annotation-mark--sent'
+      : 'vellum-annotation-mark';
     builder.add(
       from,
       to,
       Decoration.mark({
-        class: 'vellum-annotation-mark',
+        class: cls,
         attributes: { title: a.comment, 'data-annotation-id': a.id },
       }),
     );
@@ -264,6 +270,12 @@ function TextReader({
           backgroundColor: 'rgba(154, 123, 53, 0.18)',
           borderBottom: '1px dashed rgba(154, 123, 53, 0.6)',
           cursor: 'help',
+        },
+        // Sent annotations de-emphasized: same hue, much softer. The
+        // comment is still hoverable via title; just stops pulling the eye.
+        '.vellum-annotation-mark--sent': {
+          backgroundColor: 'rgba(154, 123, 53, 0.06)',
+          borderBottom: '1px dotted rgba(154, 123, 53, 0.3)',
         },
       }),
     ];
