@@ -338,6 +338,8 @@ export function FiberCardWithMedia({ node, width, media }: FiberCardWithMediaPro
 
   return (
     <div
+      role="article"
+      aria-label={node.label}
       className={`pretext-card pretext-card--${status}${node.tempered ? ' pretext-card--tempered' : ''}`}
       style={{
         position: 'relative',

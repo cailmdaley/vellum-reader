@@ -343,6 +343,8 @@ export function FiberCard({
 
   return (
     <div
+      role="article"
+      aria-label={node.label}
       className={[
         'fiber-card',
         `fiber-card--${status}`,
