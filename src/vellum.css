@@ -1249,7 +1249,12 @@ body {
    right. Rubricators used this cadence mark to close a titled section
    on portolan charts. */
 .vellum-fiber-header::before {
-  content: '⁘';
+  /* `/ ""` is the CSS-3 alt-text fragment: the visible content is the
+     `⁘` glyph; the accessibility tree sees the empty string and skips
+     it. Without this, screen readers (and the agent-browser snapshot)
+     announce the decorative cadence-mark as a stray "⁘" sibling of
+     the page title — noise without semantic value. */
+  content: '⁘' / '';
   position: absolute;
   left: 50%;
   top: var(--narrative-counter-height, calc(100% - 1px));
@@ -2525,7 +2530,9 @@ body {
 }
 
 .index-view__count::before {
-  content: '⁘';
+  /* Decorative cadence-mark above the fiber-count line — hide from AT
+     via the CSS alt-text fragment. */
+  content: '⁘' / '';
   display: block;
   color: var(--rubric);
   opacity: 0.68;
@@ -5548,7 +5555,8 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-appendix__divider::after {
-  content: '⁘';
+  /* Decorative cadence-mark closing the divider — hide from AT. */
+  content: '⁘' / '';
   order: 2;
   color: var(--rubric);
   opacity: 0.68;

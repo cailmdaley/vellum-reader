@@ -21,7 +21,10 @@ export function ThemePicker() {
   const { themeId, setThemeId } = useTheme();
   return (
     <nav className="theme-picker" aria-label="Theme">
-      <span className="theme-picker__label">theme</span>
+      {/* The visible "theme" label is decorative — it duplicates the nav
+          aria-label and produces a stray "THEME" StaticText in the
+          parent's name calculation. Hide it from AT. */}
+      <span className="theme-picker__label" aria-hidden="true">theme</span>
       {OPTIONS.map(({ id, label }) => (
         <button
           key={id}
