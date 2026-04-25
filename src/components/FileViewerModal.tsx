@@ -120,6 +120,9 @@ export function FileViewerModal({
                   type="button"
                   className="vellum-modal-btn vellum-modal-btn--bulk"
                   title={action.title ?? action.label}
+                  aria-label={`${action.label}, ${applicable.length} ${
+                    applicable.length === 1 ? 'annotation' : 'annotations'
+                  }`}
                   onClick={(e) => {
                     const matched = action.applicableTo
                       ? annotationsRef.current.filter(action.applicableTo)
@@ -135,7 +138,7 @@ export function FileViewerModal({
                   }}
                 >
                   {action.label}
-                  <span className="vellum-modal-btn__count">{applicable.length}</span>
+                  <span className="vellum-modal-btn__count" aria-hidden="true">{applicable.length}</span>
                 </button>
               );
             })}

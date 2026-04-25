@@ -76,6 +76,9 @@ export function NarrativeAnnotationActionsBar({
             type="button"
             className="vellum-modal-btn vellum-modal-btn--bulk"
             title={action.title ?? action.label}
+            aria-label={`${action.label}, ${count} ${
+              count === 1 ? 'annotation' : 'annotations'
+            }`}
             onClick={(e) => {
               const matched = action.applicableTo
                 ? annotationsRef.current.filter(action.applicableTo)
@@ -87,7 +90,7 @@ export function NarrativeAnnotationActionsBar({
             }}
           >
             {action.label}
-            <span className="vellum-modal-btn__count">{count}</span>
+            <span className="vellum-modal-btn__count" aria-hidden="true">{count}</span>
           </button>
         ))}
       </div>

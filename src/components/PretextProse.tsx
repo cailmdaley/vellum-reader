@@ -942,6 +942,15 @@ type TableCellLayout = {
   /** Vertical offset of the cell inside the table. */
   top: number;
   lineHeight: number;
+  /**
+   * Full unwrapped cell text — set as `aria-label` on the cell so AT users
+   * hear "Annotated" rather than "Anno tated" when pretext line-wraps a
+   * narrow column. Each pretext line lives in its own absolutely-positioned
+   * `<div>`, and Chrome's accessible-name calculation concatenates the
+   * per-line text with spaces, breaking words mid-grapheme. The aria-label
+   * overrides that calc with the original piece text.
+   */
+  text: string;
 };
 
 type TableLayout = {
@@ -1269,6 +1278,14 @@ function layoutTableBlock(block: TableBlock, contentWidth: number): TableLayout 
       const textHeight = lines.length * cell.lineHeight;
       if (textHeight > maxTextHeight) maxTextHeight = textHeight;
 
+      // Reconstruct the unwrapped cell text from the prepared pieces —
+      // this is what a screen reader should announce for the cell, not
+      // the line-fragmented text that pretext renders absolutely-
+      // positioned per-line. Joining piece.text values yields the
+      // original prose verbatim; whitespace was already absorbed at
+      // piece boundaries during parse. Empty cells get the empty string.
+      const cellText = cell.pieces.map((p) => p.text).join('');
+
       rowCellLayouts.push({
         colIndex: c,
         rowIndex: r,
@@ -1278,6 +1295,7 @@ function layoutTableBlock(block: TableBlock, contentWidth: number): TableLayout 
         width: colWidth,
         left: lefts[c],
         lineHeight: cell.lineHeight,
+        text: cellText,
       });
     }
 
@@ -1757,6 +1775,10 @@ function renderTable(item: TableLayout, idx: number): ReactNode {
         <div
           key={`r${cell.rowIndex}c${cell.colIndex}`}
           role={cell.isHeader ? 'columnheader' : 'cell'}
+          // Override the accessible name with the unwrapped cell text —
+          // see `TableCellLayout.text` for the rationale. Empty cells
+          // get no aria-label (skip rather than label with "").
+          aria-label={cell.text.length > 0 ? cell.text : undefined}
           className={`pretext-prose-table__cell${
             cell.isHeader ? ' pretext-prose-table__cell--header' : ''
           }${
