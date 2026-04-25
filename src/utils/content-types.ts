@@ -4,7 +4,42 @@
  * Pure type declarations — no runtime code. Safe to import from either
  * browser components (which call `api.ts`) or tests and tooling. This file must not
  * reference `process`, `node-fetch`, or any node built-ins.
+ *
+ * Two flavors of ASTRA types coexist in vellum:
+ *
+ *   - `Graph*` (defined here): vellum's projection of mystra's graph route
+ *     output. Denormalized for card-rendering — paths resolved, evidence
+ *     compacted, decisions flattened. This is what every component in
+ *     vellum imports day-to-day.
+ *
+ *   - `ASTRA*` (re-exported below from `lightcone-ui-core`): the canonical
+ *     spec types, mirroring astra-spec / extern/ASTRA Pydantic models.
+ *     Reach for these when working with raw frontmatter or anything
+ *     upstream of mystra's graph projection.
  */
+
+// Canonical ASTRA spec bindings, surfaced through vellum so consumers
+// don't need a second package import. See
+// lightcone-ui/packages/core/PUBLIC_API.md for the full surface.
+export type {
+  ASTRAAnalysis,
+  ASTRADecision,
+  ASTRAOption,
+  ASTRAEvidence,
+  ASTRAInput,
+  ASTRAOutput,
+  ASTRAInsight,
+  ASTRARecipe,
+  ASTRANarrative,
+  ASTRANarrativeSection,
+  ASTRAUniverse,
+  ASTRAUniverseNode,
+  ASTRASuccessCriterion,
+  TextQuoteSelector,
+  FigureSelector,
+  TableSelector,
+  FragmentSelector,
+} from 'lightcone-ui-core';
 
 export interface FiberContent {
   slug: string;
@@ -200,17 +235,30 @@ export interface AnnotationAction {
 
 /**
  * Host-defined bulk action rendered in the file viewer's top chrome (modal
- * header or page toolbar) when at least one annotation is attached. Receives
- * the full annotation list plus the anchor element of the button so hosts
- * can render their own popovers/pickers positioned against it.
+ * header or page toolbar) when at least one annotation is attached.
+ *
+ * `applicableTo` (optional) prefilters the annotation list passed to
+ * `onInvoke` and gates whether the button renders at all — actions like
+ * "Clear sent" want to operate only on the subset that already has
+ * `sentAt`, and shouldn't appear when no annotation matches. If omitted,
+ * the action sees the full annotation list and renders whenever
+ * annotations exist.
+ *
+ * `ctx.anchor` is the button element so hosts can render popovers/pickers
+ * positioned against it.
+ *
+ * `ctx.refreshAnnotations` re-fetches annotations from the source — call
+ * after mutating (delete, edit) so the modal reflects the new state
+ * without forcing the user to reopen the file.
  */
 export interface AnnotationBulkAction {
   id: string;
   label: string;
   title?: string;
+  applicableTo?: (annotation: Annotation) => boolean;
   onInvoke: (
     annotations: Annotation[],
-    ctx: { anchor: HTMLElement },
+    ctx: { anchor: HTMLElement; refreshAnnotations: () => void },
   ) => void | Promise<void>;
 }
 
@@ -239,6 +287,12 @@ export interface Annotation {
   endLine?: number;
   /** Captured selection text at the moment the annotation was created. */
   originalText?: string;
+  /**
+   * Timestamp (ms) when the annotation was sent to a worker. Set by hosts
+   * (portolan) that route annotations into a worker queue; bulk actions
+   * like "Clear sent" gate on `typeof sentAt === 'number'`.
+   */
+  sentAt?: number;
 }
 
 export interface RawFiber {

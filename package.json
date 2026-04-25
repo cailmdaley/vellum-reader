@@ -35,6 +35,7 @@
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",
     "katex": "^0.16.45",
+    "lightcone-ui-core": "file:../../lightcone-ui/packages/core",
     "myst-to-react": "^1.2.0",
     "pdfjs-dist": "^5.6.205",
     "react-router-dom": "^6.30.1",
