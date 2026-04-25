@@ -817,6 +817,17 @@ type InlineLineLayout = {
    * heading wraps.
    */
   isFirstLine: boolean;
+  /**
+   * Full plain-text content of the source inline block. Set for heading
+   * variants (h1…h4) only; null for body lines. The renderer applies it
+   * as `aria-label` on the first-line heading element so that AT users
+   * navigating by heading hierarchy hear the full heading text instead
+   * of only the first visual line — pretext's continuation lines are
+   * plain `<div>`s and would otherwise be invisible to heading-jump
+   * navigation. See `pretext-line-fragment-a11y` sub-fiber under the
+   * core-public-api constitution.
+   */
+  blockText: string | null;
   fragments: Array<{
     leadingGap: number;
     text: string;
@@ -832,6 +843,25 @@ type InlineLineLayout = {
     className: string;
     href: string | null;
     title: string | null;
+    /**
+     * True iff this fragment's source piece (`block.pieces[itemIndex]`)
+     * was already laid out on a previous line. Used by the renderer to
+     * mark `<a>` continuation fragments `aria-hidden` + `tabindex=-1` so
+     * a wrapped wikilink reads as one link to AT instead of N truncated
+     * links sharing an href. Visible styling and mouse-click behavior on
+     * the continuation fragment are unchanged (the anchor's href still
+     * navigates if clicked, just out of tab order and AT). See the
+     * `pretext-line-fragment-a11y` sub-fiber under core-public-api.
+     */
+    isPieceContinuation: boolean;
+    /**
+     * Full plain text of this fragment's source piece — set for href
+     * pieces only; null otherwise. The renderer stamps it as aria-label
+     * on the first-line `<a>` so AT users hear the full link target on
+     * wrapped wikilinks instead of just the first visual fragment. (The
+     * continuation `<a>`s are aria-hidden via `isPieceContinuation`.)
+     */
+    pieceText: string | null;
   }>;
   marker?: { text: string; font: string; left: number };
   blockquoteRailLefts: number[];
@@ -884,6 +914,11 @@ type TableCellLineFragment = {
   className: string;
   href: string | null;
   title: string | null;
+  /** See `InlineLineLayout.fragments[].isPieceContinuation`. Same role
+   * here for cells whose links wrap to a second visual line. */
+  isPieceContinuation: boolean;
+  /** See `InlineLineLayout.fragments[].pieceText`. */
+  pieceText: string | null;
 };
 
 type TableCellLine = {
@@ -960,10 +995,31 @@ function layoutBlocks(
         const availableWidth = Math.max(1, contentWidth - block.contentLeft);
         const lineTop = y;
         let lineIndex = 0;
+        // Pre-compute the heading's full text so the renderer can stamp it
+        // as aria-label on the first-line heading element. Pretext emits
+        // each visual line as its own absolutely-positioned element, with
+        // continuation lines rendered as plain `<div>` (only the first line
+        // carries the semantic h1…h4 tag — see the comment near
+        // InlineLineLayout). Without aria-label, AT users navigating by
+        // heading hierarchy hear only the first visual line of a wrapped
+        // heading. Body variant skips this entirely; sequential AT reading
+        // already covers body text fine.
+        const blockText: string | null =
+          block.variant !== 'body'
+            ? block.pieces.map((p) => p.text).join('')
+            : null;
+        // Track which source pieces have been laid out on a previous line
+        // so the renderer can mark `<a>` continuation fragments aria-hidden.
+        // Within a single line we don't mark continuations — the issue is
+        // visual line wrap producing multiple `<a>` for one source link.
+        const itemIndicesSeen = new Set<number>();
         walkRichInlineLineRanges(block.flow, availableWidth, (range) => {
           const line = materializeRichInlineLineRange(block.flow, range);
+          const itemIndicesThisLine = new Set<number>();
           const fragments = line.fragments.map((frag) => {
             const piece = block.pieces[frag.itemIndex];
+            const isPieceContinuation = itemIndicesSeen.has(frag.itemIndex);
+            itemIndicesThisLine.add(frag.itemIndex);
             return {
               leadingGap: frag.gapBefore,
               text: frag.text,
@@ -971,8 +1027,11 @@ function layoutBlocks(
               className: piece?.className ?? 'pretext-prose-frag',
               href: piece?.href ?? null,
               title: piece?.title ?? null,
+              isPieceContinuation,
+              pieceText: piece?.href ? (piece?.text ?? null) : null,
             };
           });
+          for (const idx of itemIndicesThisLine) itemIndicesSeen.add(idx);
           items.push({
             kind: 'inline',
             variant: block.variant,
@@ -981,6 +1040,7 @@ function layoutBlocks(
             width: availableWidth,
             lineHeight: block.lineHeight,
             isFirstLine: lineIndex === 0,
+            blockText,
             fragments,
             marker: lineIndex === 0 ? block.marker : undefined,
             blockquoteRailLefts: block.blockquoteRailLefts,
@@ -1179,10 +1239,16 @@ function layoutTableBlock(block: TableBlock, contentWidth: number): TableLayout 
       const textWidth = Math.max(1, colWidth - TABLE_CELL_PAD_X * 2);
       const lines: TableCellLine[] = [];
       let lineIdx = 0;
+      // Track which source pieces have been laid out on a previous cell
+      // line — same wrapped-link a11y guard the main-column path applies.
+      const cellItemIndicesSeen = new Set<number>();
       walkRichInlineLineRanges(cell.flow, textWidth, (range) => {
         const line = materializeRichInlineLineRange(cell.flow, range);
+        const cellItemIndicesThisLine = new Set<number>();
         const fragments: TableCellLineFragment[] = line.fragments.map((frag) => {
           const piece = cell.pieces[frag.itemIndex];
+          const isPieceContinuation = cellItemIndicesSeen.has(frag.itemIndex);
+          cellItemIndicesThisLine.add(frag.itemIndex);
           return {
             leadingGap: frag.gapBefore,
             text: frag.text,
@@ -1190,8 +1256,11 @@ function layoutTableBlock(block: TableBlock, contentWidth: number): TableLayout 
             className: piece?.className ?? 'pretext-prose-frag',
             href: piece?.href ?? null,
             title: piece?.title ?? null,
+            isPieceContinuation,
+            pieceText: piece?.href ? (piece?.text ?? null) : null,
           };
         });
+        for (const idx of cellItemIndicesThisLine) cellItemIndicesSeen.add(idx);
         lines.push({ top: lineIdx * cell.lineHeight, fragments });
         lineIdx++;
       });
@@ -1377,14 +1446,31 @@ function renderLine(
       // so downstream scanners (GhostToc, a11y, future anchor-link
       // generation) find exactly one real heading element per source
       // heading. Continuation lines stay divs to keep the tag count stable.
+      const isHeading = item.variant !== 'body';
       const Tag: keyof JSX.IntrinsicElements =
-        item.variant !== 'body' && item.isFirstLine
+        isHeading && item.isFirstLine
           ? (`h${item.variant}` as keyof JSX.IntrinsicElements)
           : 'div';
+      // a11y for wrapped headings: pretext renders each visual line as its
+      // own absolutely-positioned element. Without aria-label, AT users
+      // navigating by heading hierarchy on a wrapped heading would hear
+      // only the first visual line and miss everything that wrapped to a
+      // continuation `<div>`. Stamp the full block text on the first-line
+      // heading element; mark continuation lines aria-hidden so AT readers
+      // don't read them again at sequential-read time. Visible text is
+      // unchanged for sighted users.
+      const ariaProps = isHeading
+        ? item.isFirstLine
+          ? item.blockText
+            ? { 'aria-label': item.blockText }
+            : {}
+          : { 'aria-hidden': true }
+        : {};
       return (
         <Tag
           key={idx}
           className={className}
+          {...ariaProps}
           // Stamp pretext's authoritative y and line-height on the line
           // container itself, not just on link fragments. Anything that
           // needs a pretext-authoritative coordinate for an arbitrary
@@ -1487,6 +1573,23 @@ function renderLine(
               // getBoundingClientRect so the citation glyphs align to
               // pretext's own line grid instead of re-measuring CSS flow
               // per anchor. Gate 2 of pretext-refoundation.
+              //
+              // a11y for wrapped wikilinks: a long link target rendered
+              // across multiple visual lines emits one `<a>` per line, all
+              // sharing the href. Without intervention, AT users hear N
+              // truncated links instead of one. Mark continuation anchors
+              // (i.e. anchors whose source piece was already laid out on
+              // a previous line) `aria-hidden` + `tabindex=-1` so the
+              // first `<a>` carries the accessible name and the rest
+              // collapse out of AT and tab order. Stamp the full piece
+              // text on the first-line `<a>` so AT hears the full link
+              // target, not just the first visual fragment. Visible
+              // styling + mouse-click behavior unchanged.
+              const linkA11yProps = frag.isPieceContinuation
+                ? { 'aria-hidden': true, tabIndex: -1 }
+                : frag.pieceText && frag.pieceText !== frag.text
+                  ? { 'aria-label': frag.pieceText }
+                  : {};
               pieces.push(
                 <a
                   key={fragIdx}
@@ -1496,6 +1599,7 @@ function renderLine(
                   title={frag.title ?? undefined}
                   data-pretext-line-top={item.top}
                   data-pretext-line-height={item.lineHeight}
+                  {...linkA11yProps}
                 >
                   {frag.text}
                 </a>,
@@ -1730,6 +1834,14 @@ function renderTable(item: TableLayout, idx: number): ReactNode {
                     font: cellFont,
                   };
                   if (frag.href) {
+                    // See main-column wikilink a11y guards above — same
+                    // role here for table-cell links that wrap to a
+                    // second visual line.
+                    const linkA11yProps = frag.isPieceContinuation
+                      ? { 'aria-hidden': true, tabIndex: -1 }
+                      : frag.pieceText && frag.pieceText !== frag.text
+                        ? { 'aria-label': frag.pieceText }
+                        : {};
                     pieces.push(
                       <a
                         key={fragIdx}
@@ -1737,6 +1849,7 @@ function renderTable(item: TableLayout, idx: number): ReactNode {
                         className={frag.className}
                         style={fragStyle}
                         title={frag.title ?? undefined}
+                        {...linkA11yProps}
                       >
                         {frag.text}
                       </a>,
