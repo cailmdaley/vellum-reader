@@ -78,8 +78,27 @@ export function statusClass(status: string): string {
  * Strip a leading markdown blockquote prefix (`> `) and trim. Returns
  * `undefined` when the result is empty, so callers can guard with a
  * single `if`.
+ *
+ * Also strips inline markdown that doesn't render in the plain-text
+ * surfaces that consume verdicts (IndexView labels, PretextFiberCard
+ * outcomes, fiber-row buttons in WorkspaceView): bold/italic/strong
+ * markers (`**`, `__`, `_`, `*`) and inline-code backticks. These
+ * surfaces render the verdict as plain text inside an aria-label or
+ * span, so the markdown leaks both visually ("North Star **Purpose**")
+ * and into screen-reader announcements ("North Star asterisk asterisk
+ * Purpose asterisk asterisk"). Wikilinks (`[[...]]`) are kept here —
+ * the FloatingIsland search popover applies its own `stripWikilinks`
+ * pass to humanise the slug.
  */
 export function cleanVerdict(v?: string): string | undefined {
   if (!v) return v;
-  return v.replace(/^>\s*/, '').trim() || undefined;
+  return v
+    .replace(/^>\s*/, '')
+    // Bold / italic delimiters: 1 or 2 of `*` or `_` around content.
+    // Conservative — only strips delimiters, not the text between them.
+    .replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/(?<!\w)([*_])(?!\s)([^*_\n]+?)(?<!\s)\1(?!\w)/g, '$2')
+    // Inline code backticks (single or double). Drops the fences, keeps content.
+    .replace(/`{1,2}([^`\n]+?)`{1,2}/g, '$1')
+    .trim() || undefined;
 }

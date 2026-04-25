@@ -22,7 +22,7 @@
 
 import { useMemo } from 'react';
 import type { GraphNode, GraphLink } from '~/utils/content-types';
-import { statusGlyph } from '~/utils/fiber-status';
+import { statusGlyph, cleanVerdict } from '~/utils/fiber-status';
 
 const STATUS_PRIORITY: Record<string, number> = {
   active: 0, open: 1, closed: 2, suspended: 3,
@@ -70,6 +70,13 @@ export function IndexView({ nodes, links: _links, onNavigate, eyebrow }: IndexVi
         <section className="index-view__section">
           {rootFibers.map((node) => {
             const quiet = QUIET_STATUSES.has(node.status);
+            // cleanVerdict strips the leading blockquote `> ` and inline
+            // markdown markers (** _ ` …) so the lede previews don't
+            // show as raw markdown literals visually OR in the button's
+            // accessible name. Without this, a ledel like
+            // "**Purpose**" rendered as the literal asterisks both
+            // on-screen and in screen-reader output.
+            const verdict = cleanVerdict(node.verdict);
             return (
               <button
                 key={node.id}
@@ -78,8 +85,8 @@ export function IndexView({ nodes, links: _links, onNavigate, eyebrow }: IndexVi
               >
                 <span className="index-view__glyph" aria-hidden="true">{statusGlyph(node.status)}</span>
                 <span className="index-view__label">{node.label}</span>
-                {node.verdict && (
-                  <span className="index-view__verdict">{node.verdict}</span>
+                {verdict && (
+                  <span className="index-view__verdict">{verdict}</span>
                 )}
               </button>
             );
