@@ -208,7 +208,14 @@ export function AstraAppendix({
 
       {findings.length > 0 && (
         <section id="astra-appendix-findings" className="astra-appendix__section">
-          <h3 className="astra-appendix__heading">
+          {/* aria-label preserves source-case text. Without it, CSS
+              text-transform: lowercase on .astra-appendix__heading bleeds into
+              the accessible name calculation in modern Chrome — screen readers
+              would announce "findings 3" instead of "Findings 3". */}
+          <h3
+            className="astra-appendix__heading"
+            aria-label={`Findings, ${findings.length}`}
+          >
             Findings <span className="astra-appendix__count">{findings.length}</span>
           </h3>
           <div className="astra-appendix__stack">
@@ -258,7 +265,7 @@ export function AstraAppendix({
 
       {hasMethods && (
         <section id="astra-appendix-methods" className="astra-appendix__section">
-          <h3 className="astra-appendix__heading">Methods</h3>
+          <h3 className="astra-appendix__heading" aria-label="Methods">Methods</h3>
           <div className="astra-appendix__methods">
             {decisions.length > 0 && (
               <div className="astra-appendix__methods-group">
@@ -364,7 +371,10 @@ export function AstraAppendix({
 
       {hasAppendix && (
         <section id="astra-appendix-enumeration" className="astra-appendix__section">
-          <h3 className="astra-appendix__heading">
+          <h3
+            className="astra-appendix__heading"
+            aria-label={`Appendix, ${decisions.length + outputs.length}`}
+          >
             Appendix
             <span className="astra-appendix__count">
               {decisions.length + outputs.length}
@@ -375,7 +385,10 @@ export function AstraAppendix({
               id="astra-appendix-decisions"
               className="astra-appendix__subsection"
             >
-              <h4 className="astra-appendix__subheading">
+              <h4
+                className="astra-appendix__subheading"
+                aria-label={`Decisions, ${decisions.length}`}
+              >
                 Decisions <span className="astra-appendix__count">{decisions.length}</span>
               </h4>
               <div className="astra-appendix__stack">
@@ -419,7 +432,10 @@ export function AstraAppendix({
               id="astra-appendix-outputs"
               className="astra-appendix__subsection"
             >
-              <h4 className="astra-appendix__subheading">
+              <h4
+                className="astra-appendix__subheading"
+                aria-label={`Outputs, ${outputs.length}`}
+              >
                 Outputs <span className="astra-appendix__count">{outputs.length}</span>
               </h4>
               <div className="astra-appendix__stack">
