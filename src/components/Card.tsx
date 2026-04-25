@@ -589,7 +589,16 @@ function EvidenceRow({
     <div className={`card__evidence card__evidence--${evidence.kind}`}>
       <div className="card__evidence-header">
         <span className="card__evidence-glyph" aria-hidden="true">{glyph}</span>
-        <h4 className="card__evidence-label">{label}</h4>
+        {/*
+          `.card__evidence-label` carries CSS `text-transform: uppercase`
+          which Chrome includes in the accessible-name calc — without
+          aria-label the heading announces "QUOTE" / "FIGURE" / "CODE" /
+          "FINDING" / "EVIDENCE" instead of source case. The aria-label
+          uses the original `label` value verbatim so AT users hear
+          "Quote", "Figure", etc. Same pattern as AstraAppendix and
+          WorkspaceAnatomy headings.
+        */}
+        <h4 className="card__evidence-label" aria-label={label}>{label}</h4>
         {evidence.doi && (
           <a
             className="card__evidence-source"

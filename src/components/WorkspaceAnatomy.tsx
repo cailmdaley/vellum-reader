@@ -82,7 +82,19 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
 
       {decisions.length > 0 && (
         <section className="workspace-anatomy__section">
-          <h3 className="workspace-anatomy__heading">
+          {/*
+            CSS `text-transform: uppercase` on `.workspace-anatomy__heading`
+            propagates into Chrome's accessible-name calc — without an
+            explicit override, AT users hear "DECISIONS 1" instead of
+            "Decisions, 1". The aria-label uses source case + a comma
+            separator before the count so screen-reader pacing matches
+            the visual hierarchy. Pattern matches AstraAppendix headings
+            (iter29 c2006c0).
+          */}
+          <h3
+            className="workspace-anatomy__heading"
+            aria-label={`Decisions, ${decisions.length}`}
+          >
             Decisions <span className="workspace-anatomy__count">{decisions.length}</span>
           </h3>
           <div className="workspace-anatomy__stack">
@@ -99,7 +111,10 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
 
       {findings.length > 0 && (
         <section className="workspace-anatomy__section">
-          <h3 className="workspace-anatomy__heading">
+          <h3
+            className="workspace-anatomy__heading"
+            aria-label={`Findings, ${findings.length}`}
+          >
             Findings <span className="workspace-anatomy__count">{findings.length}</span>
           </h3>
           <div className="workspace-anatomy__stack">
@@ -116,7 +131,10 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
 
       {inputs.length > 0 && (
         <section className="workspace-anatomy__section">
-          <h3 className="workspace-anatomy__heading">
+          <h3
+            className="workspace-anatomy__heading"
+            aria-label={`Inputs, ${inputs.length}`}
+          >
             Inputs <span className="workspace-anatomy__count">{inputs.length}</span>
           </h3>
           <div className="workspace-anatomy__stack">
@@ -133,7 +151,10 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
 
       {outputs.length > 0 && (
         <section className="workspace-anatomy__section">
-          <h3 className="workspace-anatomy__heading">
+          <h3
+            className="workspace-anatomy__heading"
+            aria-label={`Outputs, ${outputs.length}`}
+          >
             Outputs <span className="workspace-anatomy__count">{outputs.length}</span>
           </h3>
           <div className="workspace-anatomy__stack">
