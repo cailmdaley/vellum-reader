@@ -33,6 +33,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MyST } from 'myst-to-react';
+import { FindingsStepper } from './FindingsStepper';
 import {
   layoutWithLines,
   prepareWithSegments,
@@ -1616,7 +1617,15 @@ function renderLine(
           }}
         >
           <div className="pretext-prose-compat__inner vellum-prose-compat">
-            <MyST ast={item.node} />
+            {/* Vellum-native sentinels swapped in here instead of MyST.
+                The astraFindingsStepper node is injected by NarrativeView
+                at the end of the findings narrative section; it carries no
+                payload — the stepper reads findings from FindingsContext. */}
+            {item.node?.type === 'astraFindingsStepper' ? (
+              <FindingsStepper />
+            ) : (
+              <MyST ast={item.node} />
+            )}
           </div>
         </div>
       );

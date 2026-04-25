@@ -56,6 +56,10 @@ export interface FileViewerPageProps {
   /** Fires whenever the annotation list for this file changes. Host uses this
    * to show/hide bulk action buttons in its own chrome. */
   onAnnotationsChange?: (annotations: Annotation[]) => void;
+  /** Increment to force a re-fetch of annotations from the adapter without
+   * remounting the file (cursor, scroll, editor state are preserved). Use
+   * after a bulk mutation (mark-sent, bulk-delete). */
+  annotationRefreshKey?: number;
 }
 
 type FetchState =
@@ -78,6 +82,7 @@ export function FileViewerPage({
   onSaveStateChange,
   onSaveReady,
   onAnnotationsChange,
+  annotationRefreshKey,
 }: FileViewerPageProps) {
   const adapter = useAdapter();
   const [state, setState] = useState<FetchState>({ status: 'loading' });
@@ -131,7 +136,7 @@ export function FileViewerPage({
     return () => {
       cancelled = true;
     };
-  }, [adapter, path, cacheBust]);
+  }, [adapter, path, cacheBust, annotationRefreshKey]);
 
   const doSave = useCallback(async () => {
     if (state.status !== 'ready') return;

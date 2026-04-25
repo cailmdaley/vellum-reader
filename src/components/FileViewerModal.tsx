@@ -43,6 +43,7 @@ export function FileViewerModal({
   onClose,
 }: FileViewerModalProps) {
   const [cacheBustKey, setCacheBustKey] = useState(0);
+  const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [save, setSave] = useState<(() => Promise<void>) | null>(null);
@@ -54,16 +55,24 @@ export function FileViewerModal({
     setCacheBustKey((n) => n + 1);
   }, []);
 
+  const refreshAnnotations = useCallback(() => {
+    setAnnotationRefreshKey((n) => n + 1);
+  }, []);
+
   const handleSaveReady = useCallback((fn: (() => Promise<void>) | null) => {
     setSave(() => fn);
   }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
+      if (e.key !== 'Escape') return;
+      // Don't swallow Escape while focus is inside a CodeMirror editor —
+      // vim needs it to exit insert mode, finish search, cancel completion,
+      // etc. Click-outside and the X button still close the modal.
+      const target = e.target;
+      if (target instanceof Element && target.closest('.cm-editor')) return;
+      e.stopPropagation();
+      onClose();
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
@@ -115,9 +124,13 @@ export function FileViewerModal({
                     const matched = action.applicableTo
                       ? annotationsRef.current.filter(action.applicableTo)
                       : annotationsRef.current;
+                    // Pass `refreshAnnotations` (annotation-only refetch)
+                    // not `handleRefresh` (full file reload) so a bulk
+                    // mutation can re-read annotations without losing
+                    // editor state — cursor, scroll, search, vim mode.
                     void action.onInvoke(matched, {
                       anchor: e.currentTarget as HTMLElement,
-                      refreshAnnotations: handleRefresh,
+                      refreshAnnotations,
                     });
                   }}
                 >
@@ -170,6 +183,7 @@ export function FileViewerModal({
             onSaveStateChange={setSaveState}
             onSaveReady={handleSaveReady}
             onAnnotationsChange={setAnnotations}
+            annotationRefreshKey={annotationRefreshKey}
           />
         </div>
       </div>
