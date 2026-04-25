@@ -373,8 +373,9 @@ export function FloatingIsland({
                 className="thumb-index__parent"
                 onClick={() => handleNav(parentNode.slug)}
                 title={parentNode.label}
+                aria-label={`Back to ${parentNode.label}`}
               >
-                <span className="thumb-index__arrow">←</span>
+                <span className="thumb-index__arrow" aria-hidden="true">←</span>
                 {shortLabel(parentNode)}
               </button>
             ) : (
@@ -382,8 +383,9 @@ export function FloatingIsland({
                 className="thumb-index__parent"
                 onClick={() => onNavigate('')}
                 title="Index — all top-level fibers"
+                aria-label="Back to index"
               >
-                <span className="thumb-index__arrow">←</span>
+                <span className="thumb-index__arrow" aria-hidden="true">←</span>
                 index
               </button>
             )}
