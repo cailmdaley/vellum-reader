@@ -5218,7 +5218,12 @@ h2.pretext-prose-line--h2 {
   counter-increment: section-counter;
 }
 h2.pretext-prose-line--h2::before {
-  content: '§ ' counter(section-counter, upper-roman);
+  /* Decorative rubric counter ("§ I", "§ II", …). The accessible name
+     of the heading already carries the title; the section number is
+     visual orientation, not content. CSS-3 alt-text fragment removes
+     it from the a11y tree so screen readers don't announce the cartouche
+     before each section title. */
+  content: '§ ' counter(section-counter, upper-roman) / '';
   position: absolute;
   right: calc(100% + 1rem);
   top: 0.5em;
@@ -5235,7 +5240,8 @@ h2.pretext-prose-line--h2::before {
 /* h3 gets a quieter pencil mark in the muted ink family — the author
    pausing to mark a subsection, not announce it. */
 h3.pretext-prose-line--h3::before {
-  content: '·';
+  /* Decorative subsection mark — hide from AT. */
+  content: '·' / '';
   position: absolute;
   right: calc(100% + 0.5rem);
   top: 0;
