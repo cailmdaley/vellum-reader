@@ -230,6 +230,7 @@ function CardShell({
   openPageLabel,
   pinMode,
   className,
+  ariaLabel,
 }: {
   width: number;
   /** Used for data-type attribute and the status-like --type accent. */
@@ -251,6 +252,14 @@ function CardShell({
   openPageLabel?: string;
   pinMode?: 'canvas' | 'screen';
   className?: string;
+  /**
+   * Accessible label for the article landmark. Variants pass a
+   * descriptive label (e.g. the finding's claim, the figure's caption,
+   * the decision's question) so AT users navigating by article hear
+   * the content rather than the type-glyph composite (`●  Finding`).
+   * Falls back to `title` when omitted.
+   */
+  ariaLabel?: string;
 }) {
   const [layout, setLayout] = useState<CardLayout | null>(null);
 
@@ -271,6 +280,8 @@ function CardShell({
 
   return (
     <div
+      role="article"
+      aria-label={ariaLabel ?? title}
       className={['card', `card--${typeLabel}`, variantClass ?? '', className ?? '']
         .filter(Boolean)
         .join(' ')}
@@ -417,6 +428,7 @@ function DecisionCard({
       title={title}
       body={body}
       meta={meta}
+      ariaLabel={`Decision: ${decision.label}${effectiveOption ? ` — ${effectiveOption.label}` : ''}`}
       onClose={onClose}
       onOpenPage={handleOpenPage}
       openPageLabel="Open decision page"
@@ -686,6 +698,7 @@ function FindingCard({
       title={title}
       body={finding.claim}
       meta={finding.notes ?? finding.scope ?? null}
+      ariaLabel={`Finding${finding.hasEvidence ? ' (with evidence)' : ' (open)'}: ${finding.claim}`}
       onClose={onClose}
       className={className}
       below={() => {
@@ -721,6 +734,7 @@ function PlotCard({
       title={title}
       body={null}
       meta={content.src}
+      ariaLabel={`Figure: ${caption}`}
       onClose={onClose}
       className={className}
       below={({ innerWidth }) => (
@@ -871,6 +885,7 @@ function ProvenanceCard({
       title={title}
       body={body}
       meta={meta}
+      ariaLabel={`${kindLabel}${id ? `: ${id}` : ''}${body ? ` — ${body}` : ''}`}
       onClose={onClose}
       className={className}
       below={({ innerWidth }) => {
