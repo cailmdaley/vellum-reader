@@ -343,6 +343,17 @@ body {
   background: var(--gold-faint);
 }
 
+/* Empty state — no hover, italicised, muted to read as a non-result. */
+.search-result--empty {
+  cursor: default;
+  font-style: italic;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+.search-result--empty:hover {
+  background: transparent;
+}
+
 .search-result__glyph {
   flex-shrink: 0;
   font-size: 0.75rem;

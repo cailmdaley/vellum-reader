@@ -313,7 +313,7 @@ export function FloatingIsland({
               ⌕
             </button>
           )}
-          {showResults && searchExpanded && results.length > 0 && (() => {
+          {showResults && searchExpanded && query.trim().length > 0 && (() => {
             // Use viewport-fixed positioning so the dropdown escapes
             // the thumb-index's own scroll/overflow context — otherwise
             // long result lists get clipped at the panel's bottom edge.
@@ -331,8 +331,20 @@ export function FloatingIsland({
                 maxHeight,
                 overflowY: 'auto',
               }}
+              role="listbox"
+              aria-label="Search results"
             >
-              {results.slice(0, 12).map((hit, i) => (
+              {results.length === 0 ? (
+                // Empty-state row keeps the surface honest: the user can see
+                // the search ran and produced nothing, instead of typing into
+                // a dead input where the dropdown silently never appears.
+                <div className="search-result search-result--empty" role="option" aria-disabled="true">
+                  <span className="search-result__body">
+                    <span className="search-result__title">No matches</span>
+                  </span>
+                </div>
+              ) : (
+                results.slice(0, 12).map((hit, i) => (
                 <a
                   key={hit.id}
                   href={`/${hit.id}`}
@@ -353,7 +365,8 @@ export function FloatingIsland({
                     {hit.outcome && <span className="search-result__outcome">{hit.outcome}</span>}
                   </span>
                 </a>
-              ))}
+              ))
+              )}
             </div>
             );
           })()}
