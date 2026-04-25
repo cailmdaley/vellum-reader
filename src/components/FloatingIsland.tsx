@@ -369,7 +369,7 @@ export function FloatingIsland({
                   }}
                   onMouseEnter={() => setSelectedIdx(i)}
                 >
-                  <span className="search-result__glyph">{statusGlyph(hit.status)}</span>
+                  <span className="search-result__glyph" aria-hidden="true">{statusGlyph(hit.status)}</span>
                   <span className="search-result__body">
                     <span className="search-result__title">{hit.title}</span>
                     {hit.outcome && <span className="search-result__outcome">{stripWikilinks(hit.outcome)}</span>}
@@ -429,7 +429,7 @@ export function FloatingIsland({
                       onClick={() => handleNav(node.slug)}
                       title={node.label}
                     >
-                      <span className="thumb-index__backlink-chip-glyph">{statusGlyph(node.status)}</span>
+                      <span className="thumb-index__backlink-chip-glyph" aria-hidden="true">{statusGlyph(node.status)}</span>
                       <span className="thumb-index__backlink-chip-label">{shortLabel(node)}</span>
                     </button>
                     {i < backlinkNodes.length - 1 && (

@@ -76,7 +76,7 @@ export function IndexView({ nodes, links: _links, onNavigate, eyebrow }: IndexVi
                 className={`index-view__item${quiet ? ' index-view__item--closed' : ''}`}
                 onClick={() => onNavigate(node.slug)}
               >
-                <span className="index-view__glyph">{statusGlyph(node.status)}</span>
+                <span className="index-view__glyph" aria-hidden="true">{statusGlyph(node.status)}</span>
                 <span className="index-view__label">{node.label}</span>
                 {node.verdict && (
                   <span className="index-view__verdict">{node.verdict}</span>

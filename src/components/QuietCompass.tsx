@@ -187,7 +187,7 @@ export function QuietCompass({
                       className="quiet-compass__popover-item"
                       onClick={() => handleNavigate(node.slug)}
                     >
-                      <span className="quiet-compass__glyph">
+                      <span className="quiet-compass__glyph" aria-hidden="true">
                         {statusGlyph(node.status)}
                       </span>
                       {node.label}

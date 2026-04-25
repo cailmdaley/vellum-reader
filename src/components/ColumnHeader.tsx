@@ -138,7 +138,7 @@ export function ColumnHeader({ deltaCount = 0, children }: { deltaCount?: number
                   }}
                   onMouseEnter={() => setSelectedIdx(i)}
                 >
-                  <span className="search-result__glyph">
+                  <span className="search-result__glyph" aria-hidden="true">
                     {statusGlyph(hit.status)}
                   </span>
                   <span className="search-result__body">
