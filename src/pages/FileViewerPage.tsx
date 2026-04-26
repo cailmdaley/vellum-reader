@@ -23,6 +23,7 @@ import type { Annotation, AnnotationAction, FileContent } from '../utils/content
 import { FileReader } from '../components/FileReader';
 import { AstraPaperView, type AstraLayout } from '../components/astra/AstraPaperView';
 import { AstraPicker, type AstraLadderRung } from '../components/astra/AstraPicker';
+import { TextAnnotationLayer } from '../components/TextAnnotationLayer';
 import type { AstraBundleResult } from '../adapter';
 
 export interface FileViewerPageProps {
@@ -395,6 +396,8 @@ function AstraFilePanel({
   astraRenderMode,
   onAstraRenderModeChange,
   onAstraSourceSupportChange,
+  onAnnotationsChange,
+  annotationRefreshKey,
 }: FileViewerPageProps) {
   const adapter = useAdapter();
   const [rung, setRung] = useState<AstraLadderRung>(() => loadStoredRung());
@@ -419,6 +422,23 @@ function AstraFilePanel({
   const [sourceStatus, setSourceStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     'idle',
   );
+  // File-anchored annotations on this astra path. Loaded eagerly so they
+  // light up as soon as the bundle renders. Unlike the text/markdown branch
+  // (which filters by `from`/`to`), astra annotations are matched by
+  // selectedText + surrounding context inside `<TextAnnotationLayer>`, so we
+  // keep every row the adapter returns.
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  // proseRef points at the rendered `<article>` (for text-walking inside
+  // annotation matching); wrapperRef points at a sized div that wraps both
+  // the article AND the `<TextAnnotationLayer>`'s margin notes, so the notes'
+  // `position: absolute; left: calc(100% + 12px)` resolves against an
+  // article-sized box (i.e. the notes hang in the right gutter). Anchoring
+  // notes on the host (full-width) would push them past the viewport edge;
+  // anchoring on the article from the outside doesn't work because the notes
+  // would be DOM siblings of the article, not children, so they'd inherit a
+  // different positioned ancestor.
+  const proseRef = useRef<HTMLElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   // Always fetch the iframe descriptor — the paper-view rung uses it
   // directly, and a missing bundle endpoint falls back to it. Cheap; the
@@ -474,6 +494,32 @@ function AstraFilePanel({
       cancelled = true;
     };
   }, [adapter, path, originId, cacheBust]);
+
+  // Astra annotations: file-keyed via the path. Re-fetched on `cacheBust` and
+  // on host-driven `annotationRefreshKey` bumps (bulk actions in chrome).
+  // Adapters that don't store annotations return [] — silent no-op.
+  useEffect(() => {
+    let cancelled = false;
+    adapter
+      .getAnnotations(path, { kind: 'text' })
+      .then((rows) => {
+        if (cancelled) return;
+        setAnnotations(rows);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAnnotations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [adapter, path, cacheBust, annotationRefreshKey]);
+
+  // Notify chrome-level hosts whenever the local list changes so they can
+  // surface bulk-action affordances (e.g. "send N annotations to worker").
+  useEffect(() => {
+    onAnnotationsChange?.(annotations);
+  }, [annotations, onAnnotationsChange]);
 
   // Source-mode YAML body. Lazy-loaded the first time the user flips into
   // source mode, then cached. The adapter exposes the raw-text route via
@@ -591,30 +637,61 @@ function AstraFilePanel({
               </div>
             )
           ) : bundleResult ? (
-            <AstraPaperView
-              bundle={bundleResult.bundle}
-              csvs={bundleResult.csvs}
-              layout={rungToLayout(effectiveRung)}
-              hostSlug={path}
-              resolveArtifact={
-                adapter.resolveAssetUrl
-                  ? (p: string) => adapter.resolveAssetUrl!(p)
-                  : undefined
-              }
-              resolvePaperPdf={(cacheKey: string) => {
-                // Origin-aware URL: `/papers/<originId>/<cacheKey>/paper.pdf`.
-                // For local origins the host's paper-cache is read directly;
-                // for remote origins, portolan SSH-fetches the PDF on first
-                // request and caches it locally per-origin (see
-                // server/src/HttpApiAstraView.ts → handlePaperPdf). The
-                // legacy single-segment form (no originId) still works as a
-                // local-origin shortcut for any caller that hasn't been
-                // updated yet.
-                const safeOrigin = encodeURIComponent(originId ?? 'local');
-                const path = `/papers/${safeOrigin}/${encodeURIComponent(cacheKey)}/paper.pdf`;
-                return adapter.resolveAssetUrl ? adapter.resolveAssetUrl(path) : path;
-              }}
-            />
+            // Anchor wraps both the rendered article and TextAnnotationLayer so
+            // margin notes inherit it as their offsetParent — sized exactly like
+            // `.astra-paper-view` (760/920px max-width, centered) so
+            // `left: calc(100% + 12px)` lands the notes 12px past the article's
+            // right edge inside the host's gutter.
+            <div
+              className={`astra-paper-view-anchor astra-paper-view-anchor--${rungToLayout(
+                effectiveRung,
+              )}`}
+              ref={wrapperRef}
+            >
+              <AstraPaperView
+                bundle={bundleResult.bundle}
+                csvs={bundleResult.csvs}
+                layout={rungToLayout(effectiveRung)}
+                hostSlug={path}
+                proseRef={proseRef}
+                resolveArtifact={
+                  adapter.resolveAssetUrl
+                    ? (p: string) => adapter.resolveAssetUrl!(p)
+                    : undefined
+                }
+                resolvePaperPdf={(cacheKey: string) => {
+                  // Origin-aware URL: `/papers/<originId>/<cacheKey>/paper.pdf`.
+                  // For local origins the host's paper-cache is read directly;
+                  // for remote origins, portolan SSH-fetches the PDF on first
+                  // request and caches it locally per-origin (see
+                  // server/src/HttpApiAstraView.ts → handlePaperPdf). The
+                  // legacy single-segment form (no originId) still works as a
+                  // local-origin shortcut for any caller that hasn't been
+                  // updated yet.
+                  const safeOrigin = encodeURIComponent(originId ?? 'local');
+                  const path = `/papers/${safeOrigin}/${encodeURIComponent(cacheKey)}/paper.pdf`;
+                  return adapter.resolveAssetUrl ? adapter.resolveAssetUrl(path) : path;
+                }}
+              />
+              {/*
+                * TextAnnotationLayer is a sibling of the article inside the same
+                * positioned anchor div. Margin notes use `position: absolute;
+                * left: calc(100% + 12px)` and resolve against the anchor — which
+                * is sized like the article, so notes land in the host's right
+                * gutter and clip via `overflow-x: hidden` at sticky-note widths.
+                * Gated on linear/personal rungs only: the paper-view iframe is a
+                * separate origin so DOM-anchored highlights can't reach inside
+                * it. Annotations still exist file-keyed; they re-light when the
+                * reader flips back to linear or personal.
+                */}
+              <TextAnnotationLayer
+                slug={path}
+                annotations={annotations}
+                proseRef={proseRef}
+                wrapperRef={wrapperRef as React.RefObject<HTMLElement>}
+                onAnnotationsChange={setAnnotations}
+              />
+            </div>
           ) : (
             <div className="astra-paper-view-host__loading">Loading bundle…</div>
           )}

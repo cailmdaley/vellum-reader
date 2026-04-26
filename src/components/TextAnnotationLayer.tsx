@@ -22,11 +22,28 @@ function normalizeWhitespace(s: string): string {
   return s.replace(/\s+/g, ' ').trim();
 }
 
-function getContext(sel: Selection, charsBefore = 30, charsAfter = 30) {
+/**
+ * Build the {selectedText, contextBefore, contextAfter} triple that anchors a
+ * fresh annotation. `proseEl` is the prose root the layer is mounted over —
+ * pass `proseRef.current`. The container bounds the context-slice so the
+ * text-before / text-after stays inside the article rather than spilling into
+ * page chrome (toolbar, sidebar, modal scrim). Falls back to `document.body`
+ * if the caller can't supply a container, mirroring the previous
+ * `closest('.vellum-prose')` behaviour for callers that haven't been updated.
+ */
+function getContext(
+  sel: Selection,
+  proseEl: HTMLElement | null,
+  charsBefore = 30,
+  charsAfter = 30,
+) {
   const range = sel.getRangeAt(0);
   const selectedText = normalizeWhitespace(range.toString());
   const preRange = document.createRange();
-  const container = range.startContainer.parentElement?.closest('.vellum-prose') ?? document.body;
+  const container =
+    proseEl ??
+    range.startContainer.parentElement?.closest<HTMLElement>('.vellum-prose') ??
+    document.body;
   preRange.setStart(container, 0);
   preRange.setEnd(range.startContainer, range.startOffset);
   const contextBefore = normalizeWhitespace(preRange.toString()).slice(-charsBefore);
@@ -211,7 +228,7 @@ export function TextAnnotationLayer({
         setSelectionRect(range.getBoundingClientRect());
         setShowCommentBox(false);
         setCommentText('');
-        setSelectionContext(getContext(sel));
+        setSelectionContext(getContext(sel, proseEl));
       });
     }
 

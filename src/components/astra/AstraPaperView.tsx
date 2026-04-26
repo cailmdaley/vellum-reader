@@ -120,6 +120,13 @@ export interface AstraPaperViewProps {
    *  in portolan, project slug elsewhere); when omitted, falls back to
    *  `bundle.title` so anonymous mounts still get isolated state. */
   hostSlug?: string;
+  /** Optional ref forwarded onto the `<article>` root so a host-mounted
+   *  `<TextAnnotationLayer>` can use it as the prose container. The host owns
+   *  annotation state (it has the file path, the adapter, and the wrapping
+   *  positioned div for the margin notes); this view just exposes the right
+   *  DOM target. See `vellum-reader/vellum-native-astra-renderer` Stage 3
+   *  annotation layer notes. */
+  proseRef?: React.RefObject<HTMLElement | null>;
 }
 
 /**
@@ -167,6 +174,7 @@ export function AstraPaperView({
   resolveArtifact = identity,
   resolvePaperPdf,
   hostSlug,
+  proseRef,
 }: AstraPaperViewProps) {
   const decisionsByInsight = bundle.decisions_by_insight ?? {};
   const decisionLabel = (key: string): string =>
@@ -193,6 +201,7 @@ export function AstraPaperView({
 
   return (
     <article
+      ref={proseRef as React.RefObject<HTMLElement> | undefined}
       className={`astra-paper-view astra-paper-view--${layout}`}
       data-astra-layout={layout}
       aria-label={bundle.title ? `Astra paper view: ${bundle.title}` : 'Astra paper view'}
