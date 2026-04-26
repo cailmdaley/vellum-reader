@@ -14,10 +14,19 @@
  * structural divergence lives in CSS at `:root[data-astra-layout="personal"]`
  * and grows over iterations.
  *
- * No interactivity beyond expand/collapse of decision/output cards in Stage 1.
- * Stage 2 lands inline evidence references, decision-pill popovers, figure
- * thumbnails. Stage 3 lands annotation layer + decision-flip overlay. Stage 4
- * PRs the affordances upstream into `paper-view.html`.
+ * Stage 2 (this revision) wires:
+ *   - Inline narrative refs (`[text](#findings.foo)` etc.) that scroll +
+ *     flash the targeted anchor — see `AstraProse`.
+ *   - Figure outputs render inline `<img>` thumbnails (click → open).
+ *   - Table outputs render a small CSV preview when `csvs[resolved_path]`
+ *     is provided.
+ *   - Sub-analyses render their own narrative + findings inline (not just
+ *     a count) so the wiki-format reading surface lands.
+ *   - Inline "informs" decision pills under finding evidence, resolved
+ *     through `bundle.decisions_by_insight`.
+ *
+ * Stage 3 lands annotation layer + decision-flip overlay. Stage 4 PRs the
+ * affordances upstream into `paper-view.html`.
  *
  * Bundle in, JSX out, no portolan dependency. The host (portolan) glues this
  * into its workspace modal and pin cards via `mountVellumAstraCardSurface` /
@@ -36,13 +45,14 @@ import type {
   Input,
   Output,
 } from 'lightcone-ui-core';
+import { AstraProse, scrollToAstraAnchor } from './AstraProse';
 
 export type AstraLayout = 'linear' | 'personal';
 
 export interface AstraPaperViewProps {
   bundle: Bundle;
-  /** Inlined CSV previews keyed by output `resolved_path`. Optional today —
-   *  Stage 2 wires the table outputs to them. */
+  /** Inlined CSV previews keyed by output `resolved_path`. Stage 2 renders a
+   *  small head-rows preview underneath table outputs when present. */
   csvs?: Record<string, string>;
   /** Layout flavor. `'linear'` is the staging-ground rung; `'personal'`
    *  expressive divergence layered on top via CSS + small structural tweaks. */
@@ -76,10 +86,14 @@ function narrativeText(section: string | { content: string } | undefined): strin
 
 export function AstraPaperView({
   bundle,
-  csvs: _csvs,
+  csvs,
   layout = 'linear',
   resolveArtifact = identity,
 }: AstraPaperViewProps) {
+  const decisionsByInsight = bundle.decisions_by_insight ?? {};
+  const decisionLabel = (key: string): string =>
+    bundle.decisions[key]?.label ?? key;
+
   return (
     <article
       className={`astra-paper-view astra-paper-view--${layout}`}
@@ -91,50 +105,93 @@ export function AstraPaperView({
         const summary = narrativeText(bundle.narrative.summary);
         return summary ? (
           <Section heading="Summary" id="summary">
-            <Prose text={summary} />
+            <AstraProse text={summary} />
           </Section>
         ) : null;
       })()}
-      {bundle.findings.length > 0 && (
-        <Section heading="Findings" id="findings" count={bundle.findings.length}>
-          <FindingsList
-            findings={bundle.findings}
-            insights={bundle.insights}
-            resolveArtifact={resolveArtifact}
-          />
-        </Section>
-      )}
-      {Object.keys(bundle.decisions).length > 0 && (
-        <Section
-          heading="Decisions"
-          id="decisions"
-          count={Object.keys(bundle.decisions).length}
-        >
-          <DecisionsList
-            decisions={bundle.decisions}
-            universeSelections={bundle.universe_selections}
-          />
-        </Section>
-      )}
-      {Object.keys(bundle.inputs).length > 0 && (
-        <Section heading="Inputs" id="inputs" count={Object.keys(bundle.inputs).length}>
-          <InputsList inputs={bundle.inputs} />
-        </Section>
-      )}
-      {Object.keys(bundle.outputs).length > 0 && (
-        <Section heading="Outputs" id="outputs" count={bundle.top_output_order.length}>
-          <OutputsList
-            outputs={bundle.outputs}
-            order={bundle.top_output_order}
-            resolveArtifact={resolveArtifact}
-          />
-        </Section>
-      )}
-      {bundle.sub_order.length > 0 && (
-        <Section heading="Sub-analyses" id="sub-analyses" count={bundle.sub_order.length}>
-          <SubAnalysesList bundle={bundle} resolveArtifact={resolveArtifact} />
-        </Section>
-      )}
+      {(() => {
+        const findingsNarrative = narrativeText(bundle.narrative.findings);
+        const inputsNarrative = narrativeText(bundle.narrative.inputs);
+        const methodsNarrative = narrativeText(bundle.narrative.methods);
+        const outputsNarrative = narrativeText(bundle.narrative.outputs);
+        return (
+          <>
+            {bundle.findings.length > 0 && (
+              <Section
+                heading="Findings"
+                id="findings"
+                count={bundle.findings.length}
+              >
+                {findingsNarrative && <AstraProse text={findingsNarrative} />}
+                <FindingsList
+                  findings={bundle.findings}
+                  insights={bundle.insights}
+                  decisionsByInsight={decisionsByInsight}
+                  decisionLabel={decisionLabel}
+                  resolveArtifact={resolveArtifact}
+                />
+              </Section>
+            )}
+            {Object.keys(bundle.decisions).length > 0 && (
+              <Section
+                heading="Decisions"
+                id="decisions"
+                count={Object.keys(bundle.decisions).length}
+              >
+                <DecisionsList
+                  decisions={bundle.decisions}
+                  universeSelections={bundle.universe_selections}
+                />
+              </Section>
+            )}
+            {Object.keys(bundle.inputs).length > 0 && (
+              <Section
+                heading="Inputs"
+                id="inputs"
+                count={Object.keys(bundle.inputs).length}
+              >
+                {inputsNarrative && <AstraProse text={inputsNarrative} />}
+                <InputsList inputs={bundle.inputs} />
+              </Section>
+            )}
+            {methodsNarrative && (
+              <Section heading="Methods" id="methods">
+                <AstraProse text={methodsNarrative} />
+              </Section>
+            )}
+            {Object.keys(bundle.outputs).length > 0 && (
+              <Section
+                heading="Outputs"
+                id="outputs"
+                count={bundle.top_output_order.length}
+              >
+                {outputsNarrative && <AstraProse text={outputsNarrative} />}
+                <OutputsList
+                  outputs={bundle.outputs}
+                  order={bundle.top_output_order}
+                  csvs={csvs}
+                  resolveArtifact={resolveArtifact}
+                />
+              </Section>
+            )}
+            {bundle.sub_order.length > 0 && (
+              <Section
+                heading="Sub-analyses"
+                id="sub-analyses"
+                count={bundle.sub_order.length}
+              >
+                <SubAnalysesList
+                  bundle={bundle}
+                  csvs={csvs}
+                  decisionsByInsight={decisionsByInsight}
+                  decisionLabel={decisionLabel}
+                  resolveArtifact={resolveArtifact}
+                />
+              </Section>
+            )}
+          </>
+        );
+      })()}
     </article>
   );
 }
@@ -195,31 +252,17 @@ function Section({
   );
 }
 
-/**
- * Render free-form prose. Today: paragraph-split on blank lines, no markdown.
- * Stage 2 pipes this through PretextProse so wikilinks, footnotes, and astra
- * anchors light up. Kept naive for Stage 1 so the bundle render lands today.
- */
-function Prose({ text }: { text: string }) {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-  const paras = trimmed.split(/\n{2,}/);
-  return (
-    <div className="astra-paper-view__prose">
-      {paras.map((p, i) => (
-        <p key={i}>{p}</p>
-      ))}
-    </div>
-  );
-}
-
 function FindingsList({
   findings,
   insights,
+  decisionsByInsight,
+  decisionLabel,
   resolveArtifact,
 }: {
   findings: Finding[];
   insights: Bundle['insights'];
+  decisionsByInsight: Record<string, string[]>;
+  decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
 }) {
   return (
@@ -229,6 +272,8 @@ function FindingsList({
           key={f.id}
           finding={f}
           insights={insights}
+          decisionsByInsight={decisionsByInsight}
+          decisionLabel={decisionLabel}
           resolveArtifact={resolveArtifact}
         />
       ))}
@@ -239,20 +284,33 @@ function FindingsList({
 function FindingItem({
   finding,
   insights,
+  decisionsByInsight,
+  decisionLabel,
   resolveArtifact,
 }: {
   finding: Finding;
   insights: Bundle['insights'];
+  decisionsByInsight: Record<string, string[]>;
+  decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
 }) {
+  // Aggregate every decision informed by this finding's evidence — paper-
+  // view does the same on the insights rail. Dedup so the pill row stays
+  // tight when several pieces of evidence point at the same decision.
+  const informedDecisions = Array.from(
+    new Set(
+      finding.evidence.flatMap((e) => decisionsByInsight[e.id] ?? [])
+    )
+  );
   return (
     <li
       id={`astra-finding-${finding.id}`}
       className="astra-finding"
       data-finding-id={finding.id}
+      tabIndex={-1}
     >
       <p className="astra-finding__claim">{finding.claim}</p>
-      {finding.notes && <Prose text={finding.notes} />}
+      {finding.notes && <AstraProse text={finding.notes} />}
       {finding.tags.length > 0 && (
         <ul className="astra-finding__tags">
           {finding.tags.map((t) => (
@@ -267,6 +325,12 @@ function FindingItem({
           evidence={finding.evidence}
           insights={insights}
           resolveArtifact={resolveArtifact}
+        />
+      )}
+      {informedDecisions.length > 0 && (
+        <DecisionPills
+          decisionKeys={informedDecisions}
+          decisionLabel={decisionLabel}
         />
       )}
     </li>
@@ -307,6 +371,45 @@ function Evidence({
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * Inline pills naming every decision this finding's evidence informs.
+ * Clicking jumps to the decision card. Mirrors the `mountInsightsRail`
+ * "Informs" row in paper-viewer.js, brought into the readable surface
+ * rather than tucked behind a paper-modal.
+ */
+function DecisionPills({
+  decisionKeys,
+  decisionLabel,
+}: {
+  decisionKeys: string[];
+  decisionLabel: (key: string) => string;
+}) {
+  return (
+    <div className="astra-finding__informs">
+      <span className="astra-finding__informs-label">Informs</span>
+      <ul className="astra-finding__informs-pills">
+        {decisionKeys.map((k) => (
+          <li key={k}>
+            <a
+              className="astra-finding__informs-pill"
+              href={`#astra-decision-${k}`}
+              data-decision={k}
+              onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                if (event.button !== 0) return;
+                const ok = scrollToAstraAnchor(`astra-decision-${k}`);
+                if (ok) event.preventDefault();
+              }}
+            >
+              {decisionLabel(k)}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -351,6 +454,7 @@ function DecisionItem({
     <li
       id={`astra-decision-${decisionKey}`}
       className={`astra-decision-card${open ? ' astra-decision-card--open' : ''}`}
+      tabIndex={-1}
     >
       <button
         type="button"
@@ -382,7 +486,7 @@ function DecisionItem({
               ))}
             </ul>
           )}
-          {decision.rationale && <Prose text={decision.rationale} />}
+          {decision.rationale && <AstraProse text={decision.rationale} />}
           <ul className="astra-decision-card__options">
             {decision.options.map((opt) => (
               <DecisionOptionItem
@@ -438,6 +542,7 @@ function InputsList({ inputs }: { inputs: Record<string, Input> }) {
             id={`astra-input-${id}`}
             className="astra-input"
             data-input-type={input.type}
+            tabIndex={-1}
           >
             <span className="astra-input__id">{id}</span>
             <span className="astra-input__type">{input.type}</span>
@@ -455,26 +560,27 @@ function InputsList({ inputs }: { inputs: Record<string, Input> }) {
 function OutputsList({
   outputs,
   order,
+  csvs,
   resolveArtifact,
 }: {
   outputs: Record<string, Output>;
   order: string[];
+  csvs?: Record<string, string>;
   resolveArtifact: (p: string) => string;
 }) {
-  // Render in spec order for top-level outputs, then any sub-analysis-keyed
-  // outputs (`<subId>.<outId>`) appended at the end. The server bundles
-  // `top_output_order` only for root-level outputs; sub outputs surface in
-  // the Sub-analyses section with their own ordering.
+  // Render in spec order for top-level outputs. Sub-analysis-keyed outputs
+  // (`<subId>.<outId>`) live under the Sub-analyses section, so we no longer
+  // append them at the end of the top-level list — they would have shown up
+  // twice otherwise once Stage 2 lit up sub-analysis outputs inline.
   const topKeys = order.filter((id) => id in outputs);
-  const seen = new Set(topKeys);
-  const subKeys = Object.keys(outputs).filter((k) => !seen.has(k));
   return (
     <ul className="astra-paper-view__outputs">
-      {[...topKeys, ...subKeys].map((key) => (
+      {topKeys.map((key) => (
         <OutputItem
           key={key}
           outputKey={key}
           output={outputs[key]}
+          csvs={csvs}
           resolveArtifact={resolveArtifact}
         />
       ))}
@@ -485,18 +591,25 @@ function OutputsList({
 function OutputItem({
   outputKey,
   output,
+  csvs,
   resolveArtifact,
 }: {
   outputKey: string;
   output: Output;
+  csvs?: Record<string, string>;
   resolveArtifact: (p: string) => string;
 }) {
   const url = output.resolved_path ? resolveArtifact(output.resolved_path) : null;
+  const isFigure = output.type === 'figure';
+  const isTable = output.type === 'table';
+  const csvText =
+    isTable && output.resolved_path && csvs ? csvs[output.resolved_path] : undefined;
   return (
     <li
       id={`astra-output-${outputKey}`}
       className="astra-output"
       data-output-type={output.type}
+      tabIndex={-1}
     >
       <div className="astra-output__header">
         <span className="astra-output__id">{outputKey}</span>
@@ -510,6 +623,23 @@ function OutputItem({
       {output.description && (
         <p className="astra-output__description">{output.description}</p>
       )}
+      {isFigure && url && (
+        <a
+          className="astra-output__figure-link"
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open figure ${outputKey} in a new tab`}
+        >
+          <img
+            className="astra-output__figure-thumb"
+            src={url}
+            alt={output.description ? `${outputKey}: ${output.description}` : outputKey}
+            loading="lazy"
+          />
+        </a>
+      )}
+      {isTable && csvText && <CsvPreview csvText={csvText} />}
       {url && (
         <a
           className="astra-output__artifact"
@@ -524,11 +654,58 @@ function OutputItem({
   );
 }
 
+/**
+ * Tiny CSV preview — header + first N rows. Naïve splitter (no quoted-comma
+ * handling) is intentional: this is a glanceable preview, not a parser. If
+ * the CSV has gnarly fields we want, the click-through artifact link is the
+ * source of truth.
+ */
+function CsvPreview({ csvText, maxRows = 5 }: { csvText: string; maxRows?: number }) {
+  const lines = csvText.split(/\r?\n/).filter((l) => l.length > 0);
+  if (lines.length === 0) return null;
+  const header = lines[0].split(',');
+  const rows = lines.slice(1, 1 + maxRows).map((l) => l.split(','));
+  const more = Math.max(0, lines.length - 1 - rows.length);
+  return (
+    <div className="astra-output__csv">
+      <table className="astra-output__csv-table">
+        <thead>
+          <tr>
+            {header.map((cell, i) => (
+              <th key={i}>{cell}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {row.map((cell, j) => (
+                <td key={j}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {more > 0 && (
+        <p className="astra-output__csv-more">
+          +{more} more row{more === 1 ? '' : 's'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SubAnalysesList({
   bundle,
-  resolveArtifact: _resolveArtifact,
+  csvs,
+  decisionsByInsight,
+  decisionLabel,
+  resolveArtifact,
 }: {
   bundle: Bundle;
+  csvs?: Record<string, string>;
+  decisionsByInsight: Record<string, string[]>;
+  decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
 }) {
   return (
@@ -536,23 +713,116 @@ function SubAnalysesList({
       {bundle.sub_order.map((subId) => {
         const sub = bundle.sub_analyses[subId];
         const findings = bundle.sub_findings[subId] ?? [];
+        const subNarrative = bundle.sub_narrative?.[subId] ?? {};
+        const summary = narrativeText(subNarrative.summary);
+        const findingsNarrative = narrativeText(subNarrative.findings);
+        const inputsNarrative = narrativeText(subNarrative.inputs);
+        const methodsNarrative = narrativeText(subNarrative.methods);
+        const outputsNarrative = narrativeText(subNarrative.outputs);
+        // Outputs whose dotted key starts with `<subId>.` belong to this sub.
+        // These are the same entries the top-level list used to render twice
+        // before Stage 2 — surface them here, where the wiki-format reading
+        // surface lives.
+        const subOutputKeys = Object.keys(bundle.outputs).filter((k) =>
+          k.startsWith(`${subId}.`)
+        );
         return (
-          <li key={subId} className="astra-sub-analysis" id={`astra-sub-${subId}`}>
-            <div className="astra-sub-analysis__header">
+          <li
+            key={subId}
+            id={`astra-sub-${subId}`}
+            className="astra-sub-analysis"
+            tabIndex={-1}
+          >
+            <header className="astra-sub-analysis__header">
               <span className="astra-sub-analysis__id">{subId}</span>
               {sub.name && <span className="astra-sub-analysis__name">{sub.name}</span>}
-            </div>
+            </header>
             {sub.description && (
               <p className="astra-sub-analysis__description">{sub.description}</p>
             )}
+            {summary && (
+              <SubSection heading="Summary">
+                <AstraProse text={summary} />
+              </SubSection>
+            )}
             {findings.length > 0 && (
-              <p className="astra-sub-analysis__finding-count">
-                {findings.length} finding{findings.length === 1 ? '' : 's'}
-              </p>
+              <SubSection
+                heading="Findings"
+                count={findings.length}
+              >
+                {findingsNarrative && <AstraProse text={findingsNarrative} />}
+                <FindingsList
+                  findings={findings}
+                  insights={bundle.insights}
+                  decisionsByInsight={decisionsByInsight}
+                  decisionLabel={decisionLabel}
+                  resolveArtifact={resolveArtifact}
+                />
+              </SubSection>
+            )}
+            {inputsNarrative && (
+              <SubSection heading="Inputs">
+                <AstraProse text={inputsNarrative} />
+              </SubSection>
+            )}
+            {methodsNarrative && (
+              <SubSection heading="Methods">
+                <AstraProse text={methodsNarrative} />
+              </SubSection>
+            )}
+            {(outputsNarrative || subOutputKeys.length > 0) && (
+              <SubSection
+                heading="Outputs"
+                count={subOutputKeys.length || undefined}
+              >
+                {outputsNarrative && <AstraProse text={outputsNarrative} />}
+                {subOutputKeys.length > 0 && (
+                  <ul className="astra-paper-view__outputs">
+                    {subOutputKeys.map((key) => (
+                      <OutputItem
+                        key={key}
+                        outputKey={key}
+                        output={bundle.outputs[key]}
+                        csvs={csvs}
+                        resolveArtifact={resolveArtifact}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </SubSection>
             )}
           </li>
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * Lightweight section inside a sub-analysis card. Mirrors the look of the
+ * top-level Section heading but at one level deeper, so the reader's mental
+ * model stays consistent across nesting.
+ */
+function SubSection({
+  heading,
+  count,
+  children,
+}: {
+  heading: string;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="astra-sub-analysis__section">
+      <h3 className="astra-sub-analysis__section-heading">
+        <span>{heading}</span>
+        {typeof count === 'number' && count > 0 && (
+          <span className="astra-sub-analysis__section-count" aria-hidden="true">
+            {count}
+          </span>
+        )}
+      </h3>
+      {children}
+    </section>
   );
 }

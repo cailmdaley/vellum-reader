@@ -7175,6 +7175,35 @@ a.pretext-prose-frag:hover {
   margin: 0 0 0.7em;
 }
 
+/* Inline narrative refs ([text](#findings.foo) etc.) — paper-view dialect.
+ * Anchor styled like the evidence links so the reading surface stays unified;
+ * the ref-click handler scrolls + flashes the target so the reader doesn't
+ * lose the thread when jumping inside the document. */
+.astra-paper-view__ref {
+  color: var(--gold, #9A7B35);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
+  cursor: pointer;
+}
+
+.astra-paper-view__ref:hover,
+.astra-paper-view__ref:focus-visible {
+  border-bottom-style: solid;
+}
+
+/* Brief gold flash after a ref click — applied imperatively from
+ * scrollToAstraAnchor() and removed after the animation. */
+@keyframes astra-paper-view-flash {
+  0%   { box-shadow: 0 0 0 4px rgba(154, 123, 53, 0); background-image: linear-gradient(rgba(154, 123, 53, 0), rgba(154, 123, 53, 0)); }
+  20%  { box-shadow: 0 0 0 4px rgba(154, 123, 53, 0.45); background-image: linear-gradient(rgba(154, 123, 53, 0.18), rgba(154, 123, 53, 0.18)); }
+  100% { box-shadow: 0 0 0 4px rgba(154, 123, 53, 0); background-image: linear-gradient(rgba(154, 123, 53, 0), rgba(154, 123, 53, 0)); }
+}
+
+.astra-paper-view__flash {
+  animation: astra-paper-view-flash 1.4s ease-out;
+  border-radius: 4px;
+}
+
 /* Findings */
 .astra-paper-view__findings {
   list-style: none;
@@ -7246,6 +7275,50 @@ a.pretext-prose-frag:hover {
 
 .astra-finding__evidence-link:hover {
   border-bottom-style: solid;
+}
+
+/* "Informs" decision pills — mirrors paper-viewer.js's mountInsightsRail
+ * informs row. Brings the decision-jump affordance onto the readable
+ * surface rather than tucking it behind a paper modal. */
+.astra-finding__informs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4em;
+  margin-top: 0.5em;
+  font-size: 0.88em;
+}
+
+.astra-finding__informs-label {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-finding__informs-pills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+}
+
+.astra-finding__informs-pill {
+  display: inline-block;
+  padding: 0.1em 0.55em;
+  border: 1px solid rgba(154, 123, 53, 0.45);
+  border-radius: 999px;
+  color: var(--gold, #9A7B35);
+  text-decoration: none;
+  font-size: 0.92em;
+  line-height: 1.4;
+  background: rgba(154, 123, 53, 0.06);
+}
+
+.astra-finding__informs-pill:hover,
+.astra-finding__informs-pill:focus-visible {
+  background: rgba(154, 123, 53, 0.18);
 }
 
 /* Decisions */
@@ -7477,6 +7550,78 @@ a.pretext-prose-frag:hover {
   border-bottom-style: solid;
 }
 
+/* Figure thumbnails — inline preview of figure-typed outputs. Click drops
+ * the user on the full asset in a new tab. Capped at column width so the
+ * paper view stays readable; tall figures keep their aspect ratio. */
+.astra-output__figure-link {
+  display: block;
+  margin-top: 0.4em;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--page-bg, #fff);
+  text-decoration: none;
+  overflow: hidden;
+  border-radius: 4px;
+  max-width: 100%;
+}
+
+.astra-output__figure-link:hover {
+  border-color: var(--gold, #9A7B35);
+}
+
+.astra-output__figure-thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 28em;
+  object-fit: contain;
+  background: var(--page-bg, #fff);
+}
+
+/* CSV preview — first ~5 rows of a table-typed output, glanceable from the
+ * reading surface. The full asset is one click away via the artifact link. */
+.astra-output__csv {
+  margin-top: 0.4em;
+  overflow-x: auto;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  background: var(--page-bg, #fff);
+}
+
+.astra-output__csv-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85em;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+}
+
+.astra-output__csv-table th,
+.astra-output__csv-table td {
+  padding: 0.25em 0.6em;
+  text-align: left;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  white-space: nowrap;
+}
+
+.astra-output__csv-table th {
+  background: rgba(0, 0, 0, 0.03);
+  color: var(--text, #2E2A26);
+  font-weight: 600;
+}
+
+.astra-output__csv-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.astra-output__csv-more {
+  margin: 0;
+  padding: 0.3em 0.6em;
+  font-size: 0.8em;
+  color: var(--text-muted, #7A7368);
+  font-variant-caps: small-caps;
+  letter-spacing: 0.05em;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
 /* Sub-analyses */
 .astra-paper-view__sub-analyses {
   list-style: none;
@@ -7520,4 +7665,32 @@ a.pretext-prose-frag:hover {
   color: var(--text-muted, #7A7368);
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
+}
+
+/* Sub-section inside a sub-analysis — Findings/Inputs/Methods/Outputs
+ * heading scoped one level below the top-level Section. Matches the
+ * top-level shape so the wiki-format mental model stays the same as the
+ * reader descends. */
+.astra-sub-analysis__section {
+  margin-top: 0.7em;
+}
+
+.astra-sub-analysis__section-heading {
+  margin: 0 0 0.3em;
+  font-size: 0.95em;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.05em;
+  color: var(--text, #2E2A26);
+  border-bottom: 1px solid rgba(154, 123, 53, 0.2);
+  padding-bottom: 0.15em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.astra-sub-analysis__section-count {
+  font-size: 0.8em;
+  color: var(--text-muted, #7A7368);
+  font-variant-caps: normal;
+  letter-spacing: 0;
 }
