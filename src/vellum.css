@@ -6993,9 +6993,10 @@ a.pretext-prose-frag:hover {
 /* ── Picker (inline content, ThemePicker-style) ───────────────────────── */
 
 .astra-picker {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.6em;
+  gap: 0.4em 0.6em;
   padding: 0.5em 1em;
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
@@ -7007,8 +7008,17 @@ a.pretext-prose-frag:hover {
   opacity: 0.7;
 }
 
+/* `flex-wrap: wrap` matters at narrow card widths: the picker sits inside
+ * `.astra-paper-view-host` which has `overflow-x: hidden`, so any rung that
+ * would extend past the card's right edge gets visually AND hit-test
+ * clipped — clicks land on the canvas underneath, not on the button. At
+ * the camera's deep-zoom-out floor (~192 px card width) the rightmost
+ * `personal` rung is the failure mode. Wrapping to a second row preserves
+ * a11y reachability without changing the wide-card single-row layout.
+ * See `vellum-reader/vellum-native-astra-renderer`. */
 .astra-picker__options {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.4em;
 }
 
