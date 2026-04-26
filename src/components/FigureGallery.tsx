@@ -6,9 +6,11 @@
  * card. Click opens the lightbox with the full gallery carousel so the
  * reader can page through every figure without leaving the fiber.
  *
- * Gated on `theme.layout.figureGallery === 'section-end'`. Today that's
- * `lightcone-margin` only; `cail-personal` and `lightcone-linear` opt out
- * (see theme configs for rationale).
+ * Gated on `theme.layout.figureGallery === 'section-end'`. After
+ * `lightcone-margin` retired in vellum-reader/vellum-native-astra-renderer,
+ * no surviving theme ships `'section-end'` (both `cail-personal` and
+ * `lightcone-linear` opt out — see theme configs); the component is kept
+ * as a reusable primitive for future themes that want a section-end grid.
  *
  * Mounted inside the prose article, immediately after `AstraAppendix`.
  * Empty fibers (no figures collected) render nothing.

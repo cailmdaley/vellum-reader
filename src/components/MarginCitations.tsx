@@ -129,12 +129,14 @@ const LINK_HOVER_DELAY_MS = 250;
  * counter occupies the rail top; chips sit below it. The original value 172
  * was tuned against that layout — masthead height + counter block.
  *
- * Under `lightcone-margin` NarrativeCounter is gated off
- * (`marginColumn === 'compact-chips'`), so the floor can sit higher — just
- * below the masthead. A lower CANVAS_RAIL_TOP lets the first chip anchor
- * near the first line of prose instead of leaving a visibly empty band
- * beneath the title block. Tuned alongside the chip rail promotion in
- * Pass 9b step 1; see post-pass-9b-scout-note item 2.
+ * For any theme that gates NarrativeCounter off (the retired
+ * `lightcone-margin` did this via `marginColumn === 'compact-chips'`,
+ * and any future no-counter theme would follow), the floor can sit
+ * higher — just below the masthead — so the first chip anchors near
+ * the first line of prose instead of leaving a visibly empty band
+ * beneath the title block. The pair stays for that future variant
+ * even though no surviving theme picks NO_COUNTER today.
+ * Tuned alongside the chip rail promotion in Pass 9b step 1.
  */
 const CANVAS_RAIL_TOP_WITH_COUNTER = 172;
 const CANVAS_RAIL_TOP_NO_COUNTER = 92;

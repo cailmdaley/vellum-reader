@@ -1867,14 +1867,17 @@ body {
 }
 /* Repeated dots wear a lighter weight — a column of "• • •" reads as a
    portolan bearing line rather than a repeat of the first bright pin.
-   Scoped to kind-name chips (cail-personal): under lightcone-margin each
-   chip carries its own per-content label + caret, so dimming same-kind
-   dots breaks margin-scan legibility. */
-:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-findings) ~ .margin-glyph-row:has(.margin-glyph--astra-findings) .margin-glyph__dot,
-:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-decisions) ~ .margin-glyph-row:has(.margin-glyph--astra-decisions) .margin-glyph__dot,
-:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-outputs) ~ .margin-glyph-row:has(.margin-glyph--astra-outputs) .margin-glyph__dot,
-:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-inputs) ~ .margin-glyph-row:has(.margin-glyph--astra-inputs) .margin-glyph__dot,
-:root:not([data-theme="lightcone-margin"]) .margin-glyph-row:has(.margin-glyph--astra-analyses) ~ .margin-glyph-row:has(.margin-glyph--astra-analyses) .margin-glyph__dot {
+   Scoped to kind-name chips (the only theme that mounts the persistent
+   margin column today is `cail-personal`; the retired `lightcone-margin`
+   theme used per-content `label + caret` chips and would have broken
+   margin-scan legibility under this rule). The original
+   `:not([data-theme="lightcone-margin"])` defense was dropped when the
+   theme retired — see [[vellum-reader/vellum-native-astra-renderer]]. */
+.margin-glyph-row:has(.margin-glyph--astra-findings)  ~ .margin-glyph-row:has(.margin-glyph--astra-findings)  .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--astra-decisions) ~ .margin-glyph-row:has(.margin-glyph--astra-decisions) .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--astra-outputs)   ~ .margin-glyph-row:has(.margin-glyph--astra-outputs)   .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--astra-inputs)    ~ .margin-glyph-row:has(.margin-glyph--astra-inputs)    .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--astra-analyses)  ~ .margin-glyph-row:has(.margin-glyph--astra-analyses)  .margin-glyph__dot {
   opacity: 0.7;
 }
 
@@ -6311,72 +6314,16 @@ a.pretext-prose-frag:hover {
   min-height: 0;
 }
 
-/* ── Theme: Lightcone ──
-   The default public theme. Distinct from the Cail (personal) theme:
-   no persistent marginalia column — NarrativeView gates those on
-   theme.layout.marginColumn === 'persistent'. Inline ASTRA anchor refs
-   render as kind-colored highlights in the prose (decision red,
-   finding verdigris, output indigo, input slate, analysis ochre)
-   rather than a muted dotted underline with margin glyph. The empty
-   gutter is preserved by keeping the prose column's --margin-width
-   intact; later passes populate it with a hover-card renderer. */
-:root[data-theme="lightcone-margin"] {
-  --astra-finding: var(--portolan-verdigris);
-  --astra-decision: var(--rubric);
-  --astra-output: var(--portolan-indigo);
-  --astra-input: #6A7280;
-  --astra-analysis: var(--ochre-ink);
-}
-
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor {
-  color: inherit;
-  border-bottom: none;
-  background: var(--astra-anchor-bg, rgba(181, 69, 58, 0.10));
-  padding: 0 2px;
-  border-radius: 2px;
-  transition: background 0.15s, box-shadow 0.15s;
-}
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor--findings {
-  --astra-anchor-bg: rgba(74, 124, 111, 0.14);
-}
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor--decisions {
-  --astra-anchor-bg: rgba(181, 69, 58, 0.12);
-}
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor--outputs {
-  --astra-anchor-bg: rgba(74, 90, 124, 0.14);
-}
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor--inputs {
-  --astra-anchor-bg: rgba(106, 114, 128, 0.14);
-}
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor--analyses {
-  --astra-anchor-bg: rgba(154, 123, 53, 0.16);
-}
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor:hover,
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor.margin-active {
-  background: var(--astra-anchor-bg, rgba(181, 69, 58, 0.10));
-  box-shadow: inset 0 -2px 0 0 currentColor;
-}
-:root[data-theme="lightcone-margin"] .pretext-prose a.astra-anchor--broken {
-  background: transparent;
-  border-bottom: 1px dashed var(--text-muted);
-  color: var(--text-muted);
-}
-
-/* Lightcone: empty right gutter.
-   The column stays (text doesn't reflow) but every persistent inhabitant
-   is hidden so the space is available for hover-card rendering. The
-   components still mount; this is a visual gate only. */
-/* Suppress power-user-only chrome under lightcone-margin. MarginCitations
-   is NOT listed here — Pass 9b step 1 promoted the chip rail into
-   lightcone-margin. NarrativeCounter is React-gated to `persistent` but
-   kept in this list defensively in case a future mount path slips it in. */
-:root[data-theme="lightcone-margin"] .floating-island,
-:root[data-theme="lightcone-margin"] .thumb-index,
-:root[data-theme="lightcone-margin"] .backlink-nodes,
-:root[data-theme="lightcone-margin"] .ghost-toc,
-:root[data-theme="lightcone-margin"] .narrative-counter {
-  display: none !important;
-}
+/* `lightcone-margin` retired 2026-04-26 under the vellum-native astra
+   renderer (felt: vellum-reader/vellum-native-astra-renderer). The
+   two-rung ladder — `lightcone-linear` (staging) + `cail-personal`
+   (expressive) — replaces the middle "margin column on, layout still
+   paper-shape" slot. Legacy `?theme=lightcone-margin` URLs and stored
+   prefs remap to `lightcone-linear` via LEGACY_ALIASES in
+   src/themes/index.ts; the :root[data-theme="lightcone-margin"]
+   selector block formerly here (palette + anchor highlight colors +
+   chrome suppressions) is removed because no element ever carries
+   that data-theme value. */
 
 /* ──────────────────────────────────────────────────────────────────────
    lightcone-linear — single centered prose column + left-rail ToC (Pass 9a).
