@@ -6951,6 +6951,17 @@ a.pretext-prose-frag:hover {
    * scrollbar. See Stage 3 annotation layer in
    * `vellum-reader/vellum-native-astra-renderer`. */
   --canvas-overlay-width: 220px;
+  /* Establish an inline-size container so the personal rung can scale its
+   * typography to the card width (sticky-notes shrink past 200 px under deep
+   * camera zoom-out, where 2.6em titles fill the entire visible card). The
+   * named container scopes container queries so unrelated descendant queries
+   * don't accidentally bind here. See `.astra-paper-view--personal`'s
+   * `@container astra-host (...)` rules below.
+   *
+   * Container queries are widely supported (Chrome 105, Safari 16,
+   * Firefox 110); vellum's build target is modern, no fallback needed. */
+  container-type: inline-size;
+  container-name: astra-host;
 }
 
 .astra-paper-view-host__notice {
@@ -7097,12 +7108,24 @@ a.pretext-prose-frag:hover {
  * picker visibly does something today and the substrate is ready to extend. */
 .astra-paper-view--personal {
   max-width: 920px;
-  font-size: 18px;
+  /* Body type scales with the host container so the personal rung still reads
+   * comfortably as a sticky-note. Clamps between 14px (deep zoom-out cards
+   * ~200 px wide) and 18px (workspace modal / wide cards), interpolating via
+   * `cqi` (1cqi = 1% of the named container's inline size — set up on
+   * .astra-paper-view-host above). The 9cqi coefficient lands 18px at
+   * 200 px host (clamped) and saturates well before the modal hits 1280 px. */
+  font-size: clamp(14px, 9cqi, 18px);
   line-height: 1.62;
 }
 
+/* Title scales smoothly across the host's inline size so the personal rung's
+ * 2.6em masthead flourish lands at workspace-modal width but doesn't fill an
+ * entire 200 px sticky-note. The mid-coefficient (`1em + 5cqi`) interpolates
+ * linearly with the host: ~1.55em at 200 px → 2.0em at 360 px → 2.6em at
+ * 540 px and above. No hard step at any breakpoint — sliding the camera
+ * zoom should look continuous. */
 .astra-paper-view--personal .astra-paper-view__title {
-  font-size: 2.6em;
+  font-size: clamp(1.4em, calc(1em + 5cqi), 2.6em);
   letter-spacing: -0.01em;
 }
 
@@ -7111,12 +7134,15 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-paper-view--personal .astra-paper-view__section-heading {
-  font-size: 1.45em;
+  font-size: clamp(1.15em, calc(0.9em + 1.5cqi), 1.45em);
   letter-spacing: 0.06em;
 }
 
 /* Drop-cap on the executive summary — the most "essay"-like move. Mirrors
- * the way scientific feature-writing leads with a typographic flourish. */
+ * the way scientific feature-writing leads with a typographic flourish.
+ * Binary affordance: present at workspace-modal width, suppressed inside
+ * narrow cards where the floated initial-letter wraps awkwardly against a
+ * thin column. The @container block below handles the off case. */
 .astra-paper-view--personal .astra-paper-view__section[aria-labelledby$="-summary"] .astra-paper-view__prose p:first-of-type::first-letter {
   initial-letter: 2 1;
   -webkit-initial-letter: 2 1;
@@ -7134,6 +7160,30 @@ a.pretext-prose-frag:hover {
 
 .astra-paper-view--personal .astra-finding__claim {
   font-size: 1.08em;
+}
+
+/* Sticky-note card overrides — binary affordances that don't have a
+ * sensible interpolated middle: drop-cap (either the gold floated initial
+ * is there or it isn't) and finding padding (1em is right at modal width;
+ * 0.6em is right at sticky-note width). Both gate at the same host width
+ * (~480 px); the title and section-heading interpolate continuously above
+ * via the clamp() rules. */
+@container astra-host (max-width: 479px) {
+  .astra-paper-view--personal
+    .astra-paper-view__section[aria-labelledby$="-summary"]
+    .astra-paper-view__prose
+    p:first-of-type::first-letter {
+    initial-letter: unset;
+    -webkit-initial-letter: unset;
+    font-weight: inherit;
+    color: inherit;
+    margin-right: 0;
+    padding-right: 0;
+  }
+
+  .astra-paper-view--personal .astra-finding {
+    padding: 0.6em 0.7em;
+  }
 }
 
 .astra-paper-view__masthead {
