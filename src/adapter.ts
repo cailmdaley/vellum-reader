@@ -29,6 +29,7 @@
  * writes must branch on capability before calling write methods.
  */
 
+import type { Bundle } from 'lightcone-ui-core';
 import type {
   Annotation,
   AstraGraph,
@@ -38,6 +39,27 @@ import type {
   RawFiber,
   SearchHit,
 } from './utils/content-types';
+
+/**
+ * Result of {@link ReadOnlyAdapter.getAstraBundle}: the rewritten Bundle
+ * (artifact paths point at host-resolvable URLs) plus inlined CSV previews
+ * for table-typed outputs. Identical shape to lightcone-ui-core's `BuildResult`
+ * but kept separate so vellum's adapter surface doesn't pull the cli build
+ * machinery — only the data types.
+ */
+export interface AstraBundleResult {
+  bundle: Bundle;
+  csvs: Record<string, string>;
+}
+
+export interface GetAstraBundleOptions {
+  /** Origin the astra.yaml lives under (portolan: 'local' vs remote-hostname). */
+  originId?: string;
+  /** Universe id to build against; default `"baseline"` per lightcone-ui-core. */
+  universe?: string;
+  /** Bust upstream caches when true. */
+  cacheBust?: boolean;
+}
 
 export interface CreateAnnotationInput {
   slug: string;
@@ -97,6 +119,28 @@ export interface ReadOnlyAdapter {
    * surface (e.g. lightcone) return `null`.
    */
   getFile(path: string, opts?: GetFileOptions): Promise<FileContent | null>;
+  /**
+   * Load the paper-view Bundle for an astra.yaml. Optional because hosts
+   * without a buildBundle pipeline (lightcone standalone, the static
+   * tapestry deploy until bundle JSON is pre-baked) can omit it; the
+   * vellum-native astra renderer falls back to the iframe paper-view rung
+   * when the method is missing or returns `null`.
+   *
+   * Returns the rewritten Bundle (artifact paths resolved to host URLs)
+   * plus inlined CSV previews. See `vellum-reader/vellum-native-astra-renderer`.
+   */
+  getAstraBundle?(path: string, opts?: GetAstraBundleOptions): Promise<AstraBundleResult | null>;
+  /**
+   * Read the raw YAML text for an astra.yaml path. Powers the astra renderer's
+   * source-view chrome toggle (modal-only). Optional because the same hosts
+   * that lack `getAstraBundle` typically also lack a raw-text endpoint;
+   * vellum hides the source toggle when the adapter doesn't implement this.
+   *
+   * `getFile` returns the iframe URL for astra paths (so the rendered rung
+   * can iframe the canonical paper-view); the source view needs the bytes,
+   * not a URL, which is why this is a separate method.
+   */
+  getAstraSource?(path: string, opts?: GetFileOptions): Promise<string | null>;
 }
 
 export interface Adapter extends ReadOnlyAdapter {

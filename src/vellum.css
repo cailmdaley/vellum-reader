@@ -6936,3 +6936,588 @@ a.pretext-prose-frag:hover {
   font-style: italic;
   margin-top: 0.15em;
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Astra paper view — vellum-native render of lightcone-ui-core's Bundle.
+ *
+ * Picker is *content* (inline, vellum-`ThemePicker` style); source toggle
+ * is *chrome* (in the file-mode toolbar). Layout flavours diverge under
+ * `[data-astra-layout="linear"]` (paper-view-faithful column shape) and
+ * `[data-astra-layout="personal"]` (vellum's expressive variant).
+ *
+ * See `vellum-reader/vellum-native-astra-renderer`.
+ * ───────────────────────────────────────────────────────────────────── */
+
+.vellum-file-viewer-page--astra {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.vellum-file-viewer-page__astra-spacer {
+  flex: 1 1 auto;
+}
+
+.vellum-file-viewer-page__source-toggle {
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: transparent;
+  padding: 2px 10px;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+  color: inherit;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+
+.vellum-file-viewer-page__source-toggle:hover {
+  border-color: rgba(0, 0, 0, 0.24);
+  color: var(--text, #2E2A26);
+}
+
+.vellum-file-viewer-page__source-toggle--on {
+  border-color: var(--gold, #9A7B35);
+  color: var(--gold, #9A7B35);
+}
+
+.astra-paper-view-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.astra-paper-view-host__notice {
+  margin: 0.5em 1em 0;
+  padding: 0.5em 0.75em;
+  border-left: 3px solid var(--gold, #9A7B35);
+  background: rgba(154, 123, 53, 0.06);
+  font-size: 0.9em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-paper-view-host__loading {
+  padding: 2em 1em;
+  color: var(--text-muted, #7A7368);
+  font-style: italic;
+}
+
+.astra-paper-view-host__iframe {
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.astra-source-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 1em;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--porch-panel, #ede8e0);
+  color: var(--text, #2E2A26);
+  white-space: pre;
+}
+
+/* ── Picker (inline content, ThemePicker-style) ───────────────────────── */
+
+.astra-picker {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6em;
+  padding: 0.5em 1em;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  font-size: 0.92em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-picker__label {
+  opacity: 0.7;
+}
+
+.astra-picker__options {
+  display: inline-flex;
+  gap: 0.4em;
+}
+
+.astra-picker__option {
+  border: 0;
+  background: transparent;
+  padding: 0.1em 0.3em;
+  margin: 0;
+  font: inherit;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  color: inherit;
+  border-bottom: 2px solid transparent;
+  transition: color 120ms ease-out, border-color 120ms ease-out;
+}
+
+.astra-picker__option:hover {
+  color: var(--text, #2E2A26);
+}
+
+.astra-picker__option--active {
+  color: var(--text, #2E2A26);
+  border-bottom-color: var(--gold, #9A7B35);
+}
+
+/* ── AstraPaperView body ──────────────────────────────────────────────── */
+
+.astra-paper-view {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.5em 1.5em 4em;
+  font-family: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--text, #2E2A26);
+}
+
+.astra-paper-view--personal {
+  /* Personal layout opens up to a wider canvas; expressive divergence will
+   * grow margin-side affordances under this rung. Keep the basic shape
+   * shared with linear for now — divergence lands in Stage 2/3. */
+  max-width: 880px;
+}
+
+.astra-paper-view__masthead {
+  margin-bottom: 1.5em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.astra-paper-view__title {
+  margin: 0 0 0.25em;
+  font-size: 2.1em;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.astra-paper-view__authors {
+  margin: 0 0 0.5em;
+  font-style: italic;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-paper-view__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  flex-wrap: wrap;
+  font-size: 0.85em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-paper-view__universe {
+  padding: 0.1em 0.5em;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+}
+
+.astra-paper-view__tags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+}
+
+.astra-paper-view__tag {
+  padding: 0.1em 0.5em;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  font-size: 0.85em;
+}
+
+.astra-paper-view__section {
+  margin-top: 2em;
+}
+
+.astra-paper-view__section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  margin: 0 0 0.5em;
+  font-size: 1.3em;
+  font-weight: 600;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding-bottom: 0.25em;
+}
+
+.astra-paper-view__section-count {
+  font-size: 0.7em;
+  color: var(--text-muted, #7A7368);
+  font-variant-caps: normal;
+  letter-spacing: 0;
+}
+
+.astra-paper-view__prose {
+  margin: 0.5em 0;
+}
+
+.astra-paper-view__prose p {
+  margin: 0 0 0.7em;
+}
+
+/* Findings */
+.astra-paper-view__findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.astra-finding {
+  padding: 0.75em 1em;
+  border-left: 3px solid var(--portolan-verdigris, #5A7B7B);
+  background: rgba(90, 123, 123, 0.05);
+}
+
+.astra-finding__claim {
+  margin: 0;
+  font-weight: 600;
+}
+
+.astra-finding__tags {
+  list-style: none;
+  margin: 0.4em 0 0;
+  padding: 0;
+  display: inline-flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+}
+
+.astra-finding__tag {
+  font-size: 0.8em;
+  padding: 0.1em 0.5em;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+.astra-finding__evidence {
+  list-style: none;
+  margin: 0.5em 0 0;
+  padding: 0;
+  font-size: 0.92em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-finding__evidence-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4em;
+  margin-bottom: 0.2em;
+}
+
+.astra-finding__evidence-id {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.85em;
+  color: var(--text, #2E2A26);
+}
+
+.astra-finding__evidence-quote {
+  font-style: italic;
+}
+
+.astra-finding__evidence-link {
+  color: var(--gold, #9A7B35);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
+}
+
+.astra-finding__evidence-link:hover {
+  border-bottom-style: solid;
+}
+
+/* Decisions */
+.astra-paper-view__decisions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+.astra-decision-card {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  background: var(--page-bg, #fff);
+}
+
+.astra-decision-card__summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  padding: 0.5em 0.75em;
+  cursor: pointer;
+  color: inherit;
+}
+
+.astra-decision-card__summary:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.astra-decision-card__glyph {
+  color: var(--rubric, #A03030);
+}
+
+.astra-decision-card__label {
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.astra-decision-card__selected {
+  flex: 1 1 auto;
+  font-style: italic;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-decision-card__pinned {
+  flex: 0 0 auto;
+  color: var(--gold, #9A7B35);
+}
+
+.astra-decision-card__body {
+  padding: 0.5em 0.75em 0.75em;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 0.95em;
+}
+
+.astra-decision-card__tags {
+  list-style: none;
+  margin: 0 0 0.5em;
+  padding: 0;
+  display: inline-flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+}
+
+.astra-decision-card__tag {
+  padding: 0.1em 0.5em;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  font-size: 0.85em;
+}
+
+.astra-decision-card__options {
+  list-style: none;
+  margin: 0.5em 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.astra-decision-option {
+  padding: 0.4em 0.6em;
+  border-left: 2px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.astra-decision-option--selected {
+  border-left-color: var(--rubric, #A03030);
+  background: rgba(160, 48, 48, 0.04);
+}
+
+.astra-decision-option__label {
+  font-weight: 600;
+}
+
+.astra-decision-option__description {
+  color: var(--text-muted, #7A7368);
+  font-size: 0.9em;
+}
+
+.astra-decision-option__insights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+  font-size: 0.8em;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-decision-option__insight {
+  padding: 0.05em 0.4em;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+}
+
+/* Inputs */
+.astra-paper-view__inputs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.astra-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5em;
+  padding: 0.3em 0.5em;
+  font-size: 0.95em;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.06);
+}
+
+.astra-input__id {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-weight: 600;
+}
+
+.astra-input__type {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-input__source {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.85em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-input__description {
+  flex: 1 1 100%;
+  margin-left: 1em;
+  font-style: italic;
+  color: var(--text-muted, #7A7368);
+}
+
+/* Outputs */
+.astra-paper-view__outputs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.astra-output {
+  padding: 0.5em 0.75em;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  background: var(--page-bg, #fff);
+}
+
+.astra-output__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  flex-wrap: wrap;
+}
+
+.astra-output__id {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-weight: 600;
+}
+
+.astra-output__type {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-output__from {
+  font-size: 0.85em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-output__description {
+  margin: 0.3em 0 0;
+  color: var(--text-muted, #7A7368);
+  font-size: 0.95em;
+}
+
+.astra-output__artifact {
+  display: inline-block;
+  margin-top: 0.3em;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.85em;
+  color: var(--gold, #9A7B35);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
+}
+
+.astra-output__artifact:hover {
+  border-bottom-style: solid;
+}
+
+/* Sub-analyses */
+.astra-paper-view__sub-analyses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.astra-sub-analysis {
+  padding: 0.5em 0.75em;
+  border-left: 3px solid var(--ochre-ink, #9A7B35);
+  background: rgba(154, 123, 53, 0.04);
+}
+
+.astra-sub-analysis__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.astra-sub-analysis__id {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-weight: 600;
+}
+
+.astra-sub-analysis__name {
+  font-style: italic;
+}
+
+.astra-sub-analysis__description {
+  margin: 0.3em 0 0;
+  font-size: 0.95em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-sub-analysis__finding-count {
+  margin: 0.3em 0 0;
+  font-size: 0.85em;
+  color: var(--text-muted, #7A7368);
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+}

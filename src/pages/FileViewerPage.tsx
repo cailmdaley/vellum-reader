@@ -21,6 +21,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAdapter } from '../contexts/AdapterContext';
 import type { Annotation, AnnotationAction, FileContent } from '../utils/content-types';
 import { FileReader } from '../components/FileReader';
+import { AstraPaperView, type AstraLayout } from '../components/astra/AstraPaperView';
+import { AstraPicker, type AstraLadderRung } from '../components/astra/AstraPicker';
+import type { AstraBundleResult } from '../adapter';
 
 export interface FileViewerPageProps {
   path: string;
@@ -70,7 +73,54 @@ type FetchState =
 
 export type SaveState = 'idle' | 'saving' | 'saved' | { error: string };
 
-export function FileViewerPage({
+/**
+ * Match the bare or scoped `astra.yaml` form ASTRA projects use:
+ * `…/astra.yaml`, `…/astra.yml`, or `…/<name>.astra.yaml`. Mirrors the
+ * portolan adapter's classifier so vellum dispatches to the ladder render
+ * for the same set of paths the iframe path covers today.
+ *
+ * Kept narrow on purpose — non-astra YAMLs (config, fixtures) stay on the
+ * raw text reader. See `vellum-reader/vellum-native-astra-renderer`.
+ */
+function isAstraPath(path: string): boolean {
+  return /(?:^|\/)astra\.ya?ml$/i.test(path) || /\.astra\.ya?ml$/i.test(path);
+}
+
+const ASTRA_LADDER_STORAGE_KEY = 'vellum.astra.ladder';
+const ASTRA_LADDER_DEFAULT: AstraLadderRung = 'linear';
+
+function loadStoredRung(): AstraLadderRung {
+  if (typeof window === 'undefined') return ASTRA_LADDER_DEFAULT;
+  const raw = window.localStorage.getItem(ASTRA_LADDER_STORAGE_KEY);
+  if (raw === 'paper-view' || raw === 'linear' || raw === 'personal') return raw;
+  return ASTRA_LADDER_DEFAULT;
+}
+
+function persistRung(rung: AstraLadderRung): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(ASTRA_LADDER_STORAGE_KEY, rung);
+  } catch {
+    // localStorage may throw in privacy modes; the picker still works in-memory.
+  }
+}
+
+function rungToLayout(rung: AstraLadderRung): AstraLayout {
+  return rung === 'personal' ? 'personal' : 'linear';
+}
+
+export function FileViewerPage(props: FileViewerPageProps) {
+  // Astra paths split off into the ladder dispatch. The picker, source toggle,
+  // bundle fetch, and rung-keyed render all live in `<AstraFilePanel>` so the
+  // generic file-viewer code below stays focused on text/markdown/pdf/etc.
+  // Non-astra paths get the existing fetch + render pipeline unchanged.
+  if (isAstraPath(props.path)) {
+    return <AstraFilePanel {...props} />;
+  }
+  return <NonAstraFileViewerPage {...props} />;
+}
+
+function NonAstraFileViewerPage({
   path,
   originId,
   cacheBust,
@@ -296,3 +346,252 @@ export function FileViewerPage({
     </div>
   );
 }
+
+/**
+ * AstraFilePanel — vellum-native render for `astra.yaml` paths.
+ *
+ * Three-way ladder picker over a single bundle:
+ *
+ *   [ paper-view | linear | personal ]
+ *
+ * The picker is *content* (renders inside the body, not in chrome). The
+ * source toggle is *chrome* (replaces the body with raw YAML) and lives in
+ * the file-mode toolbar — it's modal-only by intent (cards don't carry a
+ * source view), but the toolbar visibility honors `hideToolbar` so card
+ * mounts that disable the toolbar automatically lose the source toggle too.
+ *
+ * Bundle is fetched once via `adapter.getAstraBundle()`. Switching ladder
+ * rungs does not refetch — the same bundle drives every rung. If the
+ * adapter doesn't expose `getAstraBundle` or it returns null (static deploy
+ * with no pre-baked bundle yet), the panel falls back to the iframe paper-
+ * view rung; the picker disables linear/personal so the user can see why.
+ *
+ * See `vellum-reader/vellum-native-astra-renderer`.
+ */
+function AstraFilePanel({
+  path,
+  originId,
+  cacheBust,
+  hideToolbar,
+}: FileViewerPageProps) {
+  const adapter = useAdapter();
+  const [rung, setRung] = useState<AstraLadderRung>(() => loadStoredRung());
+  const [renderMode, setRenderMode] = useState<'rendered' | 'source'>('rendered');
+  const [iframeFile, setIframeFile] = useState<FileContent | null>(null);
+  const [bundleResult, setBundleResult] = useState<AstraBundleResult | null>(null);
+  const [bundleStatus, setBundleStatus] = useState<
+    'idle' | 'loading' | 'ready' | 'unsupported' | 'error'
+  >('idle');
+  const [bundleError, setBundleError] = useState<string | null>(null);
+  const [sourceText, setSourceText] = useState<string | null>(null);
+  const [sourceStatus, setSourceStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
+    'idle',
+  );
+
+  // Always fetch the iframe descriptor — the paper-view rung uses it
+  // directly, and a missing bundle endpoint falls back to it. Cheap; the
+  // adapter just hands back a `{ kind: 'html', url }` descriptor.
+  useEffect(() => {
+    let cancelled = false;
+    adapter
+      .getFile(path, { originId, cacheBust })
+      .then((file) => {
+        if (cancelled) return;
+        setIframeFile(file && file.kind === 'html' ? file : null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIframeFile(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [adapter, path, originId, cacheBust]);
+
+  // Bundle fetch: only when the adapter supports it. Switching ladder rungs
+  // does not retrigger this — the bundle drives every rung. cacheBust DOES
+  // retrigger so a `Refresh` host action gets a fresh bundle.
+  useEffect(() => {
+    if (typeof adapter.getAstraBundle !== 'function') {
+      setBundleStatus('unsupported');
+      setBundleResult(null);
+      return;
+    }
+    let cancelled = false;
+    setBundleStatus('loading');
+    setBundleError(null);
+    adapter
+      .getAstraBundle(path, { originId, cacheBust })
+      .then((res) => {
+        if (cancelled) return;
+        if (!res) {
+          setBundleStatus('unsupported');
+          setBundleResult(null);
+          return;
+        }
+        setBundleResult(res);
+        setBundleStatus('ready');
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setBundleError(err instanceof Error ? err.message : String(err));
+        setBundleStatus('error');
+        setBundleResult(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [adapter, path, originId, cacheBust]);
+
+  // Source-mode YAML body. Lazy-loaded the first time the user flips into
+  // source mode, then cached. The adapter exposes the raw-text route via
+  // `getAstraSource` (separate from `getFile`, which returns the iframe URL
+  // for astra paths). Hosts without a raw-text endpoint return null and the
+  // source view surfaces "Could not load source"; the source toggle hides
+  // entirely when the method isn't implemented at all.
+  const wantsSource = renderMode === 'source';
+  const supportsSource = typeof adapter.getAstraSource === 'function';
+  useEffect(() => {
+    if (!wantsSource || !supportsSource) return;
+    if (sourceStatus !== 'idle' && sourceStatus !== 'error') return;
+    let cancelled = false;
+    setSourceStatus('loading');
+    void (async () => {
+      try {
+        const text = await adapter.getAstraSource!(path, { originId, cacheBust });
+        if (cancelled) return;
+        if (text == null) {
+          setSourceStatus('error');
+          setSourceText(null);
+          return;
+        }
+        setSourceText(text);
+        setSourceStatus('ready');
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setSourceStatus('error');
+        setSourceText(err instanceof Error ? err.message : String(err));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [adapter, wantsSource, supportsSource, path, originId, cacheBust, sourceStatus]);
+
+  const handlePick = useCallback((next: AstraLadderRung) => {
+    setRung(next);
+    persistRung(next);
+  }, []);
+
+  // If the bundle can't be fetched (static deploy, server error), the linear
+  // and personal rungs have nothing to render — keep paper-view live and
+  // clamp the rung to it. The picker still shows the disabled options so the
+  // user can see they exist; clicking them is a no-op (handled in
+  // `<AstraPicker>` if we choose to gate them, today they fall through to
+  // the same fallback render).
+  const bundleAvailable = bundleStatus === 'ready' && bundleResult != null;
+  const effectiveRung: AstraLadderRung =
+    rung !== 'paper-view' && !bundleAvailable ? 'paper-view' : rung;
+
+  const showToolbar = !hideToolbar;
+
+  return (
+    <div className="vellum-file-viewer-page vellum-file-viewer-page--astra">
+      {showToolbar && (
+        <div className="vellum-file-viewer-page__toolbar">
+          <span className="vellum-file-viewer-page__path">{path}</span>
+          <span className="vellum-file-viewer-page__astra-spacer" />
+          {supportsSource && (
+            <button
+              type="button"
+              className={`vellum-file-viewer-page__source-toggle${
+                renderMode === 'source' ? ' vellum-file-viewer-page__source-toggle--on' : ''
+              }`}
+              aria-pressed={renderMode === 'source'}
+              onClick={() =>
+                setRenderMode((m) => (m === 'source' ? 'rendered' : 'source'))
+              }
+              title="Toggle YAML source view"
+            >
+              source
+            </button>
+          )}
+        </div>
+      )}
+      {renderMode === 'rendered' ? (
+        <div className="astra-paper-view-host">
+          <AstraPicker rung={effectiveRung} onChange={handlePick} />
+          {effectiveRung !== rung && (
+            <p className="astra-paper-view-host__notice" role="status">
+              {bundleStatus === 'unsupported'
+                ? 'Bundle data unavailable for this host; showing canonical paper view.'
+                : bundleStatus === 'error'
+                  ? `Bundle failed to load (${bundleError ?? 'unknown error'}); showing canonical paper view.`
+                  : 'Loading bundle…'}
+            </p>
+          )}
+          {effectiveRung === 'paper-view' ? (
+            iframeFile?.url ? (
+              <iframe
+                className="vellum-file-reader vellum-file-reader--html astra-paper-view-host__iframe"
+                src={iframeFile.url}
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                title={path}
+              />
+            ) : (
+              <div className="vellum-file-viewer-page--empty">
+                Could not load <code>{path}</code>.
+              </div>
+            )
+          ) : bundleResult ? (
+            <AstraPaperView
+              bundle={bundleResult.bundle}
+              csvs={bundleResult.csvs}
+              layout={rungToLayout(effectiveRung)}
+            />
+          ) : (
+            <div className="astra-paper-view-host__loading">Loading bundle…</div>
+          )}
+        </div>
+      ) : (
+        <AstraSourceView
+          path={path}
+          status={sourceStatus}
+          text={sourceText}
+        />
+      )}
+    </div>
+  );
+}
+
+function AstraSourceView({
+  path,
+  status,
+  text,
+}: {
+  path: string;
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  text: string | null;
+}) {
+  if (status === 'loading' || status === 'idle') {
+    return (
+      <div className="vellum-file-viewer-page vellum-file-viewer-page--loading">
+        Loading {path}…
+      </div>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <div className="vellum-file-viewer-page vellum-file-viewer-page--error">
+        Could not load source for <code>{path}</code>
+        {text ? `: ${text}` : '.'}
+      </div>
+    );
+  }
+  return (
+    <pre className="vellum-file-reader vellum-file-reader--text astra-source-view">
+      <code>{text ?? ''}</code>
+    </pre>
+  );
+}
+
