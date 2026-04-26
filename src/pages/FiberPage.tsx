@@ -15,13 +15,22 @@ import { WorkspaceAnatomy } from '~/components/WorkspaceAnatomy';
 import { useMode, type Mode } from '~/contexts/ModeContext';
 import { useTheme } from '~/contexts/ThemeContext';
 import { useDelta } from '~/utils/use-delta';
-import type { AstraGraph, FiberContent } from '~/utils/content-types';
+import { FILE_TARGET_ROUTE, useFileTarget, type FileTarget } from '~/contexts/FileTargetContext';
+import { FileViewerPage, type SaveState } from './FileViewerPage';
+import type { Annotation, AnnotationBulkAction, AstraGraph, FiberContent } from '~/utils/content-types';
 
 const MODE_KEYS: Record<string, Mode> = {
   '1': 'narrative',
   '2': 'workspace',
   '3': 'delta',
 };
+
+function saveStatusText(s: SaveState): string {
+  if (s === 'saving') return 'Saving…';
+  if (s === 'saved') return 'Saved';
+  if (typeof s === 'object') return `Error: ${s.error}`;
+  return '';
+}
 
 export function FiberPage() {
   const location = useLocation();
@@ -31,7 +40,41 @@ export function FiberPage() {
   const { eyebrow } = useCollection();
   const adapter = useAdapter();
   const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
-  const slug = location.pathname.replace(/^\/+|\/+$/g, '');
+  const fileTarget = useFileTarget();
+  // File mode: the workspace was opened with `initialFilePath` and the URL
+  // is parked at the FILE_TARGET_ROUTE marker. Once the user navigates to a
+  // slug (wikilink, search, ↑ to the index), pathname changes and the
+  // workspace reverts to fiber mode for the rest of this mount's life.
+  const isFileMode = location.pathname === FILE_TARGET_ROUTE && !!fileTarget;
+  const slug = isFileMode ? '' : location.pathname.replace(/^\/+|\/+$/g, '');
+
+  // File-mode toolbar state — same lift pattern FileViewerModal uses, just
+  // surfaced inside the workspace shell instead of a free-standing modal.
+  const [fileCacheBustKey, setFileCacheBustKey] = useState(0);
+  const [fileAnnotationRefreshKey, setFileAnnotationRefreshKey] = useState(0);
+  const [fileDirty, setFileDirty] = useState(false);
+  const [fileSaveState, setFileSaveState] = useState<SaveState>('idle');
+  const [fileSave, setFileSave] = useState<(() => Promise<void>) | null>(null);
+  const [fileAnnotations, setFileAnnotations] = useState<Annotation[]>([]);
+  const fileAnnotationsRef = useRef<Annotation[]>([]);
+  fileAnnotationsRef.current = fileAnnotations;
+  const handleFileRefresh = useCallback(() => {
+    setFileCacheBustKey((n) => n + 1);
+  }, []);
+  const refreshFileAnnotations = useCallback(() => {
+    setFileAnnotationRefreshKey((n) => n + 1);
+  }, []);
+  const handleFileSaveReady = useCallback((fn: (() => Promise<void>) | null) => {
+    setFileSave(() => fn);
+  }, []);
+
+  // Force narrative mode while a file is loaded — Workspace and Delta are
+  // fiber-collection concepts. The mode buttons are also disabled in
+  // FloatingIsland (see useFileTarget there); this is the belt for the
+  // suspenders, in case mode was already 2/3 when the file mounted.
+  useEffect(() => {
+    if (isFileMode && mode !== 'narrative') setMode('narrative');
+  }, [isFileMode, mode, setMode]);
   const [content, setContent] = useState<FiberContent | null>(null);
   const [graph, setGraph] = useState<AstraGraph>({ nodes: [], links: [] });
   const [graphLoading, setGraphLoading] = useState(true);
@@ -113,6 +156,10 @@ export function FiberPage() {
 
       const nextMode = MODE_KEYS[e.key];
       if (nextMode) {
+        // File mode locks out Workspace + Delta (no fiber graph context to
+        // populate them); only `1` (narrative) is meaningful, and that's
+        // already where we are.
+        if (isFileMode && nextMode !== 'narrative') return;
         setMode(nextMode);
         return;
       }
@@ -129,7 +176,7 @@ export function FiberPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, setMode]);
+  }, [navigate, setMode, isFileMode]);
 
   const breadcrumb = useMemo(() => {
     const parts = slug.split('/').filter(Boolean);
@@ -222,11 +269,30 @@ export function FiberPage() {
         onNavigate={(s) => navigate(`/${s}`)}
       />
 
-      {mode === 'narrative' && contentLoading && (
+      {isFileMode && fileTarget && (
+        <FileModeView
+          target={fileTarget}
+          cacheBustKey={fileCacheBustKey}
+          annotationRefreshKey={fileAnnotationRefreshKey}
+          dirty={fileDirty}
+          saveState={fileSaveState}
+          save={fileSave}
+          annotations={fileAnnotations}
+          annotationsRef={fileAnnotationsRef}
+          onDirtyChange={setFileDirty}
+          onSaveStateChange={setFileSaveState}
+          onSaveReady={handleFileSaveReady}
+          onAnnotationsChange={setFileAnnotations}
+          onRefresh={handleFileRefresh}
+          refreshAnnotations={refreshFileAnnotations}
+        />
+      )}
+
+      {!isFileMode && mode === 'narrative' && contentLoading && (
         <div className="vellum-loading">Loading <em>{slug || 'fiber'}</em>…</div>
       )}
 
-      {mode === 'narrative' && !contentLoading && content?.mdast && (
+      {!isFileMode && mode === 'narrative' && !contentLoading && content?.mdast && (
         <NarrativeView
           content={content}
           graphNodes={graph.nodes}
@@ -237,11 +303,11 @@ export function FiberPage() {
         />
       )}
 
-      {mode === 'narrative' && !contentLoading && !slug && (
+      {!isFileMode && mode === 'narrative' && !contentLoading && !slug && (
         <IndexView nodes={graph.nodes} links={graph.links} onNavigate={(s) => navigate(`/${s}`)} eyebrow={eyebrow} />
       )}
 
-      {mode === 'narrative' && !contentLoading && slug && !content?.mdast && (
+      {!isFileMode && mode === 'narrative' && !contentLoading && slug && !content?.mdast && (
         <div className="vellum-error">
           Fiber <em>{slug}</em> not found in this collection.
         </div>
@@ -252,11 +318,11 @@ export function FiberPage() {
           the view renders "Fiber X not found" — a transient flash that
           looks like a real error. Show a loading indicator until the graph
           lands; the "not found" branch then signals a genuine miss. */}
-      {mode === 'workspace' && graphLoading && (
+      {!isFileMode && mode === 'workspace' && graphLoading && (
         <div className="vellum-loading">Loading <em>{slug || 'workspace'}</em>…</div>
       )}
 
-      {mode === 'workspace' && !graphLoading && (
+      {!isFileMode && mode === 'workspace' && !graphLoading && (
         <WorkspaceView
           nodes={graph.nodes}
           links={graph.links}
@@ -274,9 +340,9 @@ export function FiberPage() {
       {/* Pinned cards are a Narrative-only affordance — they're anchored
           to prose line-y coordinates that don't exist in other modes, so
           rendering them on Delta/Workspace looks like ghost UI. */}
-      {mode === 'narrative' && <ContextCardLayer onNavigate={(s) => navigate(`/${s}`)} />}
+      {!isFileMode && mode === 'narrative' && <ContextCardLayer onNavigate={(s) => navigate(`/${s}`)} />}
 
-      {mode === 'delta' && (
+      {!isFileMode && mode === 'delta' && (
         <DeltaView
           events={deltaEvents}
           since={since}
@@ -284,6 +350,130 @@ export function FiberPage() {
           onRefresh={refreshDelta}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * FileModeView — workspace's file-mode rendering. Mirrors FileViewerModal's
+ * lift pattern (path · dirty · status · bulk-actions · Save · ↻ at the top;
+ * FileViewerPage inside with `hideToolbar`) but lives inside the workspace
+ * shell instead of a free-standing modal scrim. The host modal supplies the
+ * close button.
+ */
+interface FileModeViewProps {
+  target: FileTarget;
+  cacheBustKey: number;
+  annotationRefreshKey: number;
+  dirty: boolean;
+  saveState: SaveState;
+  save: (() => Promise<void>) | null;
+  annotations: Annotation[];
+  annotationsRef: { current: Annotation[] };
+  onDirtyChange: (dirty: boolean) => void;
+  onSaveStateChange: (state: SaveState) => void;
+  onSaveReady: (fn: (() => Promise<void>) | null) => void;
+  onAnnotationsChange: (annotations: Annotation[]) => void;
+  onRefresh: () => void;
+  refreshAnnotations: () => void;
+}
+
+function FileModeView({
+  target,
+  cacheBustKey,
+  annotationRefreshKey,
+  dirty,
+  saveState,
+  save,
+  annotations,
+  annotationsRef,
+  onDirtyChange,
+  onSaveStateChange,
+  onSaveReady,
+  onAnnotationsChange,
+  onRefresh,
+  refreshAnnotations,
+}: FileModeViewProps) {
+  const canSave = !!save && dirty && saveState !== 'saving';
+  const statusText = saveStatusText(saveState);
+  return (
+    <div className="vellum-file-mode">
+      <header className="vellum-file-mode__toolbar">
+        <span className="vellum-file-mode__path" title={target.path}>
+          {target.path}
+          {dirty && <span className="vellum-file-viewer-page__dirty" aria-hidden="true"> •</span>}
+        </span>
+        {statusText && (
+          <span className="vellum-file-viewer-page__status">{statusText}</span>
+        )}
+        <div className="vellum-file-mode__actions">
+          {annotations.length > 0 && target.headerAnnotationActions?.map((action: AnnotationBulkAction) => {
+            const applicable = action.applicableTo
+              ? annotations.filter(action.applicableTo)
+              : annotations;
+            if (applicable.length === 0) return null;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                className="vellum-modal-btn vellum-modal-btn--bulk"
+                title={action.title ?? action.label}
+                aria-label={`${action.label}, ${applicable.length} ${
+                  applicable.length === 1 ? 'annotation' : 'annotations'
+                }`}
+                onClick={(e) => {
+                  const matched = action.applicableTo
+                    ? annotationsRef.current.filter(action.applicableTo)
+                    : annotationsRef.current;
+                  void action.onInvoke(matched, {
+                    anchor: e.currentTarget as HTMLElement,
+                    refreshAnnotations,
+                  });
+                }}
+              >
+                {action.label}
+                <span className="vellum-modal-btn__count" aria-hidden="true">{applicable.length}</span>
+              </button>
+            );
+          })}
+          {save && (
+            <button
+              type="button"
+              className="vellum-file-viewer-page__save"
+              onClick={() => { void save(); }}
+              disabled={!canSave}
+            >
+              Save
+            </button>
+          )}
+          <button
+            type="button"
+            className="vellum-modal-btn"
+            onClick={onRefresh}
+            title="Refresh"
+            aria-label="Refresh"
+          >
+            ↻
+          </button>
+        </div>
+      </header>
+      <div className="vellum-file-mode__body">
+        <FileViewerPage
+          key={cacheBustKey}
+          path={target.path}
+          originId={target.originId}
+          cacheBust={cacheBustKey > 0}
+          editable={target.editable}
+          jumpToLine={target.jumpToLine}
+          annotationActions={target.annotationActions}
+          hideToolbar
+          onDirtyChange={onDirtyChange}
+          onSaveStateChange={onSaveStateChange}
+          onSaveReady={onSaveReady}
+          onAnnotationsChange={onAnnotationsChange}
+          annotationRefreshKey={annotationRefreshKey}
+        />
+      </div>
     </div>
   );
 }

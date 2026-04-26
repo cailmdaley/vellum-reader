@@ -539,6 +539,19 @@ body {
 }
 .thumb-index__mode--active { opacity: 1; }
 
+/* File mode disables Workspace + Delta — they're fiber-collection concepts
+   that need a slug/graph context this view doesn't have. The buttons stay
+   in the chrome (so the shape doesn't shift) but read as inert. */
+.thumb-index__mode--disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+.thumb-index__mode--disabled:hover {
+  opacity: 0.25;
+  color: var(--text-muted);
+  border-bottom-color: transparent;
+}
+
 /* Full vs short labels — tier-driven visibility */
 .thumb-index__mode-short { display: none; }
 .thumb-index__mode-full  { display: inline; }
@@ -6246,6 +6259,47 @@ a.pretext-prose-frag:hover {
 .vellum-modal-body {
   flex: 1;
   overflow: auto;
+}
+
+/* ── File mode (workspace hosting a file) ──
+   Same lift pattern as FileViewerModal: a single thin toolbar at the top
+   (path · dirty · status · bulk actions · Save · ↻) and FileViewerPage
+   below with hideToolbar. Sits inside .vellum-page, so it gets the same
+   left/right margins (gutter + canvas reservation) as fiber prose. The
+   toolbar sticks to the top of the viewport while the file body scrolls. */
+.vellum-file-mode {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.vellum-file-mode__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--page-bg);
+}
+.vellum-file-mode__path {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.vellum-file-mode__actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.vellum-file-mode__body {
+  flex: 1;
+  min-height: 0;
 }
 
 /* ── Theme: Lightcone ──

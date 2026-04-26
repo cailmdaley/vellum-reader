@@ -22,9 +22,10 @@
  */
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMode, type Mode } from '~/contexts/ModeContext';
 import { useAdapter } from '~/contexts/AdapterContext';
+import { FILE_TARGET_ROUTE, useFileTarget } from '~/contexts/FileTargetContext';
 import type { SearchHit, GraphNode, GraphLink } from '~/utils/content-types';
 import { statusGlyph } from '~/utils/fiber-status';
 import { PretextNav, type NavItem } from './PretextNav';
@@ -91,6 +92,14 @@ export function FloatingIsland({
   const { mode, setMode } = useMode();
   const adapter = useAdapter();
   const navigate = useNavigate();
+  const location = useLocation();
+  // File mode locks Workspace + Delta — they're fiber-collection concepts.
+  // The buttons stay rendered so the chrome shape doesn't shift, but they're
+  // greyed and inert. FiberPage's keyboard handler also blocks 2/3 in file mode.
+  // Once the user navigates to a fiber slug (wikilink, search), pathname
+  // leaves FILE_TARGET_ROUTE and the buttons re-enable for the rest of the mount.
+  const fileTarget = useFileTarget();
+  const isFileMode = !!fileTarget && location.pathname === FILE_TARGET_ROUTE;
 
   /* ── Width tier (progressive disclosure) + raw pixel width ── */
   const rootRef = useRef<HTMLDivElement>(null);
@@ -281,26 +290,41 @@ export function FloatingIsland({
       {/* ── Header row: modes · search ── */}
       <div className="thumb-index__header">
         <nav className="thumb-index__modes" aria-label="View mode">
-          {MODES.map(({ id, letter, full }) => (
-            <button
-              key={id}
-              className={`thumb-index__mode thumb-index__mode--${id}${mode === id ? ' thumb-index__mode--active' : ''}`}
-              onClick={() => setMode(id)}
-              title={`${full} (${MODES.indexOf(MODES.find(m => m.id === id)!) + 1})`}
-              aria-label={`${full} view`}
-              aria-current={mode === id ? 'true' : undefined}
-            >
-              {/* Visible label is duplicated by the button's aria-label
-                  ("${full} view"), and parent generic name calculation
-                  vacuums child text into long run-on names — so hide both
-                  the long form and the short letter from AT. */}
-              <span className="thumb-index__mode-full" aria-hidden="true">{full}</span>
-              <span className="thumb-index__mode-short" aria-hidden="true">{letter}</span>
-              {id === 'delta' && deltaCount > 0 && (
-                <span className="thumb-index__delta-badge">{deltaCount}</span>
-              )}
-            </button>
-          ))}
+          {MODES.map(({ id, letter, full }) => {
+            // In file mode, only Narrative is meaningful. Workspace + Delta
+            // need an AstraGraph and a fiber slug; greying the buttons signals
+            // "open a fiber to use these" without hiding the chrome.
+            const disabled = isFileMode && id !== 'narrative';
+            const className = `thumb-index__mode thumb-index__mode--${id}${
+              mode === id ? ' thumb-index__mode--active' : ''
+            }${disabled ? ' thumb-index__mode--disabled' : ''}`;
+            return (
+              <button
+                key={id}
+                className={className}
+                onClick={() => { if (!disabled) setMode(id); }}
+                disabled={disabled}
+                title={
+                  disabled
+                    ? `${full} unavailable while viewing a file — open a fiber to use this view`
+                    : `${full} (${MODES.indexOf(MODES.find(m => m.id === id)!) + 1})`
+                }
+                aria-label={`${full} view`}
+                aria-current={mode === id ? 'true' : undefined}
+                aria-disabled={disabled || undefined}
+              >
+                {/* Visible label is duplicated by the button's aria-label
+                    ("${full} view"), and parent generic name calculation
+                    vacuums child text into long run-on names — so hide both
+                    the long form and the short letter from AT. */}
+                <span className="thumb-index__mode-full" aria-hidden="true">{full}</span>
+                <span className="thumb-index__mode-short" aria-hidden="true">{letter}</span>
+                {id === 'delta' && deltaCount > 0 && (
+                  <span className="thumb-index__delta-badge">{deltaCount}</span>
+                )}
+              </button>
+            );
+          })}
         </nav>
         <div className="thumb-index__search-wrap" ref={searchRef}>
           {searchExpanded ? (
