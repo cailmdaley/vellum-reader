@@ -807,22 +807,38 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
   handleRef,
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  // Holds the per-page wrapper divs in the order pdfjs renders them.
+  // Holds the per-page wrapper divs in 1..N order. Wrappers are
+  // pre-created up-front (with the correct viewport-derived height) so
+  // the document occupies its final scroll height before any page has
+  // rasterized — that lets `scrollIntoView` land on the right Y even
+  // when the target canvas is still blank, and lets the render loop
+  // fill canvases out of order without the rest of the document shifting.
   // 1-indexed semantics: caller passes `n`, we resolve `pageElsRef.current[n - 1]`.
   const pageElsRef = useRef<HTMLDivElement[]>([]);
-  // If `scrollToPage` is called before pdfjs has produced the requested
-  // page, stash the target here. The render loop checks after each
-  // page lands and replays once the page exists. Mirrors paper-viewer.js's
-  // post-render `scrollToPage(focusInsight.page)` (lines 253-255).
+  // If `scrollToPage` is called before the wrappers have been mounted
+  // (the brief window before pre-creation finishes), stash the target
+  // so the loop can replay the scroll once the wrappers exist.
   const pendingPageRef = useRef<number | null>(null);
+  // "Render this page next, jumping the queue." Set on every
+  // `scrollToPage` call so the render loop can re-prioritize away from
+  // its serial 1..N order — without this, jumping to page 23 of a
+  // 30-page PDF would wait for pages 1..22 to render serially before
+  // the user sees content (~6 s in the wild). The loop drains this
+  // before every step. See fiber:
+  // `vellum-reader/astra-paper-modal-page-jump-render-wait`.
+  const requestedPageRef = useRef<number | null>(null);
 
   const scrollToPage = useCallback((pageNum: number) => {
     if (!Number.isFinite(pageNum) || pageNum < 1) return;
+    // Always tell the render loop "this is the page the user wants" so
+    // it can jump the serial queue. Cheap and idempotent — the loop
+    // only acts on it when the page isn't yet rendered.
+    requestedPageRef.current = pageNum;
     const els = pageElsRef.current;
     const el = els[pageNum - 1];
     if (!el) {
-      // Pages not mounted yet (or this page hasn't landed). Queue and
-      // let the render loop replay once it arrives.
+      // Wrappers not mounted yet. Queue the scroll for replay; the
+      // render loop replays once pre-creation lands the wrappers.
       pendingPageRef.current = pageNum;
       return;
     }
@@ -855,9 +871,27 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
       if (cancelled) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const containerWidth = container.clientWidth || 800;
-      for (let i = 1; i <= doc.numPages; i++) {
-        if (cancelled) break;
-        const page = await doc.getPage(i);
+
+      // Phase 1 — pre-create all per-page wrappers, in DOM order, sized
+      // to each page's final viewport. Page metadata fetches in
+      // parallel so this stays cheap on big papers (single pdfjs worker
+      // serializes most of it under the hood, but pipelining still
+      // beats fully-serial awaits). After this phase the document
+      // occupies its full scroll height even though every canvas is
+      // still blank — `scrollToPage(N)` lands on the right Y
+      // immediately, and the render loop in phase 2 can fill canvases
+      // out of order without making the document jump.
+      type RenderJob = {
+        page: Awaited<ReturnType<typeof doc.getPage>>;
+        canvas: HTMLCanvasElement;
+        viewport: ReturnType<Awaited<ReturnType<typeof doc.getPage>>['getViewport']>;
+        rendered: boolean;
+      };
+      const pages = await Promise.all(
+        Array.from({ length: doc.numPages }, (_, i) => doc.getPage(i + 1)),
+      );
+      if (cancelled) return;
+      const jobs: RenderJob[] = pages.map((page) => {
         const unscaledViewport = page.getViewport({ scale: 1 });
         const scale = (containerWidth * dpr) / unscaledViewport.width;
         const viewport = page.getViewport({ scale });
@@ -867,7 +901,7 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
         // tests / downstream code reach a specific page if needed.
         const wrap = document.createElement('div');
         wrap.className = 'vellum-file-reader__pdf-page';
-        wrap.dataset.page = String(i);
+        wrap.dataset.page = String(page.pageNumber);
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -876,16 +910,66 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
         wrap.appendChild(canvas);
         container.appendChild(wrap);
         pageElsRef.current.push(wrap);
-        const ctx = canvas.getContext('2d');
-        if (!ctx) continue;
-        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-        // If a scrollToPage call landed before this page was mounted,
-        // replay it now that the page exists in the DOM.
-        const pending = pendingPageRef.current;
-        if (pending != null && pending === i) {
-          pendingPageRef.current = null;
-          scrollToPage(pending);
+        return { page, canvas, viewport, rendered: false };
+      });
+      if (cancelled) return;
+
+      // Wrappers exist now. If a scroll was queued before the user even
+      // got here, replay it — the wrapper for the target is in the DOM
+      // (canvas blank), so the scroll lands on the right Y immediately.
+      // The replay also re-asserts requestedPageRef so phase 2 picks up
+      // the priority below.
+      const queued = pendingPageRef.current;
+      if (queued != null && queued >= 1 && queued <= jobs.length) {
+        pendingPageRef.current = null;
+        scrollToPage(queued);
+      }
+
+      // Phase 2 — render with priority. Drain `requestedPageRef`
+      // before every step, so any scrollToPage call (queued at
+      // mount, fired by a focus-insight effect, or triggered by a
+      // user click on an evidence-page button mid-render) jumps the
+      // serial queue. Then advance the serial pointer through
+      // already-rendered pages.
+      const renderJob = async (i: number): Promise<void> => {
+        const job = jobs[i - 1];
+        if (!job || job.rendered) return;
+        const ctx = job.canvas.getContext('2d');
+        if (!ctx) {
+          job.rendered = true;
+          return;
         }
+        await job.page.render({
+          canvas: job.canvas,
+          canvasContext: ctx,
+          viewport: job.viewport,
+        }).promise;
+        job.rendered = true;
+        // Mark the wrapper rendered so tests / agent-browser can verify
+        // priority-render behavior without inspecting canvas pixels. Same
+        // shape as paper-viewer.js's post-render class hook.
+        const wrap = pageElsRef.current[i - 1];
+        if (wrap) wrap.dataset.rendered = '1';
+      };
+
+      let i = 1;
+      while (i <= jobs.length) {
+        if (cancelled) break;
+        const requested = requestedPageRef.current;
+        if (
+          requested != null &&
+          requested >= 1 &&
+          requested <= jobs.length &&
+          !jobs[requested - 1].rendered
+        ) {
+          requestedPageRef.current = null;
+          await renderJob(requested);
+          continue;
+        }
+        if (!jobs[i - 1].rendered) {
+          await renderJob(i);
+        }
+        i++;
       }
     })().catch((err) => {
       if (cancelled) return;
@@ -904,6 +988,7 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
       container.innerHTML = '';
       pageElsRef.current = [];
       pendingPageRef.current = null;
+      requestedPageRef.current = null;
     };
   }, [file.url, scrollToPage]);
 
