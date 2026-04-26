@@ -8056,6 +8056,15 @@ a.pretext-prose-frag:hover {
   position: fixed;
   inset: 0;
   background: rgba(20, 18, 16, 0.82);
+  /* The paper modal sits over the workspace modal's article, so the
+     dark fill alone leaves a faint outline of the body text legible
+     through 18% transmission near the edges of the shell. Blur the
+     backing layer the way upstream paper-view.html does
+     (`.pv-paper-modal-backdrop` carries `backdrop-filter: blur(6px)`)
+     so any leakage is just diffuse shapes — the modal reads as truly
+     modal, not overlaid on a still-readable page. */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   z-index: 10001;
   display: flex;
   align-items: stretch;
