@@ -14,7 +14,7 @@
  * structural divergence lives in CSS at `:root[data-astra-layout="personal"]`
  * and grows over iterations.
  *
- * Stage 2 (this revision) wires:
+ * Stage 2 (prior revision) wires:
  *   - Inline narrative refs (`[text](#findings.foo)` etc.) that scroll +
  *     flash the targeted anchor — see `AstraProse`.
  *   - Figure outputs render inline `<img>` thumbnails (click → open).
@@ -25,8 +25,23 @@
  *   - Inline "informs" decision pills under finding evidence, resolved
  *     through `bundle.decisions_by_insight`.
  *
- * Stage 3 lands annotation layer + decision-flip overlay. Stage 4 PRs the
- * affordances upstream into `paper-view.html`.
+ * Stage 3 (this revision adds) — wiki-style backlinks across the bundle's
+ * analytical graph:
+ *   - `evidence.artifact` is usually an output key (e.g. the BAO bundle's
+ *     `bao_detection_significance`), not a file path. When it matches an
+ *     entry in `bundle.outputs`, the row renders as an anchor link to
+ *     `#astra-output-<key>` and the click scrolls + flashes the output
+ *     card — same gesture paper-viewer.js's `openOutputByArtifactKey`
+ *     fires for `.pv-modal__artifact-link`. Falls back to the prior
+ *     external-file behaviour when the artifact really is a path.
+ *   - `output.from` chains to a sub-analysis output (`bao_fitting.final_
+ *     distances`) or an input. When the dotted key resolves inside the
+ *     bundle, the "← from-key" eyebrow becomes a clickable wiki-link to
+ *     that anchor. Mirrors how paper-view's gallery cards drill into
+ *     their producing sub.
+ *
+ * Stage 3 next: annotation layer + decision-flip overlay.
+ * Stage 4 PRs the affordances upstream into `paper-view.html`.
  *
  * Bundle in, JSX out, no portolan dependency. The host (portolan) glues this
  * into its workspace modal and pin cards via `mountVellumAstraCardSurface` /
@@ -157,6 +172,7 @@ export function AstraPaperView({
                   findings={bundle.findings}
                   insights={bundle.insights}
                   papers={bundle.papers}
+                  outputs={bundle.outputs}
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
                   resolveArtifact={resolveArtifact}
@@ -215,6 +231,7 @@ export function AstraPaperView({
                 {outputsNarrative && <AstraProse text={outputsNarrative} />}
                 <OutputsList
                   outputs={bundle.outputs}
+                  inputs={bundle.inputs}
                   order={bundle.top_output_order}
                   csvs={csvs}
                   resolveArtifact={resolveArtifact}
@@ -314,6 +331,7 @@ function FindingsList({
   findings,
   insights,
   papers,
+  outputs,
   decisionsByInsight,
   decisionLabel,
   resolveArtifact,
@@ -322,6 +340,7 @@ function FindingsList({
   findings: Finding[];
   insights: Bundle['insights'];
   papers: Bundle['papers'];
+  outputs: Bundle['outputs'];
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
@@ -335,6 +354,7 @@ function FindingsList({
           finding={f}
           insights={insights}
           papers={papers}
+          outputs={outputs}
           decisionsByInsight={decisionsByInsight}
           decisionLabel={decisionLabel}
           resolveArtifact={resolveArtifact}
@@ -349,6 +369,7 @@ function FindingItem({
   finding,
   insights,
   papers,
+  outputs,
   decisionsByInsight,
   decisionLabel,
   resolveArtifact,
@@ -357,6 +378,7 @@ function FindingItem({
   finding: Finding;
   insights: Bundle['insights'];
   papers: Bundle['papers'];
+  outputs: Bundle['outputs'];
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
@@ -393,6 +415,7 @@ function FindingItem({
           evidence={finding.evidence}
           insights={insights}
           papers={papers}
+          outputs={outputs}
           resolveArtifact={resolveArtifact}
           onOpenPaper={onOpenPaper}
         />
@@ -429,12 +452,14 @@ function Evidence({
   evidence,
   insights,
   papers,
+  outputs,
   resolveArtifact,
   onOpenPaper,
 }: {
   evidence: FindingEvidence[];
   insights: Bundle['insights'];
   papers: Bundle['papers'];
+  outputs: Bundle['outputs'];
   resolveArtifact: (p: string) => string;
   onOpenPaper: OpenPaper;
 }) {
@@ -442,7 +467,6 @@ function Evidence({
     <ul className="astra-finding__evidence">
       {evidence.map((e) => {
         const insight = insights[e.id];
-        const url = e.artifact ? resolveArtifact(e.artifact) : null;
         return (
           <li key={e.id} className="astra-finding__evidence-item">
             <div className="astra-finding__evidence-head">
@@ -463,20 +487,94 @@ function Evidence({
                 onOpenPaper={onOpenPaper}
               />
             )}
-            {url && (
-              <a
-                className="astra-finding__evidence-link"
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {e.artifact}
-              </a>
+            {e.artifact && (
+              <ArtifactLink artifact={e.artifact} outputs={outputs} resolveArtifact={resolveArtifact} />
             )}
           </li>
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * Render `evidence.artifact` as the right kind of link.
+ *
+ * The field is overloaded in the spec dialect: most analyses use a bare key
+ * naming an output (e.g. `bao_detection_significance`), the same way paper-
+ * viewer.js's `pv-modal__artifact-link` does. A minority use a relative or
+ * already-resolved file path. Discriminate by membership in the bundle's
+ * outputs map — when the artifact key resolves, render a within-bundle
+ * wiki-link to the output card; otherwise fall through to the prior
+ * external-file behaviour. The fall-through still uses `resolveArtifact`
+ * so static deploys + portolan's `/project-file/...` rewrites keep working.
+ */
+function ArtifactLink({
+  artifact,
+  outputs,
+  resolveArtifact,
+}: {
+  artifact: string;
+  outputs: Bundle['outputs'];
+  resolveArtifact: (p: string) => string;
+}) {
+  if (artifact in outputs) {
+    return <OutputAnchorLink outputKey={artifact} outputs={outputs} />;
+  }
+  const url = resolveArtifact(artifact);
+  return (
+    <a
+      className="astra-finding__evidence-link"
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {artifact}
+    </a>
+  );
+}
+
+/**
+ * Wiki-link to an output card living in this bundle. Mirrors paper-viewer.js's
+ * `openOutputByArtifactKey`: anchor jump to `#astra-output-<key>`, smooth
+ * scroll, gold flash. Surfaces the output's type as a small caption so the
+ * reader knows whether they're being sent to a figure / table / data product
+ * before they click.
+ */
+function OutputAnchorLink({
+  outputKey,
+  outputs,
+}: {
+  outputKey: string;
+  outputs: Bundle['outputs'];
+}) {
+  const out = outputs[outputKey];
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (event.button !== 0) return;
+    const ok = scrollToAstraAnchor(`astra-output-${outputKey}`);
+    if (ok) event.preventDefault();
+  };
+  return (
+    <a
+      className="astra-finding__evidence-link astra-finding__evidence-link--anchor"
+      href={`#astra-output-${outputKey}`}
+      data-output={outputKey}
+      title={
+        out
+          ? `Jump to output · ${outputKey} (${out.type})`
+          : `Jump to output · ${outputKey}`
+      }
+      onClick={handleClick}
+    >
+      <span className="astra-finding__evidence-link-glyph" aria-hidden="true">
+        →
+      </span>
+      {outputKey}
+      {out && (
+        <span className="astra-finding__evidence-link-type">{out.type}</span>
+      )}
+    </a>
   );
 }
 
@@ -817,11 +915,13 @@ function InputsList({ inputs }: { inputs: Record<string, Input> }) {
 
 function OutputsList({
   outputs,
+  inputs,
   order,
   csvs,
   resolveArtifact,
 }: {
   outputs: Record<string, Output>;
+  inputs: Record<string, Input>;
   order: string[];
   csvs?: Record<string, string>;
   resolveArtifact: (p: string) => string;
@@ -838,6 +938,8 @@ function OutputsList({
           key={key}
           outputKey={key}
           output={outputs[key]}
+          outputs={outputs}
+          inputs={inputs}
           csvs={csvs}
           resolveArtifact={resolveArtifact}
         />
@@ -849,11 +951,15 @@ function OutputsList({
 function OutputItem({
   outputKey,
   output,
+  outputs,
+  inputs,
   csvs,
   resolveArtifact,
 }: {
   outputKey: string;
   output: Output;
+  outputs: Record<string, Output>;
+  inputs: Record<string, Input>;
   csvs?: Record<string, string>;
   resolveArtifact: (p: string) => string;
 }) {
@@ -873,9 +979,7 @@ function OutputItem({
         <span className="astra-output__id">{outputKey}</span>
         <span className="astra-output__type">{output.type}</span>
         {output.from && (
-          <span className="astra-output__from" title="Derived from input">
-            ← {output.from}
-          </span>
+          <FromChainLink from={output.from} outputs={outputs} inputs={inputs} />
         )}
       </div>
       {output.description && (
@@ -909,6 +1013,64 @@ function OutputItem({
         </a>
       )}
     </li>
+  );
+}
+
+/**
+ * `← producing-key` eyebrow under an output header. The from-chain references
+ * either another output (the common case — sub-analyses promote a leaf output
+ * up to the top-level surface as `bao_fitting.final_distances` → `final_
+ * distances`) or an input (uncommon, but legal). When the dotted key resolves
+ * inside this bundle, render a wiki-link to the matching anchor; otherwise
+ * keep the prior plain-text behaviour so unmatched provenance still tells the
+ * reader where the output came from. Mirrors how paper-view.html's gallery
+ * cards drill into producing sub-analyses on click.
+ */
+function FromChainLink({
+  from,
+  outputs,
+  inputs,
+}: {
+  from: string;
+  outputs: Record<string, Output>;
+  inputs: Record<string, Input>;
+}) {
+  let anchor: string | null = null;
+  let kind: 'output' | 'input' | null = null;
+  if (from in outputs) {
+    anchor = `astra-output-${from}`;
+    kind = 'output';
+  } else if (from in inputs) {
+    anchor = `astra-input-${from}`;
+    kind = 'input';
+  }
+  if (!anchor) {
+    return (
+      <span className="astra-output__from" title="Derived from">
+        ← {from}
+      </span>
+    );
+  }
+  const title =
+    kind === 'output'
+      ? `Jump to producing output · ${from}`
+      : `Jump to source input · ${from}`;
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (event.button !== 0) return;
+    const ok = scrollToAstraAnchor(anchor!);
+    if (ok) event.preventDefault();
+  };
+  return (
+    <a
+      className="astra-output__from astra-output__from--link"
+      href={`#${anchor}`}
+      data-from-kind={kind}
+      title={title}
+      onClick={handleClick}
+    >
+      ← {from}
+    </a>
   );
 }
 
@@ -1017,6 +1179,7 @@ function SubAnalysesList({
                   findings={findings}
                   insights={bundle.insights}
                   papers={papers}
+                  outputs={bundle.outputs}
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
                   resolveArtifact={resolveArtifact}
@@ -1047,6 +1210,8 @@ function SubAnalysesList({
                         key={key}
                         outputKey={key}
                         output={bundle.outputs[key]}
+                        outputs={bundle.outputs}
+                        inputs={bundle.inputs}
                         csvs={csvs}
                         resolveArtifact={resolveArtifact}
                       />

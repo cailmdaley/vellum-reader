@@ -7346,6 +7346,36 @@ a.pretext-prose-frag:hover {
   border-bottom-style: solid;
 }
 
+/* Within-bundle wiki-link variant — `evidence.artifact` resolves to an
+ * output card on this page, so the link scrolls + flashes the target rather
+ * than opening a file. Dotted underline (instead of dashed) telegraphs
+ * "stays-on-page" vs the dashed external file link. The arrow glyph mirrors
+ * paper-viewer.js's `pv-modal__artifact-link` " → " affordance. */
+.astra-finding__evidence-link--anchor {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  border-bottom-style: dotted;
+}
+
+.astra-finding__evidence-link--anchor:hover {
+  border-bottom-style: solid;
+}
+
+.astra-finding__evidence-link-glyph {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  color: var(--text-muted, #7A7368);
+  font-size: 0.9em;
+}
+
+.astra-finding__evidence-link-type {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  font-size: 0.78em;
+  color: var(--text-muted, #7A7368);
+  margin-left: 0.35em;
+}
+
 /* Paper citation row: page hint + DOI-linked paper title. Lives below the
  * quote; today the link opens https://doi.org/<doi> in a new tab. Stage 5
  * replaces this with an in-modal PDF preview using vellum's PdfReader plus
@@ -7700,6 +7730,23 @@ a.pretext-prose-frag:hover {
 .astra-output__from {
   font-size: 0.85em;
   color: var(--text-muted, #7A7368);
+}
+
+/* Wiki-link variant — `output.from` resolves to another output (or input)
+ * card in this bundle, so the eyebrow becomes a scroll-target link with a
+ * subtle dotted underline that telegraphs "stays-on-page" the same way
+ * `.astra-finding__evidence-link--anchor` does. Inherits the muted color so
+ * it doesn't compete with the artifact link below the description. */
+.astra-output__from--link {
+  text-decoration: none;
+  color: var(--text-muted, #7A7368);
+  border-bottom: 1px dotted rgba(122, 115, 104, 0.5);
+}
+
+.astra-output__from--link:hover {
+  color: var(--gold, #9A7B35);
+  border-bottom-color: rgba(154, 123, 53, 0.7);
+  border-bottom-style: solid;
 }
 
 .astra-output__description {
