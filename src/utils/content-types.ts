@@ -258,7 +258,16 @@ export interface AnnotationBulkAction {
   applicableTo?: (annotation: Annotation) => boolean;
   onInvoke: (
     annotations: Annotation[],
-    ctx: { anchor: HTMLElement; refreshAnnotations: () => void },
+    ctx: {
+      anchor: HTMLElement;
+      refreshAnnotations: () => void;
+      /** The slug or path the action was invoked from. Set by
+       *  `NarrativeAnnotationActionsBar` to the current fiber's slug; left
+       *  undefined by `FileViewerModal` (file mode has no slug). Hosts use
+       *  it to resolve the fiber's body path for slug-bound operations
+       *  (send-to-worker, save-as-child-fiber). */
+      currentSlug?: string;
+    },
   ) => void | Promise<void>;
 }
 

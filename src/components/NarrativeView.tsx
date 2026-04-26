@@ -762,6 +762,7 @@ export function NarrativeView({
                 Renders only when both annotations exist on the page and
                 the host registered actions via AnnotationActionsProvider. */}
             <NarrativeAnnotationActionsBar
+              currentSlug={content.slug}
               annotations={annotations}
               bulkActions={annotationBulkActions}
               onRefreshAnnotations={refreshAnnotations}
