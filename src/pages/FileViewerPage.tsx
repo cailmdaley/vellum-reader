@@ -129,6 +129,22 @@ function rungToLayout(rung: AstraLadderRung): AstraLayout {
   return rung === 'personal' ? 'personal' : 'linear';
 }
 
+/**
+ * Width below which the paper-view rung's iframe stops carrying useful
+ * content inside a card. The lightcone paper-view template is laid out for
+ * a ~720px column; below this threshold the title alone overflows
+ * (e.g. only "DESI 2024 III:" shows) and the body has no room to breathe.
+ *
+ * Linear and personal use vellum's prose column, which adapts down to the
+ * pin's `LABEL_THRESHOLD` cleanly, so when the host narrows past this floor
+ * we transparently render the linear layout while leaving the picker's
+ * displayed selection on `paper-view` — matches the bundle-unavailable
+ * fallthrough pattern (notice + effective rung). User picks it back up at
+ * any width ≥ the floor. See `vellum-reader/vellum-native-astra-renderer`
+ * open question "paper-view rung in cards under tiny dimensions".
+ */
+const PAPER_VIEW_MIN_WIDTH = 280;
+
 export function FileViewerPage(props: FileViewerPageProps) {
   // Astra paths split off into the ladder dispatch. The picker, source toggle,
   // bundle fetch, and rung-keyed render all live in `<AstraFilePanel>` so the
@@ -446,6 +462,13 @@ function AstraFilePanel({
   // different positioned ancestor.
   const proseRef = useRef<HTMLElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  // Host = the `.astra-paper-view-host` div the picker + body live inside.
+  // Width-tracked via ResizeObserver to drive the paper-view-too-narrow
+  // fallthrough below. Seeded with `Infinity` so first render picks the
+  // user's actual rung (no flash of linear); the observer corrects on the
+  // first paint. See `PAPER_VIEW_MIN_WIDTH`.
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [hostWidth, setHostWidth] = useState<number>(Number.POSITIVE_INFINITY);
 
   // Always fetch the iframe descriptor — the paper-view rung uses it
   // directly, and a missing bundle endpoint falls back to it. Cheap; the
@@ -466,6 +489,30 @@ function AstraFilePanel({
       cancelled = true;
     };
   }, [adapter, path, originId, refetchTrigger]);
+
+  // Track the host (`.astra-paper-view-host`) width so the paper-view rung
+  // can fall back to linear under narrow card sizes — see
+  // `PAPER_VIEW_MIN_WIDTH`. ResizeObserver is the right primitive here: pin
+  // cards resize continuously as the camera zooms, and we want the body to
+  // re-render without forcing an unmount. Modal mounts hit this effect too
+  // but stay well above the threshold, so the observer runs and the rung
+  // never clamps. Guard for SSR / older browsers.
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    if (typeof ResizeObserver === 'undefined') {
+      setHostWidth(el.getBoundingClientRect().width);
+      return;
+    }
+    const obs = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setHostWidth(entry.contentRect.width);
+      }
+    });
+    obs.observe(el);
+    setHostWidth(el.getBoundingClientRect().width);
+    return () => obs.disconnect();
+  }, [renderMode]);
 
   // Bundle fetch: only when the adapter supports it. Switching ladder rungs
   // does not retrigger this — the bundle drives every rung. cacheBust DOES
@@ -630,8 +677,17 @@ function AstraFilePanel({
   // `<AstraPicker>` if we choose to gate them, today they fall through to
   // the same fallback render).
   const bundleAvailable = bundleStatus === 'ready' && bundleResult != null;
+  // Inverse case: paper-view *would* render but the host is too narrow for
+  // the lightcone template's column to lay out anything readable. Linear
+  // adapts down to the pin's label threshold cleanly, so substitute it.
+  const paperViewTooNarrow =
+    rung === 'paper-view' && bundleAvailable && hostWidth < PAPER_VIEW_MIN_WIDTH;
   const effectiveRung: AstraLadderRung =
-    rung !== 'paper-view' && !bundleAvailable ? 'paper-view' : rung;
+    rung !== 'paper-view' && !bundleAvailable
+      ? 'paper-view'
+      : paperViewTooNarrow
+        ? 'linear'
+        : rung;
 
   const showToolbar = !hideToolbar;
 
@@ -659,15 +715,17 @@ function AstraFilePanel({
         </div>
       )}
       {renderMode === 'rendered' ? (
-        <div className="astra-paper-view-host">
-          <AstraPicker rung={effectiveRung} onChange={handlePick} />
+        <div className="astra-paper-view-host" ref={hostRef}>
+          <AstraPicker rung={rung} onChange={handlePick} />
           {effectiveRung !== rung && (
             <p className="astra-paper-view-host__notice" role="status">
-              {bundleStatus === 'unsupported'
-                ? 'Bundle data unavailable for this host; showing canonical paper view.'
-                : bundleStatus === 'error'
-                  ? `Bundle failed to load (${bundleError ?? 'unknown error'}); showing canonical paper view.`
-                  : 'Loading bundle…'}
+              {paperViewTooNarrow
+                ? 'paper-view needs more room — showing linear at this size.'
+                : bundleStatus === 'unsupported'
+                  ? 'Bundle data unavailable for this host; showing canonical paper view.'
+                  : bundleStatus === 'error'
+                    ? `Bundle failed to load (${bundleError ?? 'unknown error'}); showing canonical paper view.`
+                    : 'Loading bundle…'}
             </p>
           )}
           {effectiveRung === 'paper-view' ? (
