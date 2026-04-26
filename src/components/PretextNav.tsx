@@ -248,8 +248,16 @@ export function PretextNav({ items, width: _width, onNavigate }: PretextNavProps
               </span>
             );
           }
+          // Separator pieces (slug == null) are visual punctuation — the
+          // " · " divider between sibling labels. Hide from AT so screen
+          // readers don't read "middle dot" between every two siblings.
           return (
-            <span key={fragIdx} className={frag.className} style={style}>
+            <span
+              key={fragIdx}
+              className={frag.className}
+              style={style}
+              aria-hidden="true"
+            >
               {frag.text}
             </span>
           );
