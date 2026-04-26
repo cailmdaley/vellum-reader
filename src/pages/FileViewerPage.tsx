@@ -23,6 +23,7 @@ import type { Annotation, AnnotationAction, FileContent } from '../utils/content
 import { FileReader } from '../components/FileReader';
 import { AstraPaperView, type AstraLayout } from '../components/astra/AstraPaperView';
 import { AstraPicker, type AstraLadderRung } from '../components/astra/AstraPicker';
+import { highlightYaml } from '../components/astra/highlight-yaml';
 import { TextAnnotationLayer } from '../components/TextAnnotationLayer';
 import type { AstraBundleResult } from '../adapter';
 
@@ -836,9 +837,28 @@ function AstraSourceView({
       </div>
     );
   }
+  // Syntax-highlight the YAML body via vellum's local tokenizer (no external
+  // dep). One <span> per token, one row per line — matches the constitution's
+  // "Source view (raw YAML, syntax-coloured)" promise. See
+  // `vellum-reader/vellum-native-astra-renderer`.
+  const lines = highlightYaml(text ?? '');
   return (
     <pre className="vellum-file-reader vellum-file-reader--text astra-source-view">
-      <code>{text ?? ''}</code>
+      <code>
+        {lines.map((spans, i) => (
+          <span key={i} className="astra-source-view__line">
+            {spans.map((span, j) => (
+              <span
+                key={j}
+                className={span.cls ?? undefined}
+              >
+                {span.text}
+              </span>
+            ))}
+            {i < lines.length - 1 ? '\n' : ''}
+          </span>
+        ))}
+      </code>
     </pre>
   );
 }

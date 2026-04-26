@@ -7001,6 +7001,52 @@ a.pretext-prose-frag:hover {
   white-space: pre;
 }
 
+/* Per-line wrapper — one inline-block per source line. Doesn't change layout
+ * (the surrounding <pre> still respects \n in flow), but gives a hook for
+ * future per-line affordances (line numbers, click-to-anchor, search
+ * highlight). */
+.astra-source-view__line {
+  display: inline;
+}
+
+/* Token palette — keyed off the porch-morning system's primary accents.
+ * Keys land on gold (the same accent used for cities, link underlines, and
+ * the ladder picker's selected rung), so the YAML's structural skeleton
+ * pops. Quoted strings + numbers ride teal — secondary, matches block-scalar
+ * bodies so values feel uniform across quoted/bare/blocky variants. Comments
+ * inherit ink-muted + italic so the prosaic narrative comments at the head
+ * of every astra.yaml read as background context. */
+.astra-source-view__key {
+  color: var(--gold, #9A7B35);
+}
+.astra-source-view__string {
+  color: var(--teal, #5A7B7B);
+}
+.astra-source-view__number {
+  color: var(--teal, #5A7B7B);
+}
+.astra-source-view__bool,
+.astra-source-view__null {
+  color: var(--gold, #9A7B35);
+  font-style: italic;
+}
+.astra-source-view__comment {
+  color: var(--ink-muted, #7A7368);
+  font-style: italic;
+}
+/* List dashes, document markers, flow brackets/commas, block-scalar `>` /
+ * `|` — all the same dim-gold structural ink. Distinct from keys (full
+ * gold) so the eye reads `key:` as "load-bearing" and `-` / `[` / `>` as
+ * "scaffolding." */
+.astra-source-view__marker {
+  color: var(--gold, #9A7B35);
+  opacity: 0.75;
+}
+.astra-source-view__anchor {
+  color: var(--gold, #9A7B35);
+  font-weight: 600;
+}
+
 /* ── Picker (inline content, ThemePicker-style) ───────────────────────── */
 
 /* Picker chrome scales with the host's inline size so it doesn't dominate
