@@ -25,7 +25,15 @@
  * follow once the edit path is proven.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { EditorSelection, EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
   Decoration,
@@ -780,13 +788,61 @@ async function loadPdfJs(): Promise<PdfJsModule> {
   return pdfJsPromise;
 }
 
-export function PdfReader({ file }: FileReaderProps) {
+/**
+ * Imperative handle for `<PdfReader>`. Today: 1-indexed `scrollToPage`.
+ *
+ * Mirrors `paper-viewer.js`'s `scrollToPage` so the in-modal "Evidence ·
+ * page <n>" link behaves the same in both renderers — see the
+ * vellum-native astra renderer constitution at
+ * `vellum-reader/vellum-native-astra-renderer`. Calls before the PDF
+ * finishes loading are queued and replayed once the requested page
+ * lands; calls for a non-existent page are no-ops.
+ */
+export interface PdfReaderHandle {
+  scrollToPage(pageNum: number): void;
+}
+
+export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function PdfReader(
+  { file },
+  handleRef,
+) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  // Holds the per-page wrapper divs in the order pdfjs renders them.
+  // 1-indexed semantics: caller passes `n`, we resolve `pageElsRef.current[n - 1]`.
+  const pageElsRef = useRef<HTMLDivElement[]>([]);
+  // If `scrollToPage` is called before pdfjs has produced the requested
+  // page, stash the target here. The render loop checks after each
+  // page lands and replays once the page exists. Mirrors paper-viewer.js's
+  // post-render `scrollToPage(focusInsight.page)` (lines 253-255).
+  const pendingPageRef = useRef<number | null>(null);
+
+  const scrollToPage = useCallback((pageNum: number) => {
+    if (!Number.isFinite(pageNum) || pageNum < 1) return;
+    const els = pageElsRef.current;
+    const el = els[pageNum - 1];
+    if (!el) {
+      // Pages not mounted yet (or this page hasn't landed). Queue and
+      // let the render loop replay once it arrives.
+      pendingPageRef.current = pageNum;
+      return;
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('vellum-file-reader__pdf-page--highlight');
+    // Force reflow so the keyframe restarts even if the class was just removed.
+    void el.offsetWidth;
+    el.classList.add('vellum-file-reader__pdf-page--highlight');
+    window.setTimeout(() => {
+      el.classList.remove('vellum-file-reader__pdf-page--highlight');
+    }, 1800);
+  }, []);
+
+  useImperativeHandle(handleRef, () => ({ scrollToPage }), [scrollToPage]);
 
   useEffect(() => {
     if (!hostRef.current || !file.url) return;
     const container = hostRef.current;
     container.innerHTML = '';
+    pageElsRef.current = [];
     let cancelled = false;
     let loadingTask: { destroy: () => void } | null = null;
 
@@ -805,15 +861,31 @@ export function PdfReader({ file }: FileReaderProps) {
         const unscaledViewport = page.getViewport({ scale: 1 });
         const scale = (containerWidth * dpr) / unscaledViewport.width;
         const viewport = page.getViewport({ scale });
+        // Wrap each canvas in a div so we can scope the highlight pulse
+        // to the targeted page (paper-viewer.js does the same with
+        // `pv-paper-modal__pdf-page`). Tagging with `data-page` lets
+        // tests / downstream code reach a specific page if needed.
+        const wrap = document.createElement('div');
+        wrap.className = 'vellum-file-reader__pdf-page';
+        wrap.dataset.page = String(i);
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         canvas.style.width = '100%';
         canvas.style.display = 'block';
-        container.appendChild(canvas);
+        wrap.appendChild(canvas);
+        container.appendChild(wrap);
+        pageElsRef.current.push(wrap);
         const ctx = canvas.getContext('2d');
         if (!ctx) continue;
         await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+        // If a scrollToPage call landed before this page was mounted,
+        // replay it now that the page exists in the DOM.
+        const pending = pendingPageRef.current;
+        if (pending != null && pending === i) {
+          pendingPageRef.current = null;
+          scrollToPage(pending);
+        }
       }
     })().catch((err) => {
       if (cancelled) return;
@@ -830,8 +902,10 @@ export function PdfReader({ file }: FileReaderProps) {
         loadingTask?.destroy();
       } catch {}
       container.innerHTML = '';
+      pageElsRef.current = [];
+      pendingPageRef.current = null;
     };
-  }, [file.url]);
+  }, [file.url, scrollToPage]);
 
   if (!file.url) {
     return (
@@ -841,7 +915,7 @@ export function PdfReader({ file }: FileReaderProps) {
     );
   }
   return <div ref={hostRef} className="vellum-file-reader vellum-file-reader--pdf" />;
-}
+});
 
 export function FileReader(props: FileReaderProps) {
   const { file, editable } = props;

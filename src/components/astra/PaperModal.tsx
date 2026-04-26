@@ -42,7 +42,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Bundle, Insight, PaperMetadata } from 'lightcone-ui-core';
-import { PdfReader } from '../FileReader';
+import { PdfReader, type PdfReaderHandle } from '../FileReader';
 import { scrollToAstraAnchor } from './AstraProse';
 
 export interface PaperModalProps {
@@ -95,6 +95,7 @@ export function PaperModal({
   const insights = insightsForDoi(bundle.insights, doi);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
+  const pdfRef = useRef<PdfReaderHandle | null>(null);
   const titleId = `astra-paper-modal-title-${encodeURIComponent(doi)}`;
 
   // Escape closes; lock body scroll while open. Mirrors paper-viewer.js's
@@ -121,6 +122,13 @@ export function PaperModal({
   // Scroll the focused insight into view + flash it. Re-runs on
   // focusInsightId change, including null → id (modal stays open across
   // citation clicks). Mirrors paper-viewer.js's `focusInsight`.
+  //
+  // Also scrolls the PDF pane to the insight's evidence page (if the
+  // insight has one) — same gesture as paper-viewer.js's
+  // `if (focusInsight_.page) scrollToPage(focusInsight_.page)` after
+  // the render loop. The PdfReader queues the call if pages haven't
+  // landed yet, so timing is safe even when the modal opens and the
+  // PDF starts loading in the same frame.
   useEffect(() => {
     if (!focusInsightId) return;
     const root = railRef.current;
@@ -135,11 +143,13 @@ export function PaperModal({
     el.classList.remove('astra-paper-modal__insight--focus');
     void (el as HTMLElement).offsetWidth;
     el.classList.add('astra-paper-modal__insight--focus');
+    const focused = bundle.insights[focusInsightId];
+    if (focused?.page != null) pdfRef.current?.scrollToPage(focused.page);
     const t = window.setTimeout(() => {
       el.classList.remove('astra-paper-modal__insight--focus');
     }, 1800);
     return () => window.clearTimeout(t);
-  }, [focusInsightId]);
+  }, [focusInsightId, bundle.insights]);
 
   const title = paper?.title || doi;
   const cached = !!paper?.cached;
@@ -205,6 +215,7 @@ export function PaperModal({
           <div className="astra-paper-modal__pdf-pane">
             {pdfUrl ? (
               <PdfReader
+                ref={pdfRef}
                 file={{
                   kind: 'pdf',
                   path: `${doi}/paper.pdf`,
@@ -255,8 +266,26 @@ export function PaperModal({
                         </p>
                       )}
                       {insight.page != null && (
+                        // Button instead of static text so the rail's
+                        // page hint scrolls the PDF pane to that page —
+                        // mirrors paper-viewer.js's `[data-page]` link
+                        // (line 80 of templates/paper-viewer.js). Plain
+                        // click only; no Cmd-fallback because there's
+                        // nowhere external to fall through to.
                         <p className="astra-paper-modal__insight-page">
-                          Evidence · page {insight.page}
+                          <button
+                            type="button"
+                            className="astra-paper-modal__insight-page-link"
+                            data-page={insight.page}
+                            disabled={!pdfUrl}
+                            onClick={() => {
+                              if (insight.page != null) {
+                                pdfRef.current?.scrollToPage(insight.page);
+                              }
+                            }}
+                          >
+                            Evidence · page {insight.page}
+                          </button>
                         </p>
                       )}
                       {decisions.length > 0 && (
