@@ -8021,6 +8021,18 @@ a.pretext-prose-frag:hover {
   font-size: 0.9em;
   color: var(--text-muted, #7A7368);
   line-height: 1.4;
+  /* Big-author-list papers (DESI Collaboration ≈ 80 authors) wrap to ~7
+     lines and eat ~25% of the modal height, squeezing the PDF pane to
+     ~615 px. Match upstream paper-view.html's pv-paper-modal__authors:
+     single-line clamp with ellipsis. Two-line clamp was tried first but
+     the marginal benefit (a few extra collaborators visible) is small
+     compared to the modal-height cost, and single-line keeps the modal
+     chrome consistent across papers regardless of author count. The
+     hover-title on the <p> carries the unclamped string for screen
+     readers and copy-paste of the full list. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .astra-paper-modal__doi {

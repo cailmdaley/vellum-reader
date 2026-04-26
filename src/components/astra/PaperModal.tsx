@@ -243,7 +243,16 @@ export function PaperModal({
               {title}
             </h2>
             {paper?.authors && paper.authors.length > 0 && (
-              <p className="astra-paper-modal__authors">
+              // Hover-title carries the full unclamped list — the CSS
+              // truncates the visible author line with a single-line
+              // ellipsis (matching upstream paper-view.html), so a screen
+              // reader or anyone who wants the full collaboration on a big
+              // paper (DESI ≈ 80 authors) can still get it without
+              // round-tripping through the publisher's site.
+              <p
+                className="astra-paper-modal__authors"
+                title={paper.authors.join(', ')}
+              >
                 {paper.authors.join(', ')}
               </p>
             )}
