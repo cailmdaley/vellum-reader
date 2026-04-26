@@ -7271,9 +7271,28 @@ a.pretext-prose-frag:hover {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.astra-paper-view__title {
+/* `.astra-paper-view` is repeated as the parent selector to bump specificity
+ * to (0,2,0) — portolan's `DomPinLayer` injects a per-card sheet with
+ * `.dom-pin-vellum-shell h1 { font-size: 1.25em }` (specificity 0,1,1) which
+ * would otherwise win against a single-class astra rule and freeze every
+ * card's title at 1.25em regardless of the host's inline size. The personal
+ * rung already pays this cost via `.astra-paper-view--personal
+ * .astra-paper-view__title` (also 0,2,0); the base rule needs to match. */
+.astra-paper-view .astra-paper-view__title {
   margin: 0 0 0.25em;
-  font-size: 2.1em;
+  /* Clamp the linear rung's title against the host's inline size so cards
+   * mounting the default `linear` rung at deep zoom-out (~200 px host)
+   * don't render the same 2.1em (35.7 px) title that fits the workspace
+   * modal. Same diagnostic family as the personal-rung clamp; here the
+   * upper saturation is the linear rung's design size, not personal's
+   * 2.6em flourish.
+   *
+   * Mid-coefficient (`1em + 4cqi`) interpolates linearly with the host:
+   * ~1.47em at 200 px → ~1.85em at 320 px → 2.1em at 480 px (saturated).
+   * 1cqi resolves against `.astra-paper-view-host`'s named container.
+   * Personal's more-specific selector (`.astra-paper-view--personal
+   * .astra-paper-view__title`) keeps its 2.6em ceiling. */
+  font-size: clamp(1.4em, calc(1em + 4cqi), 2.1em);
   line-height: 1.2;
   font-weight: 600;
 }
@@ -7321,12 +7340,23 @@ a.pretext-prose-frag:hover {
   margin-top: 2em;
 }
 
-.astra-paper-view__section-heading {
+/* Specificity bump (0,2,0) for the same reason as `__title` above —
+ * `.dom-pin-vellum-shell h2 { font-size: 1.15em }` from `DomPinLayer.ts`
+ * would otherwise lock every astra section heading to 1.15em inside a
+ * card and shadow the cqi clamp. Personal-rung override sits at the same
+ * specificity, so this base rule matches it. */
+.astra-paper-view .astra-paper-view__section-heading {
   display: flex;
   align-items: baseline;
   gap: 0.5em;
   margin: 0 0 0.5em;
-  font-size: 1.3em;
+  /* Same clamp story as the title: shrink with the host so card-width
+   * linear renders don't carry a fixed 1.3em (22.1 px) heading inside
+   * a 200 px sticky-note. Lower coefficient than the title because the
+   * heading already starts smaller — `0.85em + 1cqi` lands ~1.05em at
+   * 200 px and saturates at 1.3em around 760 px host. Personal overrides
+   * with a steeper ceiling (1.45em) below. */
+  font-size: clamp(1.05em, calc(0.85em + 1cqi), 1.3em);
   font-weight: 600;
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
