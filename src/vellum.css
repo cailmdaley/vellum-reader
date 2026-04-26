@@ -7084,11 +7084,57 @@ a.pretext-prose-frag:hover {
   color: var(--text, #2E2A26);
 }
 
+/* ── personal rung ───────────────────────────────────────────────
+ * Expressive divergence from `linear` (the staging-ground rung). Linear
+ * mirrors paper-view.html's column shape; personal opens up the canvas,
+ * lifts the masthead, drops cap, and gives findings a wider rule + a
+ * more emphatic claim line. The reading surface stays the same shape —
+ * the differences are typographic + spacing, the affordances vellum
+ * offers in addition to (not instead of) what paper-view shows.
+ *
+ * Stage 3 grows real layout divergence (margin-anchored evidence, decision-
+ * flip overlay, annotation gutter) under `:root[data-astra-layout="personal"]`
+ * and selectors below. The minimum-viable divergence lives here so the
+ * picker visibly does something today and the substrate is ready to extend. */
 .astra-paper-view--personal {
-  /* Personal layout opens up to a wider canvas; expressive divergence will
-   * grow margin-side affordances under this rung. Keep the basic shape
-   * shared with linear for now — divergence lands in Stage 2/3. */
-  max-width: 880px;
+  max-width: 920px;
+  font-size: 18px;
+  line-height: 1.62;
+}
+
+.astra-paper-view--personal .astra-paper-view__title {
+  font-size: 2.6em;
+  letter-spacing: -0.01em;
+}
+
+.astra-paper-view--personal .astra-paper-view__authors {
+  font-size: 1.05em;
+}
+
+.astra-paper-view--personal .astra-paper-view__section-heading {
+  font-size: 1.45em;
+  letter-spacing: 0.06em;
+}
+
+/* Drop-cap on the executive summary — the most "essay"-like move. Mirrors
+ * the way scientific feature-writing leads with a typographic flourish. */
+.astra-paper-view--personal .astra-paper-view__section[aria-labelledby$="-summary"] .astra-paper-view__prose p:first-of-type::first-letter {
+  initial-letter: 2 1;
+  -webkit-initial-letter: 2 1;
+  font-weight: 600;
+  color: var(--gold, #9A7B35);
+  margin-right: 0.08em;
+  padding-right: 0.04em;
+}
+
+/* Findings get a more emphatic rule + claim type under personal. */
+.astra-paper-view--personal .astra-finding {
+  border-left-width: 4px;
+  padding: 1em 1.2em;
+}
+
+.astra-paper-view--personal .astra-finding__claim {
+  font-size: 1.08em;
 }
 
 .astra-paper-view__masthead {
@@ -7251,10 +7297,27 @@ a.pretext-prose-frag:hover {
 
 .astra-finding__evidence-item {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25em;
+  margin-bottom: 0.6em;
+  padding-bottom: 0.6em;
+  border-bottom: 1px dotted rgba(0, 0, 0, 0.06);
+}
+
+.astra-finding__evidence-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Inline head: monospace id pill + the insight headline. Wraps on narrow
+ * widths so a long claim doesn't push the id off-screen. */
+.astra-finding__evidence-head {
+  display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.4em;
-  margin-bottom: 0.2em;
 }
 
 .astra-finding__evidence-id {
@@ -7263,7 +7326,12 @@ a.pretext-prose-frag:hover {
   color: var(--text, #2E2A26);
 }
 
+.astra-finding__evidence-claim {
+  color: var(--text, #2E2A26);
+}
+
 .astra-finding__evidence-quote {
+  margin: 0;
   font-style: italic;
 }
 
@@ -7271,10 +7339,64 @@ a.pretext-prose-frag:hover {
   color: var(--gold, #9A7B35);
   text-decoration: none;
   border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
+  align-self: flex-start;
 }
 
 .astra-finding__evidence-link:hover {
   border-bottom-style: solid;
+}
+
+/* Paper citation row: page hint + DOI-linked paper title. Lives below the
+ * quote; today the link opens https://doi.org/<doi> in a new tab. Stage 5
+ * replaces this with an in-modal PDF preview using vellum's PdfReader plus
+ * an insights-from-this-paper rail (mirroring paper-viewer.js's
+ * `mountInsightsRail`). */
+.astra-finding__cite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5em;
+  font-size: 0.88em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-finding__cite-page {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+}
+
+.astra-finding__cite-paper {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  flex-wrap: wrap;
+}
+
+.astra-finding__cite-label {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-finding__cite-link {
+  color: var(--gold, #9A7B35);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
+}
+
+.astra-finding__cite-link:hover,
+.astra-finding__cite-link:focus-visible {
+  border-bottom-style: solid;
+}
+
+.astra-finding__cite-uncached {
+  font-size: 0.8em;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  color: rgba(122, 115, 104, 0.7);
+  border: 1px dotted rgba(122, 115, 104, 0.4);
+  border-radius: 3px;
+  padding: 0 0.3em;
 }
 
 /* "Informs" decision pills — mirrors paper-viewer.js's mountInsightsRail
@@ -7320,6 +7442,56 @@ a.pretext-prose-frag:hover {
 .astra-finding__informs-pill:focus-visible {
   background: rgba(154, 123, 53, 0.18);
 }
+
+/* Insights — vellum's surfacing of `bundle.insights` (prior insights cited
+ * from external papers). Mirrors paper-viewer.js's `mountInsightsRail` row
+ * shape but lives on the readable surface as a section, so the reader
+ * doesn't have to open a paper modal to see what was learned in the
+ * literature. The `personal` rung will eventually grow a margin-anchored
+ * variant of this list (annotation gutter / decision-flip overlay are the
+ * other Stage-3 inhabitants of that real estate). */
+.astra-paper-view__insights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85em;
+}
+
+.astra-insight {
+  padding: 0.6em 0.85em;
+  border-left: 3px solid var(--gold, #9A7B35);
+  background: rgba(154, 123, 53, 0.04);
+}
+
+.astra-insight__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4em;
+}
+
+.astra-insight__id {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.82em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-insight__claim {
+  color: var(--text, #2E2A26);
+}
+
+.astra-insight__quote {
+  margin: 0.35em 0 0;
+  font-style: italic;
+  color: var(--text, #2E2A26);
+}
+
+/* Reuse the `.astra-finding__cite*` block for citations — same row shape on
+ * both surfaces. The "Informs" pill row also reuses `.astra-finding__informs`
+ * so a single CSS source of truth covers both surfaces; if you change the
+ * pill aesthetic, both move together. */
 
 /* Decisions */
 .astra-paper-view__decisions {

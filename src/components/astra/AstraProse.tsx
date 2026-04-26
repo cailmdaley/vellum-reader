@@ -13,6 +13,7 @@
  *   `[some text](#outputs.final_distances)`
  *   `[some text](#outputs.bao_fitting.final_distances)` (sub-keyed)
  *   `[some text](#analyses.bao_fitting)`
+ *   `[some text](#insights.planck2018_neff_consistency)`
  *
  * which resolve to the DOM anchors `<AstraPaperView>` sets:
  *
@@ -21,6 +22,9 @@
  *   `#astra-input-<id>`       (inputs)
  *   `#astra-output-<key>`     (outputs, dotted keys preserved)
  *   `#astra-sub-<id>`         (sub-analyses)
+ *   `#astra-insight-<id>`     (prior insights — vellum-only extension to
+ *                              paper-view's narrative ref dialect; PR
+ *                              upstream as the dialect grows)
  *
  * Clicking a ref scrolls the target into view, focuses it, and applies a
  * brief gold flash so the reader doesn't lose the thread (mirrors paper-
@@ -44,6 +48,7 @@ const ASTRA_REF_KIND_TO_PREFIX: Record<string, string> = {
   inputs: 'astra-input-',
   outputs: 'astra-output-',
   analyses: 'astra-sub-',
+  insights: 'astra-insight-',
 };
 
 /**

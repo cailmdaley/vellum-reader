@@ -44,6 +44,7 @@ import type {
   FindingEvidence,
   Input,
   Output,
+  PaperMetadata,
 } from 'lightcone-ui-core';
 import { AstraProse, scrollToAstraAnchor } from './AstraProse';
 
@@ -126,6 +127,7 @@ export function AstraPaperView({
                 <FindingsList
                   findings={bundle.findings}
                   insights={bundle.insights}
+                  papers={bundle.papers}
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
                   resolveArtifact={resolveArtifact}
@@ -152,6 +154,20 @@ export function AstraPaperView({
               >
                 {inputsNarrative && <AstraProse text={inputsNarrative} />}
                 <InputsList inputs={bundle.inputs} />
+              </Section>
+            )}
+            {Object.keys(bundle.insights).length > 0 && (
+              <Section
+                heading="Insights"
+                id="insights"
+                count={Object.keys(bundle.insights).length}
+              >
+                <InsightsList
+                  insights={bundle.insights}
+                  papers={bundle.papers}
+                  decisionsByInsight={decisionsByInsight}
+                  decisionLabel={decisionLabel}
+                />
               </Section>
             )}
             {methodsNarrative && (
@@ -183,6 +199,7 @@ export function AstraPaperView({
                 <SubAnalysesList
                   bundle={bundle}
                   csvs={csvs}
+                  papers={bundle.papers}
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
                   resolveArtifact={resolveArtifact}
@@ -255,12 +272,14 @@ function Section({
 function FindingsList({
   findings,
   insights,
+  papers,
   decisionsByInsight,
   decisionLabel,
   resolveArtifact,
 }: {
   findings: Finding[];
   insights: Bundle['insights'];
+  papers: Bundle['papers'];
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
@@ -272,6 +291,7 @@ function FindingsList({
           key={f.id}
           finding={f}
           insights={insights}
+          papers={papers}
           decisionsByInsight={decisionsByInsight}
           decisionLabel={decisionLabel}
           resolveArtifact={resolveArtifact}
@@ -284,12 +304,14 @@ function FindingsList({
 function FindingItem({
   finding,
   insights,
+  papers,
   decisionsByInsight,
   decisionLabel,
   resolveArtifact,
 }: {
   finding: Finding;
   insights: Bundle['insights'];
+  papers: Bundle['papers'];
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
@@ -324,6 +346,7 @@ function FindingItem({
         <Evidence
           evidence={finding.evidence}
           insights={insights}
+          papers={papers}
           resolveArtifact={resolveArtifact}
         />
       )}
@@ -337,13 +360,33 @@ function FindingItem({
   );
 }
 
+/**
+ * Per-evidence row, mirroring paper-viewer.js's `pv-paper-insight` rail item:
+ *
+ *   [id] · claim
+ *      "quote"
+ *      Evidence · page <n>      · cite: <paper title> <doi>
+ *      [artifact link]
+ *
+ * `claim` is the insight's headline (one line, the most readable summary of
+ * what was learned); `quote` is the supporting text-quote selector. Both are
+ * surfaced when present — `quote` repeats some of `claim` only on rare
+ * authoring shapes, and the duplication is informative when it does happen.
+ *
+ * Page hint and paper citation derive from `Insight.doi` + `Insight.page`
+ * and `bundle.papers[doi]`. Today the citation links to `https://doi.org/...`
+ * in a new tab; Stage 5 replaces that with an in-modal PDF preview using
+ * vellum's PdfReader and an insights-from-this-paper rail.
+ */
 function Evidence({
   evidence,
   insights,
+  papers,
   resolveArtifact,
 }: {
   evidence: FindingEvidence[];
   insights: Bundle['insights'];
+  papers: Bundle['papers'];
   resolveArtifact: (p: string) => string;
 }) {
   return (
@@ -353,9 +396,21 @@ function Evidence({
         const url = e.artifact ? resolveArtifact(e.artifact) : null;
         return (
           <li key={e.id} className="astra-finding__evidence-item">
-            <span className="astra-finding__evidence-id">{e.id}</span>
+            <div className="astra-finding__evidence-head">
+              <span className="astra-finding__evidence-id">{e.id}</span>
+              {insight?.claim && (
+                <span className="astra-finding__evidence-claim">{insight.claim}</span>
+              )}
+            </div>
             {insight?.quote && (
-              <span className="astra-finding__evidence-quote">"{insight.quote}"</span>
+              <p className="astra-finding__evidence-quote">"{insight.quote}"</p>
+            )}
+            {(insight?.page != null || insight?.doi) && (
+              <PaperCitation
+                doi={insight?.doi}
+                page={insight?.page}
+                paper={insight?.doi ? papers[insight.doi] : undefined}
+              />
             )}
             {url && (
               <a
@@ -371,6 +426,62 @@ function Evidence({
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * Paper citation row under evidence. Surfaces the paper title (or DOI when
+ * the cache hasn't resolved metadata yet) plus an explicit page hint. Click
+ * opens the DOI on doi.org — Stage 5 replaces this with the in-modal PDF
+ * preview using vellum's PdfReader. Renders nothing when neither doi nor
+ * page is present.
+ *
+ * `paper.cached` toggles a faint "uncached" marker so the reader can see why
+ * a citation lacks a title — `astra papers fetch <doi>` will fill it in.
+ */
+function PaperCitation({
+  doi,
+  page,
+  paper,
+}: {
+  doi?: string;
+  page?: number;
+  paper?: PaperMetadata;
+}) {
+  const title = paper?.title || doi;
+  const href = doi ? `https://doi.org/${encodeURIComponent(doi)}` : undefined;
+  return (
+    <div className="astra-finding__cite">
+      {page != null && (
+        <span className="astra-finding__cite-page">page&nbsp;{page}</span>
+      )}
+      {doi && (
+        <span className="astra-finding__cite-paper">
+          <span className="astra-finding__cite-label">cite</span>
+          {href ? (
+            <a
+              className="astra-finding__cite-link"
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={paper?.cached ? doi : `${doi} (paper not cached locally)`}
+            >
+              {title}
+            </a>
+          ) : (
+            <span>{title}</span>
+          )}
+          {paper && !paper.cached && (
+            <span
+              className="astra-finding__cite-uncached"
+              title="Paper not cached — `astra papers fetch <doi>` to download"
+            >
+              uncached
+            </span>
+          )}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -527,6 +638,70 @@ function DecisionOptionItem({
         </ul>
       )}
     </li>
+  );
+}
+
+/**
+ * InsightsList — surfaces `bundle.insights` (prior insights cited from
+ * external papers) as the readable equivalent of paper-viewer.js's
+ * `mountInsightsRail`. Each insight carries a claim, an optional supporting
+ * text-quote, a page hint into the source paper, a DOI-linked citation, and
+ * the same "Informs <decision>" pill row that lives under findings — so the
+ * reader can trace from "what was learned in the literature" back to the
+ * decisions that learning justified in this analysis.
+ *
+ * Anchors `#astra-insight-<id>` are emitted so narrative refs of the form
+ * `[label](#insights.<id>)` (resolved by AstraProse) scroll the right row
+ * into view. Paper-view.html's renderer didn't ship inline insight refs in
+ * its narrative dialect; vellum surfaces them as a forward-compatible
+ * extension. PR upstream when the dialect grows.
+ */
+function InsightsList({
+  insights,
+  papers,
+  decisionsByInsight,
+  decisionLabel,
+}: {
+  insights: Bundle['insights'];
+  papers: Bundle['papers'];
+  decisionsByInsight: Record<string, string[]>;
+  decisionLabel: (key: string) => string;
+}) {
+  const ids = Object.keys(insights);
+  return (
+    <ul className="astra-paper-view__insights">
+      {ids.map((id) => {
+        const ins = insights[id];
+        const informedDecisions = decisionsByInsight[id] ?? [];
+        return (
+          <li
+            key={id}
+            id={`astra-insight-${id}`}
+            className="astra-insight"
+            tabIndex={-1}
+          >
+            <div className="astra-insight__head">
+              <span className="astra-insight__id">{id}</span>
+              {ins.claim && <span className="astra-insight__claim">{ins.claim}</span>}
+            </div>
+            {ins.quote && <p className="astra-insight__quote">"{ins.quote}"</p>}
+            {(ins.page != null || ins.doi) && (
+              <PaperCitation
+                doi={ins.doi}
+                page={ins.page}
+                paper={ins.doi ? papers[ins.doi] : undefined}
+              />
+            )}
+            {informedDecisions.length > 0 && (
+              <DecisionPills
+                decisionKeys={informedDecisions}
+                decisionLabel={decisionLabel}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -698,12 +873,14 @@ function CsvPreview({ csvText, maxRows = 5 }: { csvText: string; maxRows?: numbe
 function SubAnalysesList({
   bundle,
   csvs,
+  papers,
   decisionsByInsight,
   decisionLabel,
   resolveArtifact,
 }: {
   bundle: Bundle;
   csvs?: Record<string, string>;
+  papers: Bundle['papers'];
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
@@ -754,6 +931,7 @@ function SubAnalysesList({
                 <FindingsList
                   findings={findings}
                   insights={bundle.insights}
+                  papers={papers}
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
                   resolveArtifact={resolveArtifact}
