@@ -1,16 +1,21 @@
 /**
  * Theme identifiers and slot types.
  *
- * Pass 1.5 schema port: slugs renamed to the constitution's final names.
- *   `lightcone` → `lightcone-margin` (evolution of the current empty-gutter
- *     theme; spec info lives in the right margin column)
- *   `vellum-cail` → `cail-personal` (power-user baseline with persistent
- *     marginalia column)
- * New slug:
+ * Two themes today, sitting on the astra-renderer ladder:
  *   `lightcone-linear` — single centered column, left-rail ToC, section-end
- *     card tray (default post-Pass-9a; placeholder config now).
+ *     card tray. Default. Layout-faithful staging ground.
+ *   `cail-personal` — power-user baseline with persistent marginalia
+ *     column. Expressive divergence on top of linear's substrate.
+ *
+ * `lightcone-margin` retired 2026-04-26 under the vellum-native astra
+ * renderer constitution — it was a half-step (margin column on, no full
+ * layout divergence) that wasn't pulling weight under the ladder model.
+ * Legacy `?theme=lightcone-margin` and stored preferences remap to
+ * `lightcone-linear` via `LEGACY_ALIASES` in `index.ts`.
+ *
+ * See `vellum-reader/vellum-native-astra-renderer`.
  */
-export type ThemeId = 'lightcone-margin' | 'lightcone-linear' | 'cail-personal';
+export type ThemeId = 'lightcone-linear' | 'cail-personal';
 
 export interface ThemePalette {
   astraFinding: string;

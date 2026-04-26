@@ -16,7 +16,7 @@ import { useMode, type Mode } from '~/contexts/ModeContext';
 import { useTheme } from '~/contexts/ThemeContext';
 import { useDelta } from '~/utils/use-delta';
 import { FILE_TARGET_ROUTE, useFileTarget, type FileTarget } from '~/contexts/FileTargetContext';
-import { FileViewerPage, type SaveState } from './FileViewerPage';
+import { FileViewerPage, isAstraPath, type SaveState } from './FileViewerPage';
 import type { Annotation, AnnotationBulkAction, AstraGraph, FiberContent } from '~/utils/content-types';
 
 const MODE_KEYS: Record<string, Mode> = {
@@ -412,6 +412,25 @@ function FileModeView({
 }: FileModeViewProps) {
   const canSave = !!save && dirty && saveState !== 'saving';
   const statusText = saveStatusText(saveState);
+  // Astra-only chrome: the source toggle. The picker (paper-view / linear /
+  // personal) lives inline as content inside AstraFilePanel — content, not
+  // chrome — but the source toggle structurally owns the body (replaces the
+  // rendered prose with raw YAML), which is chrome behavior. Lift state up
+  // so the toggle lives in this file-mode toolbar; AstraFilePanel becomes
+  // controlled. Modal-only by intent: card mounts route through
+  // mountVellumFileSurface, which never lifts state, so cards stay
+  // toggle-free per `vellum-reader/vellum-native-astra-renderer`.
+  const isAstra = isAstraPath(target.path);
+  const [astraRenderMode, setAstraRenderMode] = useState<'rendered' | 'source'>('rendered');
+  // Reset to rendered when the file path changes — opening a different
+  // astra.yaml shouldn't inherit the previous file's source-mode state.
+  useEffect(() => {
+    setAstraRenderMode('rendered');
+  }, [target.path]);
+  // The toggle hides until AstraFilePanel reports the adapter exposes
+  // raw-text source. Default `false`: static deploys without
+  // getAstraSource never grow a toggle.
+  const [astraSourceSupported, setAstraSourceSupported] = useState(false);
   return (
     <div className="vellum-file-mode">
       <header className="vellum-file-mode__toolbar">
@@ -452,6 +471,22 @@ function FileModeView({
               </button>
             );
           })}
+          {isAstra && astraSourceSupported && (
+            <button
+              type="button"
+              className={`vellum-modal-btn vellum-file-viewer-page__source-toggle${
+                astraRenderMode === 'source' ? ' vellum-file-viewer-page__source-toggle--on' : ''
+              }`}
+              aria-pressed={astraRenderMode === 'source'}
+              onClick={() =>
+                setAstraRenderMode((m) => (m === 'source' ? 'rendered' : 'source'))
+              }
+              title="Toggle YAML source view"
+              aria-label="Toggle YAML source view"
+            >
+              source
+            </button>
+          )}
           {save && (
             <button
               type="button"
@@ -483,6 +518,9 @@ function FileModeView({
           jumpToLine={target.jumpToLine}
           annotationActions={target.annotationActions}
           hideToolbar
+          astraRenderMode={isAstra ? astraRenderMode : undefined}
+          onAstraRenderModeChange={isAstra ? setAstraRenderMode : undefined}
+          onAstraSourceSupportChange={isAstra ? setAstraSourceSupported : undefined}
           onDirtyChange={onDirtyChange}
           onSaveStateChange={onSaveStateChange}
           onSaveReady={onSaveReady}

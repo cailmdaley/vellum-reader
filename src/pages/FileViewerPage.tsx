@@ -63,6 +63,25 @@ export interface FileViewerPageProps {
    * remounting the file (cursor, scroll, editor state are preserved). Use
    * after a bulk mutation (mark-sent, bulk-delete). */
   annotationRefreshKey?: number;
+  /**
+   * Astra-only: controlled render mode. When set, AstraFilePanel uses this
+   * value and calls `onAstraRenderModeChange` instead of owning the state
+   * internally. Hosts that want the source toggle in their own chrome
+   * (the workspace modal's file-mode toolbar) lift this up so the toggle
+   * lives in chrome while the picker stays inline content. Ignored for
+   * non-astra paths. See `vellum-reader/vellum-native-astra-renderer`.
+   */
+  astraRenderMode?: 'rendered' | 'source';
+  onAstraRenderModeChange?: (mode: 'rendered' | 'source') => void;
+  /**
+   * Astra-only: hint that the host adapter exposes raw YAML (`getAstraSource`).
+   * AstraFilePanel internally treats `typeof adapter.getAstraSource ===
+   * 'function'` as the supported flag; this prop lets a chrome-level host
+   * mirror that detection so it can decide whether to render a source toggle
+   * in its own toolbar before AstraFilePanel mounts. See
+   * `vellum-reader/vellum-native-astra-renderer`.
+   */
+  onAstraSourceSupportChange?: (supported: boolean) => void;
 }
 
 type FetchState =
@@ -82,7 +101,7 @@ export type SaveState = 'idle' | 'saving' | 'saved' | { error: string };
  * Kept narrow on purpose — non-astra YAMLs (config, fixtures) stay on the
  * raw text reader. See `vellum-reader/vellum-native-astra-renderer`.
  */
-function isAstraPath(path: string): boolean {
+export function isAstraPath(path: string): boolean {
   return /(?:^|\/)astra\.ya?ml$/i.test(path) || /\.astra\.ya?ml$/i.test(path);
 }
 
@@ -373,10 +392,23 @@ function AstraFilePanel({
   originId,
   cacheBust,
   hideToolbar,
+  astraRenderMode,
+  onAstraRenderModeChange,
+  onAstraSourceSupportChange,
 }: FileViewerPageProps) {
   const adapter = useAdapter();
   const [rung, setRung] = useState<AstraLadderRung>(() => loadStoredRung());
-  const [renderMode, setRenderMode] = useState<'rendered' | 'source'>('rendered');
+  // Render mode is controlled when `astraRenderMode` is set (workspace modal
+  // hoists the toggle into its file-mode chrome). Otherwise we own state
+  // locally so card mounts can still flip via the inline toggle if a host
+  // chooses to expose one. Today: only the modal lifts state; cards never
+  // expose a source toggle (constitution: source mode is modal-only).
+  const [internalRenderMode, setInternalRenderMode] = useState<'rendered' | 'source'>('rendered');
+  const renderMode = astraRenderMode ?? internalRenderMode;
+  const setRenderMode = (mode: 'rendered' | 'source') => {
+    if (astraRenderMode === undefined) setInternalRenderMode(mode);
+    onAstraRenderModeChange?.(mode);
+  };
   const [iframeFile, setIframeFile] = useState<FileContent | null>(null);
   const [bundleResult, setBundleResult] = useState<AstraBundleResult | null>(null);
   const [bundleStatus, setBundleStatus] = useState<
@@ -451,9 +483,17 @@ function AstraFilePanel({
   // entirely when the method isn't implemented at all.
   const wantsSource = renderMode === 'source';
   const supportsSource = typeof adapter.getAstraSource === 'function';
+
+  // Notify chrome-level hosts whether the active adapter supports source
+  // view. A workspace modal that wants to render its own source toggle in
+  // the file-mode toolbar uses this flag to decide whether to mount the
+  // toggle at all (no method → no toggle, mirroring AstraFilePanel's own
+  // gating). One-shot per (adapter, support) tuple.
+  useEffect(() => {
+    onAstraSourceSupportChange?.(supportsSource);
+  }, [onAstraSourceSupportChange, supportsSource]);
   useEffect(() => {
     if (!wantsSource || !supportsSource) return;
-    if (sourceStatus !== 'idle' && sourceStatus !== 'error') return;
     let cancelled = false;
     setSourceStatus('loading');
     void (async () => {
@@ -476,7 +516,14 @@ function AstraFilePanel({
     return () => {
       cancelled = true;
     };
-  }, [adapter, wantsSource, supportsSource, path, originId, cacheBust, sourceStatus]);
+    // sourceStatus deliberately omitted: including it caused the effect to
+    // self-cancel — `setSourceStatus('loading')` synchronously triggered a
+    // re-run, whose cleanup set `cancelled = true` before the in-flight
+    // fetch could commit, leaving the body stuck on "Loading…". The
+    // effect should only re-fetch when the user enters source mode for a
+    // (path, adapter, cacheBust) tuple — not when its own setState fires.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adapter, wantsSource, supportsSource, path, originId, cacheBust]);
 
   const handlePick = useCallback((next: AstraLadderRung) => {
     setRung(next);
@@ -509,7 +556,7 @@ function AstraFilePanel({
               }`}
               aria-pressed={renderMode === 'source'}
               onClick={() =>
-                setRenderMode((m) => (m === 'source' ? 'rendered' : 'source'))
+                setRenderMode(renderMode === 'source' ? 'rendered' : 'source')
               }
               title="Toggle YAML source view"
             >
