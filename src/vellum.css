@@ -6985,9 +6985,16 @@ a.pretext-prose-frag:hover {
 .astra-paper-view-host {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  /* Vertical scrolling for long bundles; horizontal stays clipped so a stray
+   * long URL or wide table doesn't add a horizontal scrollbar to a sticky-
+   * note card. The article inside is constrained to container width via
+   * `.astra-paper-view { width: 100%; min-width: 0 }`; the few intentional
+   * wide children (CSV preview, figure thumbs) handle their own overflow. */
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .astra-paper-view-host__notice {
@@ -7075,6 +7082,13 @@ a.pretext-prose-frag:hover {
 /* ── AstraPaperView body ──────────────────────────────────────────────── */
 
 .astra-paper-view {
+  /* Shrink to whatever the host gives us, cap at 760px on a wide modal. The
+   * `min-width: 0` is required because a flex/auto-sized parent would
+   * otherwise let intrinsic min-content (long URLs, monospace tokens)
+   * push the article past its container — that's how astra cards started
+   * showing horizontal scrollbars on small map zooms before this rule. */
+  width: 100%;
+  min-width: 0;
   max-width: 760px;
   margin: 0 auto;
   padding: 1.5em 1.5em 4em;
@@ -7340,6 +7354,13 @@ a.pretext-prose-frag:hover {
   text-decoration: none;
   border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
   align-self: flex-start;
+  /* Defensive wrap: when `evidence.artifact` is a path (the fall-through
+   * branch in `<ArtifactLink>`), the basename can still be long enough to
+   * outrun a narrow card column. Wrap mid-token rather than scroll the
+   * whole article. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .astra-finding__evidence-link:hover {
@@ -7683,6 +7704,11 @@ a.pretext-prose-frag:hover {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-size: 0.85em;
   color: var(--text-muted, #7A7368);
+  /* Multi-segment provenance keys (`bao_fitting.final_distances`) shouldn't
+   * push the input row past the column when the card narrows. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .astra-input__description {
@@ -7719,6 +7745,12 @@ a.pretext-prose-frag:hover {
 .astra-output__id {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-weight: 600;
+  /* Output keys can be long compound identifiers (e.g.
+   * `theory_systematic_breakdown`); break them so the header row wraps with
+   * its sibling type / from-chain instead of pushing past the column. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .astra-output__type {
@@ -7757,12 +7789,19 @@ a.pretext-prose-frag:hover {
 
 .astra-output__artifact {
   display: inline-block;
+  max-width: 100%;
   margin-top: 0.3em;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-size: 0.85em;
   color: var(--gold, #9A7B35);
   text-decoration: none;
   border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
+  /* Long monospace names break across lines instead of pushing the column
+   * wider — protects narrow card widths even after the basename swap above
+   * (some figures keep multi-segment basenames like
+   * `bao_feature_correlation_function.png`). */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .astra-output__artifact:hover {

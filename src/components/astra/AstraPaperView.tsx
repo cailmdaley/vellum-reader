@@ -107,6 +107,24 @@ function identity(p: string): string {
 }
 
 /**
+ * Display name for an artifact path. Picks the final path segment so the
+ * artifact link reads as `final_distances.csv` instead of the full
+ * `/project-file/local/Users/.../final_distances.csv` URL the host adapter
+ * resolves to. The full path stays in `href` and `title` so reader tooling
+ * (status bar on hover, screen readers describing the link's destination)
+ * still sees it. Without this the long monospace URL forced the article
+ * column wider than its container at sticky-note card sizes — see card
+ * overflow notes in [[vellum-reader/vellum-native-astra-renderer]].
+ */
+function artifactBasename(path: string): string {
+  if (!path) return path;
+  // Trim query/fragment; final URL segment is the basename.
+  const cleaned = path.split('?')[0].split('#')[0];
+  const segments = cleaned.split('/').filter(Boolean);
+  return segments[segments.length - 1] || cleaned;
+}
+
+/**
  * `ASTRANarrativeSection` is `string | { content: string }`. Coerce to a
  * plain string so the renderer doesn't have to branch at every call site.
  */
@@ -522,14 +540,20 @@ function ArtifactLink({
     return <OutputAnchorLink outputKey={artifact} outputs={outputs} />;
   }
   const url = resolveArtifact(artifact);
+  // Bare key would have resolved through the in-bundle wiki-link branch above;
+  // here `artifact` is a path or URL fragment, so show the basename and stash
+  // the full path in `title` (and the href). Avoids horizontal overflow when
+  // long absolute paths land in evidence rows.
+  const display = artifactBasename(artifact);
   return (
     <a
       className="astra-finding__evidence-link"
       href={url}
       target="_blank"
       rel="noopener noreferrer"
+      title={artifact}
     >
-      {artifact}
+      {display}
     </a>
   );
 }
@@ -1008,8 +1032,9 @@ function OutputItem({
           href={url}
           target="_blank"
           rel="noopener noreferrer"
+          title={output.resolved_path ?? undefined}
         >
-          {output.resolved_path}
+          {artifactBasename(output.resolved_path ?? url)}
         </a>
       )}
     </li>
