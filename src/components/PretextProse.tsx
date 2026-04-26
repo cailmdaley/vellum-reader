@@ -350,6 +350,19 @@ function collectInlinePieces(
 
 // ───────────────────── Prepared block model ─────────────────────
 
+/**
+ * Source-line range for a block. Both endpoints are 1-indexed line numbers in
+ * the source markdown; pulled from mdast `node.position.start.line` /
+ * `node.position.end.line`. Optional because some synthetic nodes (e.g. the
+ * astraFindingsStepper sentinel injected at render time) carry no position.
+ *
+ * Layout items inherit the same range from their source block; every visual
+ * line emitted by a wrapped paragraph shares its block's range. This is what
+ * the canvas-side jumpToLine and edit-mode entry consume — see
+ * `findElementForSourceLine` below.
+ */
+type SourceRange = { start: number; end: number };
+
 type InlineBlock = {
   kind: 'inline';
   variant: Variant;
@@ -363,6 +376,7 @@ type InlineBlock = {
   marker?: { text: string; font: string; left: number };
   /** Blockquote rail left positions inside the block's origin. */
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type CodeBlock = {
@@ -372,6 +386,7 @@ type CodeBlock = {
   marginBottom: number;
   contentLeft: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type RuleBlock = {
@@ -380,6 +395,7 @@ type RuleBlock = {
   marginBottom: number;
   contentLeft: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type IslandBlock = {
@@ -390,6 +406,7 @@ type IslandBlock = {
   marginBottom: number;
   contentLeft: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type CompatIslandBlock = {
@@ -406,6 +423,7 @@ type CompatIslandBlock = {
   marginBottom: number;
   contentLeft: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type TableAlign = 'left' | 'center' | 'right';
@@ -429,6 +447,7 @@ type TableBlock = {
   marginBottom: number;
   contentLeft: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type Block =
@@ -673,6 +692,66 @@ function buildTableBlock(node: any, ctx: ParseCtx): TableBlock | null {
   };
 }
 
+/**
+ * Find the canvas DOM element that maps to a given source-markdown line.
+ *
+ * Walks elements stamped with `data-source-line-start` / `data-source-line-end`
+ * (every block-rooted node in `PretextProse` carries this when the source
+ * mdast had a position). Returns the FIRST element whose [start, end] range
+ * contains `line`; for paragraphs that wrap to multiple visual lines the
+ * caller therefore lands on the first visual line of the source paragraph
+ * — the natural target for `scrollIntoView` and edit-mode entry.
+ *
+ * Returns null when the container isn't yet rendered, contains no stamped
+ * elements (older mdast without positions), or `line` falls outside the
+ * document's source range.
+ *
+ * Both endpoints are 1-indexed source-line numbers, matching the convention
+ * used by mdast positions, CodeMirror's `state.doc.line(n)`, and the
+ * `jumpToLine` prop on FileViewerPage / FileReader.
+ */
+export function findElementForSourceLine(
+  container: HTMLElement | null,
+  line: number,
+): HTMLElement | null {
+  if (!container || !Number.isFinite(line) || line < 1) return null;
+  const els = container.querySelectorAll<HTMLElement>('[data-source-line-start]');
+  for (const el of Array.from(els)) {
+    const startStr = el.getAttribute('data-source-line-start');
+    const endStr = el.getAttribute('data-source-line-end');
+    if (startStr === null || endStr === null) continue;
+    const start = Number(startStr);
+    const end = Number(endStr);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    if (line >= start && line <= end) return el;
+  }
+  return null;
+}
+
+/**
+ * Pull a source-line range out of an mdast node's position. mdast/myst put
+ * these on every parsed node by default; synthetic nodes (like the
+ * astraFindingsStepper sentinel injected by NarrativeView) have none, so the
+ * helper returns undefined and downstream stamping is skipped.
+ */
+function readSource(node: any): SourceRange | undefined {
+  const start = node?.position?.start?.line;
+  const end = node?.position?.end?.line;
+  if (typeof start !== 'number' || typeof end !== 'number') return undefined;
+  return { start, end };
+}
+
+/**
+ * Apply a source range to a block in place. Used at every parseBlocks emit
+ * site so the rendered DOM ends up stamped with `data-source-line-*`. A null
+ * range (no position on the source node) leaves the block as-is — the renderer
+ * skips stamping when `source` is undefined.
+ */
+function attachSource<T extends Block>(block: T, source: SourceRange | undefined): T {
+  if (source) block.source = source;
+  return block;
+}
+
 function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
   if (!nodes) return [];
   const out: Block[] = [];
@@ -682,6 +761,12 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
     switch (node.type) {
       case 'blockBreak':
         // mystra emits a frontmatter delimiter; ignore.
+        continue;
+      case 'yaml':
+        // remark-frontmatter emits a `yaml` node for the leading `---\n…\n---`
+        // block. Fiber bodies have it stripped server-side by mystra; for
+        // non-fiber markdown rendered through PretextProse we hide it here.
+        // Same effect — frontmatter never paints in the canvas.
         continue;
       case 'paragraph': {
         // Paragraphs can hold inherently-block content as inline children —
@@ -694,21 +779,29 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
         // text composition. Without this split, `collectInlinePieces`'s
         // `default` branch would call `nodeToText` on the image and push
         // the empty string, silently dropping it.
+        //
+        // Source attribution: each inline-buffer flush takes the paragraph's
+        // own range (the flushed segment is some sub-range of the paragraph
+        // that we don't track at sub-line granularity). Image islands take
+        // their own node position — they're block-shaped and have a real
+        // line on their own.
+        const paraSource = readSource(node);
         const children: any[] = Array.isArray(node.children) ? node.children : [];
         const inlineBuffer: any[] = [];
         const flushInline = () => {
           if (inlineBuffer.length === 0) return;
           const block = buildInlineBlock(inlineBuffer.slice(), 'body', ctx);
-          if (block) out.push(block);
+          if (block) out.push(attachSource(block, paraSource));
           inlineBuffer.length = 0;
         };
         for (const child of children) {
           if (child && child.type === 'image') {
             flushInline();
+            const imgSource = readSource(child) ?? paraSource;
             if (ctx.useCompatIslands) {
-              out.push(buildCompatIslandBlock(child, ctx));
+              out.push(attachSource(buildCompatIslandBlock(child, ctx), imgSource));
             } else {
-              out.push(buildIslandBlock(child, ctx));
+              out.push(attachSource(buildIslandBlock(child, ctx), imgSource));
             }
           } else {
             inlineBuffer.push(child);
@@ -720,7 +813,7 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
       case 'heading': {
         const depth = (Math.min(4, Math.max(1, node.depth ?? 1)) as HeadingDepth);
         const block = buildInlineBlock(node.children, depth, ctx);
-        if (block) out.push(block);
+        if (block) out.push(attachSource(block, readSource(node)));
         continue;
       }
       case 'list': {
@@ -751,6 +844,15 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
               b.marginBottom = 6;
             }
           }
+          // List items' inner paragraphs already carry their own paragraph
+          // position from the recursive call. Backfill from the listItem
+          // node only when a child block lacks position (synthetic content).
+          const itemSource = readSource(item);
+          if (itemSource) {
+            for (const b of itemBlocks) {
+              if (!b.source) b.source = itemSource;
+            }
+          }
           out.push(...itemBlocks);
         });
         // Restore a list-wide bottom gap on the last block.
@@ -765,20 +867,29 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
           ...ctx,
           quoteDepth: ctx.quoteDepth + 1,
         });
+        // Inner blocks already carry their own positions via the recursive
+        // parseBlocks. Backfill from the blockquote node only where missing.
+        const quoteSource = readSource(node);
+        if (quoteSource) {
+          for (const b of inner) {
+            if (!b.source) b.source = quoteSource;
+          }
+        }
         out.push(...inner);
         continue;
       }
       case 'code': {
-        out.push(buildCodeBlock(node.value ?? '', ctx));
+        out.push(attachSource(buildCodeBlock(node.value ?? '', ctx), readSource(node)));
         continue;
       }
       case 'thematicBreak':
-        out.push(buildRuleBlock(ctx));
+        out.push(attachSource(buildRuleBlock(ctx), readSource(node)));
         continue;
       case 'table': {
+        const tableSource = readSource(node);
         const block = buildTableBlock(node, ctx);
-        if (block) out.push(block);
-        else out.push(buildUnknownBlock(node, ctx));
+        if (block) out.push(attachSource(block, tableSource));
+        else out.push(attachSource(buildUnknownBlock(node, ctx), tableSource));
         continue;
       }
       case 'text':
@@ -788,11 +899,11 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
       case 'inlineCode': {
         // Naked inline at block position — wrap in a body paragraph.
         const block = buildInlineBlock([node], 'body', ctx);
-        if (block) out.push(block);
+        if (block) out.push(attachSource(block, readSource(node)));
         continue;
       }
       default:
-        out.push(buildUnknownBlock(node, ctx));
+        out.push(attachSource(buildUnknownBlock(node, ctx), readSource(node)));
         continue;
     }
   }
@@ -865,6 +976,7 @@ type InlineLineLayout = {
   }>;
   marker?: { text: string; font: string; left: number };
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type CodeLineLayout = {
@@ -875,6 +987,7 @@ type CodeLineLayout = {
   width: number;
   paddedHeight: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type RuleLayout = {
@@ -884,6 +997,7 @@ type RuleLayout = {
   width: number;
   variant?: 'heading';
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type IslandLayout = {
@@ -894,6 +1008,7 @@ type IslandLayout = {
   left: number;
   width: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type CompatIslandLayout = {
@@ -905,6 +1020,7 @@ type CompatIslandLayout = {
   width: number;
   height: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type TableCellLineFragment = {
@@ -962,6 +1078,7 @@ type TableLayout = {
   cells: TableCellLayout[];
   rowCount: number;
   blockquoteRailLefts: number[];
+  source?: SourceRange;
 };
 
 type LineLayout =
@@ -1053,6 +1170,7 @@ function layoutBlocks(
             fragments,
             marker: lineIndex === 0 ? block.marker : undefined,
             blockquoteRailLefts: block.blockquoteRailLefts,
+            source: block.source,
           });
           lineIndex++;
         });
@@ -1069,6 +1187,7 @@ function layoutBlocks(
             width: Math.max(1, contentWidth - block.contentLeft),
             variant: 'heading',
             blockquoteRailLefts: block.blockquoteRailLefts,
+            source: block.source,
           });
           y += ruleGap + 1;
         }
@@ -1090,6 +1209,7 @@ function layoutBlocks(
           width: Math.max(1, contentWidth - block.contentLeft),
           paddedHeight: height,
           blockquoteRailLefts: block.blockquoteRailLefts,
+          source: block.source,
         });
         y += height;
         break;
@@ -1101,6 +1221,7 @@ function layoutBlocks(
           left: block.contentLeft,
           width: Math.max(1, contentWidth - block.contentLeft),
           blockquoteRailLefts: block.blockquoteRailLefts,
+          source: block.source,
         });
         y += RULE_HEIGHT;
         break;
@@ -1117,6 +1238,7 @@ function layoutBlocks(
           left: block.contentLeft,
           width: Math.max(1, contentWidth - block.contentLeft),
           blockquoteRailLefts: block.blockquoteRailLefts,
+          source: block.source,
         });
         y += 42;
         break;
@@ -1137,6 +1259,7 @@ function layoutBlocks(
           width: Math.max(1, contentWidth - block.contentLeft),
           height,
           blockquoteRailLefts: block.blockquoteRailLefts,
+          source: block.source,
         });
         y += height;
         break;
@@ -1144,6 +1267,7 @@ function layoutBlocks(
       case 'table': {
         const layout = layoutTableBlock(block, contentWidth);
         layout.top = y;
+        layout.source = block.source;
         items.push(layout);
         y += layout.totalHeight;
         break;
@@ -1330,12 +1454,25 @@ interface PretextProseProps {
    * mode instead of bouncing back to the mystra default route.
    */
   linkPrefix?: string;
+  /**
+   * 1-indexed source-line to scroll to once layout settles. Resolved against
+   * the source-line position map (`data-source-line-start` / `-end`); the
+   * caller doesn't have to wait for layout — this prop is consumed inside
+   * the component on the same effect that flips compat-island layouts in,
+   * so it works even before all islands have measured.
+   *
+   * Useful for canvas-mode jumpToLine deep links: a worker-prompt anchor
+   * `path/to/file.md#L42` lands the canvas reader on the source paragraph
+   * containing line 42 without flipping to the source editor.
+   */
+  jumpToLine?: number;
 }
 
 export function PretextProse({
   mdast,
   contentWidth,
   linkPrefix,
+  jumpToLine,
 }: PretextProseProps) {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1414,6 +1551,23 @@ export function PretextProse({
     // islands; we need to re-observe their fresh DOM nodes.
   }, [layout]);
 
+  // Canvas-mode jumpToLine. Resolve the source line against the rendered DOM
+  // via the position map and scroll the matching block into view. Runs after
+  // each layout pass (rather than once on mount) because compat-island
+  // measurements can shift line offsets after the first paint — re-scrolling
+  // on layout change keeps the target landed on the right block. The line
+  // itself doesn't change unless the parent passes a new `jumpToLine`, so
+  // this is cheap.
+  useLayoutEffect(() => {
+    if (!jumpToLine || jumpToLine < 1) return;
+    if (!layout) return; // wait for first layout
+    const container = containerRef.current;
+    if (!container) return;
+    const el = findElementForSourceLine(container, jumpToLine);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'auto' });
+  }, [jumpToLine, layout]);
+
   // React-router navigation for internal anchors (href starting with `/`).
   // Keeps the pretext column as part of the SPA, and optionally keeps the
   // user inside the pretext view when following internal links so Gate 1
@@ -1449,6 +1603,21 @@ export function PretextProse({
       {layout.items.map((item, idx) => renderLine(item, idx))}
     </div>
   );
+}
+
+/**
+ * Build the source-line data-attribute pair for a layout item. Returns an
+ * empty object when the item has no source range (synthetic content); React
+ * spread is a no-op then. Consumers use these via
+ * `findElementForSourceLine` to wire jumpToLine and edit-mode entry to the
+ * canvas without having to remap visual lines back to source.
+ */
+function sourceDataAttrs(item: { source?: SourceRange }): Record<string, number> {
+  if (!item.source) return {};
+  return {
+    'data-source-line-start': item.source.start,
+    'data-source-line-end': item.source.end,
+  };
 }
 
 function renderLine(
@@ -1498,6 +1667,7 @@ function renderLine(
           // reads link-level attributes today.
           data-pretext-line-top={item.top}
           data-pretext-line-height={item.lineHeight}
+          {...sourceDataAttrs(item)}
           style={{
             position: 'absolute',
             top: item.top,
@@ -1654,6 +1824,7 @@ function renderLine(
         <pre
           key={idx}
           className="pretext-prose-code"
+          {...sourceDataAttrs(item)}
           style={{
             position: 'absolute',
             top: item.top,
@@ -1688,6 +1859,7 @@ function renderLine(
         <div
           key={idx}
           className={`pretext-prose-rule${item.variant === 'heading' ? ' pretext-prose-rule--heading' : ''}`}
+          {...sourceDataAttrs(item)}
           style={{
             position: 'absolute',
             top: item.top,
@@ -1703,6 +1875,7 @@ function renderLine(
         <div
           key={idx}
           className="pretext-prose-island"
+          {...sourceDataAttrs(item)}
           style={{
             position: 'absolute',
             top: item.top,
@@ -1731,6 +1904,7 @@ function renderLine(
           key={`compat-${item.key}`}
           className="pretext-prose-compat"
           data-compat-island-key={item.key}
+          {...sourceDataAttrs(item)}
           style={{
             position: 'absolute',
             top: item.top,
@@ -1763,6 +1937,7 @@ function renderTable(item: TableLayout, idx: number): ReactNode {
       key={idx}
       className="pretext-prose-table"
       role="table"
+      {...sourceDataAttrs(item)}
       style={{
         position: 'absolute',
         top: item.top,

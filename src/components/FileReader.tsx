@@ -25,7 +25,7 @@
  * follow once the edit path is proven.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { EditorSelection, EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
   Decoration,
@@ -51,10 +51,13 @@ import { css } from '@codemirror/lang-css';
 import { html as htmlLang } from '@codemirror/lang-html';
 import { vim, Vim } from '@replit/codemirror-vim';
 import { ArticleProvider, ThemeProvider, mergeRenderers } from '@myst-theme/providers';
-import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
+import { DEFAULT_RENDERERS } from 'myst-to-react';
 import { useAdapter } from '../contexts/AdapterContext';
 import type { Annotation, AnnotationAction, FileContent } from '../utils/content-types';
 import { assignMdastKeys } from '../utils/mdast-keys';
+import { PretextProse } from './PretextProse';
+import { ThemePicker } from './ThemePicker';
+import { FiberHeader } from './FiberHeader';
 // Static ?url import: Vite resolves this to a string URL at transform time,
 // which survives symlinked-package serving via /@fs/. A dynamic import()?url
 // goes through a different path where the ?url query gets dropped for
@@ -642,10 +645,68 @@ function TextReader({
 
 const MARKDOWN_RENDERERS = mergeRenderers([DEFAULT_RENDERERS], true);
 
-function MarkdownReader({ file }: FileReaderProps) {
-  // Standalone markdown bodies do not come with a ThemeProvider in scope (the
-  // portolan seam only wraps AdapterProvider). We install one here so MyST can
-  // resolve its renderer context without the host app having to opt in.
+/**
+ * Permissive predicate: does this frontmatter look like it belongs above a
+ * masthead lockup? Any markdown file with a `name` or `title` in its
+ * frontmatter qualifies — same fields FiberHeader resolves first. Files
+ * with config-shaped frontmatter (no name/title — e.g. build config YAML
+ * embedded in a doc) skip the header and stand on the canvas alone.
+ *
+ * Liberal on purpose: the cost of a stray header on a non-fiber doc is
+ * small (a single h1 lockup); the cost of suppressing one on a fiber-by-path
+ * is the inconsistency the unification was meant to remove.
+ */
+function hasFiberShape(frontmatter: Record<string, unknown>): boolean {
+  const name = frontmatter.name;
+  const title = frontmatter.title;
+  return (
+    (typeof name === 'string' && name.trim().length > 0) ||
+    (typeof title === 'string' && title.trim().length > 0)
+  );
+}
+
+/**
+ * Initial column width before the host's `.vellum-file-reader--markdown`
+ * element has been measured. Matches the prose default in NarrativeView so
+ * the first paint approximates the steady-state column width.
+ */
+const MARKDOWN_INITIAL_CONTENT_WIDTH = 720 - 63 * 2;
+
+/**
+ * Canvas-mode reader for markdown files. Renders through `PretextProse` —
+ * the same renderer fiber narratives use — so a non-fiber markdown file
+ * (README, prose note, anything ending in `.md`) lands in the same canvas
+ * substrate as a fiber body. The PretextProse compat-island fallback still
+ * needs MyST renderers in scope for tables/admonitions/figures, so the
+ * Article + Theme providers wrap as before.
+ *
+ * `jumpToLine` is consumed via the source-line position map inside
+ * PretextProse — caller passes a 1-indexed source line and the canvas scrolls
+ * to the matching block once layout settles.
+ */
+function MarkdownReader({ file, jumpToLine }: FileReaderProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState<number>(MARKDOWN_INITIAL_CONTENT_WIDTH);
+
+  // Measure the wrapper's inner width (content box minus any horizontal
+  // padding). Pretext lays out from this width — keeping the observer cheap
+  // matters because every wrapper-resize triggers a full re-layout.
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const updateWidth = () => {
+      const cs = window.getComputedStyle(wrapper);
+      const padX = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0');
+      const next = Math.max(120, wrapper.clientWidth - padX);
+      setContentWidth(next);
+    };
+    updateWidth();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => updateWidth());
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, []);
+
   const keyedMdast = file.mdast ? assignMdastKeys(file.mdast, `file:${file.path}`) : file.mdast;
   return (
     <ThemeProvider theme={null} setTheme={() => {}} renderers={MARKDOWN_RENDERERS}>
@@ -654,8 +715,30 @@ function MarkdownReader({ file }: FileReaderProps) {
         frontmatter={{} as any}
         references={{ cite: {}, footnotes: {} } as any}
       >
-        <div className="vellum-file-reader vellum-file-reader--markdown">
-          <MyST ast={keyedMdast} />
+        <div
+          ref={wrapperRef}
+          className="vellum-file-reader vellum-file-reader--markdown vellum-file-reader--markdown-canvas"
+        >
+          {/* ThemePicker mirrors the fiber-side narrative: lightcone-linear
+              hides the FloatingIsland on the right, so any chrome that should
+              be visible in every theme has to live inside the prose column.
+              Without this the picker disappeared when files moved out of the
+              FileViewerModal. */}
+          <ThemePicker />
+          {/* FiberHeader for fiber-shaped frontmatter (name or title present).
+              Permissive detection: any markdown file with a name/title in its
+              frontmatter renders the masthead lockup, so a fiber opened by
+              path looks identical to one opened by slug. Frontmatter without
+              that signature (build configs, tool YAML headers) skips the
+              header — the canvas stands on its own. */}
+          {file.frontmatter && hasFiberShape(file.frontmatter) && (
+            <FiberHeader frontmatter={file.frontmatter as Record<string, any>} />
+          )}
+          <PretextProse
+            mdast={keyedMdast}
+            contentWidth={contentWidth}
+            jumpToLine={jumpToLine}
+          />
         </div>
       </ArticleProvider>
     </ThemeProvider>
@@ -771,8 +854,14 @@ export function FileReader(props: FileReaderProps) {
       return <PdfReader file={file} />;
     case 'markdown':
       // Editable mode always uses the source-view text reader so the user can
-      // actually type. Readonly mode prefers MyST when an mdast is available.
-      if (!editable && file.mdast) return <MarkdownReader file={file} />;
+      // actually type. Read-mode renders through the canvas (PretextProse via
+      // MarkdownReader) so non-fiber markdown gets the same substrate as a
+      // fiber body — see ai-futures/portolan/vellum-reader/markdown-and-fibers-share-canvas.
+      // jumpToLine is forwarded so a deep link can land the canvas reader on
+      // the source paragraph without flipping to the editor.
+      if (!editable && file.mdast) {
+        return <MarkdownReader file={file} jumpToLine={props.jumpToLine} />;
+      }
       return <TextReader {...props} />;
     case 'text':
     default:

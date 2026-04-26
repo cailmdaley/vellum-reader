@@ -74,7 +74,7 @@ export function FileViewerPage({
   path,
   originId,
   cacheBust,
-  editable,
+  editable: editableProp,
   jumpToLine,
   annotationActions,
   hideToolbar,
@@ -91,6 +91,15 @@ export function FileViewerPage({
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const draftRef = useRef<string>('');
   const savedToastRef = useRef<number | null>(null);
+  // `editable` is local state initialized from the prop so the user can flip
+  // into source view via the Edit button without the host re-mounting the
+  // page. Re-syncs when the prop changes — a fresh open of the modal with a
+  // different `editable` (e.g. a worker prompt that wants the editor up
+  // front) takes precedence over the user's previous toggle.
+  const [editable, setEditable] = useState<boolean>(!!editableProp);
+  useEffect(() => {
+    setEditable(!!editableProp);
+  }, [editableProp, path]);
 
   useEffect(() => {
     let cancelled = false;
@@ -198,9 +207,13 @@ export function FileViewerPage({
     );
   }
 
-  const showToolbar =
-    !hideToolbar && editable &&
-    (state.file.kind === 'text' || state.file.kind === 'markdown');
+  // Toolbar shows for any text/markdown file when the host hasn't suppressed
+  // it. In read mode it carries an Edit button; in edit mode it carries the
+  // dirty + save indicators plus a Done button to flip back. The hideToolbar
+  // escape stays available for hosts that want to render their own bar
+  // (DomPinLayer's pin chrome, for example).
+  const isTextOrMd = state.file.kind === 'text' || state.file.kind === 'markdown';
+  const showToolbar = !hideToolbar && isTextOrMd;
 
   return (
     <div
@@ -217,14 +230,52 @@ export function FileViewerPage({
             {saveState === 'saved' && 'Saved'}
             {typeof saveState === 'object' && `Error: ${saveState.error}`}
           </span>
-          <button
-            type="button"
-            className="vellum-file-viewer-page__save"
-            onClick={doSave}
-            disabled={!dirty || saveState === 'saving'}
-          >
-            Save
-          </button>
+          {editable ? (
+            <>
+              <button
+                type="button"
+                className="vellum-file-viewer-page__save"
+                onClick={doSave}
+                disabled={!dirty || saveState === 'saving'}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                className="vellum-file-viewer-page__done"
+                onClick={() => {
+                  // Done flips back to read view. If the buffer is dirty the
+                  // canvas would otherwise show stale prose (mdast is parsed
+                  // from `file.content` server-side, not the local draft) —
+                  // confirm with the user so they don't silently lose work.
+                  // No prompt when clean; the toggle is friction-free.
+                  if (
+                    dirty &&
+                    !window.confirm('Discard unsaved edits and return to read view?')
+                  ) {
+                    return;
+                  }
+                  if (dirty && state.status === 'ready') {
+                    draftRef.current = state.file.content;
+                    setDirty(false);
+                  }
+                  setEditable(false);
+                }}
+                title="Return to read view (asks before discarding unsaved edits)"
+              >
+                Done
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="vellum-file-viewer-page__edit"
+              onClick={() => setEditable(true)}
+              title="Edit this file"
+            >
+              Edit
+            </button>
+          )}
         </div>
       )}
       <FileReader

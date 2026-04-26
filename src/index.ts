@@ -45,3 +45,4 @@ export type {
   GraphInput,
   GraphOutput,
 } from './utils/content-types';
+export { findElementForSourceLine } from './components/PretextProse';

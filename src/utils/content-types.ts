@@ -355,4 +355,12 @@ export interface FileContent {
    * to match FiberContent.mdast.
    */
   mdast?: any;
+  /**
+   * Parsed YAML frontmatter for `kind: 'markdown'` files that have a leading
+   * `---\n…\n---` block. Used by the canvas reader to render a FiberHeader
+   * lockup when the frontmatter is fiber-shaped (carries a `name`/`title`),
+   * and otherwise ignored. Absent when the file has no frontmatter or when
+   * the YAML couldn't be parsed.
+   */
+  frontmatter?: Record<string, unknown>;
 }
