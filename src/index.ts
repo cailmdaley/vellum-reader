@@ -43,6 +43,10 @@ export { AstraPaperView } from './components/astra/AstraPaperView';
 export type { AstraPaperViewProps, AstraLayout } from './components/astra/AstraPaperView';
 export { AstraPicker } from './components/astra/AstraPicker';
 export type { AstraPickerProps, AstraLadderRung } from './components/astra/AstraPicker';
+export {
+  DecisionFlipProvider,
+  useDecisionFlip,
+} from './contexts/DecisionFlipContext';
 export type {
   GraphDecision,
   GraphFinding,

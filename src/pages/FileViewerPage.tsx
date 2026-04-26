@@ -595,6 +595,7 @@ function AstraFilePanel({
               bundle={bundleResult.bundle}
               csvs={bundleResult.csvs}
               layout={rungToLayout(effectiveRung)}
+              hostSlug={path}
               resolveArtifact={
                 adapter.resolveAssetUrl
                   ? (p: string) => adapter.resolveAssetUrl!(p)

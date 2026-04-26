@@ -7558,6 +7558,20 @@ a.pretext-prose-frag:hover {
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 4px;
   background: var(--page-bg, #fff);
+  /* Flipped state shifts the left edge to gold so the reader's eye sees
+     the row as "modified from authored" without a heavy banner. The
+     summary's flipped badge carries the verbal cue. */
+  border-left: 2px solid rgba(0, 0, 0, 0.1);
+  transition: border-left-color 120ms ease;
+}
+
+.astra-decision-card--flipped {
+  border-left-color: var(--gold, #9A7B35);
+  background: linear-gradient(
+    90deg,
+    rgba(154, 123, 53, 0.05) 0%,
+    var(--page-bg, #fff) 60%
+  );
 }
 
 .astra-decision-card__summary {
@@ -7591,6 +7605,24 @@ a.pretext-prose-frag:hover {
   flex: 1 1 auto;
   font-style: italic;
   color: var(--text-muted, #7A7368);
+}
+
+.astra-decision-card--flipped .astra-decision-card__selected {
+  color: var(--gold, #9A7B35);
+  font-style: normal;
+}
+
+.astra-decision-card__flipped-badge {
+  flex: 0 0 auto;
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold, #9A7B35);
+  padding: 0.1em 0.45em;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  font-weight: 500;
+  font-style: normal;
 }
 
 .astra-decision-card__pinned {
@@ -7630,7 +7662,6 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-decision-option {
-  padding: 0.4em 0.6em;
   border-left: 2px solid rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
@@ -7642,18 +7673,75 @@ a.pretext-prose-frag:hover {
   background: rgba(160, 48, 48, 0.04);
 }
 
+/* When a different option is currently effective, mark the originally
+   authored selection with a faint gold ring so the reader can see "this
+   is what the spec actually says" without losing the flip.  */
+.astra-decision-option--authored {
+  border-left-color: rgba(154, 123, 53, 0.55);
+}
+
+/* The whole option row is a button so the click target matches the
+   visible pill — no narrow radio-target frustration. Reset native button
+   chrome and let the .astra-decision-option__* spans drive the look. */
+.astra-decision-option__btn {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4em;
+  padding: 0.4em 0.6em;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.astra-decision-option__btn:hover {
+  background: rgba(0, 0, 0, 0.025);
+}
+
+.astra-decision-option__btn:focus-visible {
+  outline: 2px solid var(--gold, #9A7B35);
+  outline-offset: -2px;
+}
+
+.astra-decision-option__glyph {
+  flex: 0 0 auto;
+  color: var(--rubric, #A03030);
+  font-size: 0.85em;
+}
+
+.astra-decision-option--selected .astra-decision-option__glyph {
+  color: var(--gold, #9A7B35);
+}
+
 .astra-decision-option__label {
   font-weight: 600;
+}
+
+.astra-decision-option__authored-tag {
+  flex: 0 0 auto;
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold, #9A7B35);
+  padding: 0.05em 0.4em;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  font-weight: 500;
 }
 
 .astra-decision-option__description {
   color: var(--text-muted, #7A7368);
   font-size: 0.9em;
+  flex-basis: 100%;
 }
 
 .astra-decision-option__insights {
   list-style: none;
-  margin: 0;
+  margin: 0 0 0.3em 1.6em;
   padding: 0;
   display: inline-flex;
   gap: 0.3em;
@@ -7667,6 +7755,27 @@ a.pretext-prose-frag:hover {
   padding: 0.05em 0.4em;
   background: rgba(0, 0, 0, 0.03);
   border-radius: 8px;
+}
+
+.astra-decision-card__reset {
+  margin-top: 0.5em;
+  padding: 0.25em 0.7em;
+  background: transparent;
+  border: 1px dashed var(--gold, #9A7B35);
+  border-radius: 9999px;
+  color: var(--gold, #9A7B35);
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.astra-decision-card__reset:hover {
+  background: rgba(154, 123, 53, 0.08);
+}
+
+.astra-decision-card__reset:focus-visible {
+  outline: 2px solid var(--gold, #9A7B35);
+  outline-offset: 2px;
 }
 
 /* Inputs */

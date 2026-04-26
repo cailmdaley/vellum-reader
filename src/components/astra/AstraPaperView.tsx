@@ -25,7 +25,7 @@
  *   - Inline "informs" decision pills under finding evidence, resolved
  *     through `bundle.decisions_by_insight`.
  *
- * Stage 3 (this revision adds) — wiki-style backlinks across the bundle's
+ * Stage 3 (prior revision) — wiki-style backlinks across the bundle's
  * analytical graph:
  *   - `evidence.artifact` is usually an output key (e.g. the BAO bundle's
  *     `bao_detection_significance`), not a file path. When it matches an
@@ -40,8 +40,27 @@
  *     that anchor. Mirrors how paper-view's gallery cards drill into
  *     their producing sub.
  *
- * Stage 3 next: annotation layer + decision-flip overlay.
- * Stage 4 PRs the affordances upstream into `paper-view.html`.
+ * Stage 3 (this revision) — decision-flip overlay:
+ *   - DecisionItem options become clickable buttons backed by vellum's
+ *     existing `DecisionFlipContext` (the same store the graph-card flow
+ *     in `<Card>` already uses). Click an alternative → the decision
+ *     card flips to that hypothetical universe; the summary line and
+ *     selected-option indicator update; the originally-authored option
+ *     gets a small "authored" tag; a reset affordance appears under the
+ *     option list. Visual-only, no write-back to felt — same contract
+ *     as the graph-card flip: a thought-experiment surface for "what if
+ *     the cov decision had been GLASS instead of jackknife?"
+ *   - `hostSlug` prop lets the host (FileViewerPage) keyspace flips per
+ *     bundle so two astra.yaml's open at once don't collide on identical
+ *     decision keys (e.g. both have a `cov` decision). Defaults to the
+ *     bundle's title; portolan threads the file path so persisted state
+ *     would survive a remount on the same bundle.
+ *
+ * Stage 3 next: annotation layer (vellum's annotation primitives wired
+ * into astra fields via portolan's /annotations).
+ * Stage 4 PRs the affordances upstream into `paper-view.html` —
+ * decision-flip is a strong candidate (paper-view.html doesn't carry the
+ * mechanism today; vellum stages it on the linear rung first).
  *
  * Bundle in, JSX out, no portolan dependency. The host (portolan) glues this
  * into its workspace modal and pin cards via `mountVellumAstraCardSurface` /
@@ -61,6 +80,7 @@ import type {
   Output,
   PaperMetadata,
 } from 'lightcone-ui-core';
+import { useDecisionFlip } from '../../contexts/DecisionFlipContext';
 import { AstraProse, scrollToAstraAnchor } from './AstraProse';
 import { PaperModal } from './PaperModal';
 
@@ -93,6 +113,13 @@ export interface AstraPaperViewProps {
    *  mount portolan's `HttpApiAstraView.handlePaperPdf` exposes). Static
    *  deploys can override to point at a flattened paper bundle. */
   resolvePaperPdf?: (cacheKey: string) => string;
+  /** Stable per-bundle key used as the host slug for `useDecisionFlip`. Two
+   *  astra.yaml's open at the same time often share decision keys (e.g.
+   *  both have `cov`); without a per-bundle keyspace their flips would
+   *  collide. Hosts thread their stable identity for the bundle (file path
+   *  in portolan, project slug elsewhere); when omitted, falls back to
+   *  `bundle.title` so anonymous mounts still get isolated state. */
+  hostSlug?: string;
 }
 
 /**
@@ -139,10 +166,17 @@ export function AstraPaperView({
   layout = 'linear',
   resolveArtifact = identity,
   resolvePaperPdf,
+  hostSlug,
 }: AstraPaperViewProps) {
   const decisionsByInsight = bundle.decisions_by_insight ?? {};
   const decisionLabel = (key: string): string =>
     bundle.decisions[key]?.label ?? key;
+  // Stable per-bundle key for the decision-flip context. Falls back to the
+  // bundle's title (shared across mounts of the same bundle) and finally to
+  // a sentinel so `useDecisionFlip` never receives an empty host slug — an
+  // empty host short-circuits the override store and silently swallows
+  // clicks (the noop branch).
+  const flipHostSlug = hostSlug || bundle.title || 'astra-bundle';
 
   // Paper modal state. Lifted here so a single modal services both the
   // Findings (`<Evidence>`) and the Insights section — opening the modal
@@ -207,6 +241,7 @@ export function AstraPaperView({
                 <DecisionsList
                   decisions={bundle.decisions}
                   universeSelections={bundle.universe_selections}
+                  hostSlug={flipHostSlug}
                 />
               </Section>
             )}
@@ -728,9 +763,11 @@ function DecisionPills({
 function DecisionsList({
   decisions,
   universeSelections,
+  hostSlug,
 }: {
   decisions: Record<string, Decision>;
   universeSelections: Record<string, string>;
+  hostSlug: string;
 }) {
   const keys = Object.keys(decisions);
   return (
@@ -741,36 +778,64 @@ function DecisionsList({
           decisionKey={key}
           decision={decisions[key]}
           universePinned={universeSelections[key]}
+          hostSlug={hostSlug}
         />
       ))}
     </ul>
   );
 }
 
+/**
+ * Decision card. Reads the effective option from `useDecisionFlip` so the
+ * reader can click an alternative to flip the card into a hypothetical
+ * universe where that option won (the same thought-experiment surface the
+ * graph-card flow exposes via `<Card>`). The flip is visual only — no
+ * write-back to felt — but persists across re-renders within the
+ * `<DecisionFlipProvider>` tree the host wraps the surface in (vellum's
+ * `WorkspaceMount` provides one for the modal; portolan's
+ * `mountVellumFileSurface` provides one per card so flips don't bleed
+ * across mounts of unrelated bundles).
+ */
 function DecisionItem({
   decisionKey,
   decision,
   universePinned,
+  hostSlug,
 }: {
   decisionKey: string;
   decision: Decision;
   universePinned?: string;
+  hostSlug: string;
 }) {
   const [open, setOpen] = useState(false);
-  const selectedOption =
-    decision.selected != null
-      ? decision.options.find((o) => o.id === decision.selected)
-      : undefined;
+  const { effectiveKey, isFlipped, setEffective, reset } = useDecisionFlip(
+    hostSlug,
+    decisionKey,
+    decision.selected ?? undefined,
+  );
+  const effectiveOption = effectiveKey != null
+    ? decision.options.find((o) => o.id === effectiveKey)
+    : undefined;
+
+  const summaryClass = `astra-decision-card__summary${
+    isFlipped ? ' astra-decision-card__summary--flipped' : ''
+  }`;
 
   return (
     <li
       id={`astra-decision-${decisionKey}`}
-      className={`astra-decision-card${open ? ' astra-decision-card--open' : ''}`}
+      className={[
+        'astra-decision-card',
+        open ? 'astra-decision-card--open' : '',
+        isFlipped ? 'astra-decision-card--flipped' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       tabIndex={-1}
     >
       <button
         type="button"
-        className="astra-decision-card__summary"
+        className={summaryClass}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -778,10 +843,20 @@ function DecisionItem({
           ◇
         </span>
         <span className="astra-decision-card__label">{decision.label}</span>
-        {selectedOption && (
-          <span className="astra-decision-card__selected">→ {selectedOption.label}</span>
+        {effectiveOption && (
+          <span className="astra-decision-card__selected">
+            → {effectiveOption.label}
+          </span>
         )}
-        {universePinned && !decision.selected && (
+        {isFlipped && (
+          <span
+            className="astra-decision-card__flipped-badge"
+            title="Showing a hypothetical: click an option to re-flip, or reset to authored."
+          >
+            flipped
+          </span>
+        )}
+        {universePinned && !decision.selected && !isFlipped && (
           <span className="astra-decision-card__pinned" title="Universe override">
             ◎
           </span>
@@ -799,36 +874,100 @@ function DecisionItem({
             </ul>
           )}
           {decision.rationale && <AstraProse text={decision.rationale} />}
-          <ul className="astra-decision-card__options">
+          <ul
+            className="astra-decision-card__options"
+            aria-label="Decision options — click to flip the selection"
+          >
             {decision.options.map((opt) => (
               <DecisionOptionItem
                 key={opt.id}
                 option={opt}
-                selected={opt.id === decision.selected}
+                selected={opt.id === effectiveKey}
+                authored={opt.id === decision.selected}
+                onPick={() => setEffective(opt.id)}
               />
             ))}
           </ul>
+          {isFlipped && (
+            <button
+              type="button"
+              className="astra-decision-card__reset"
+              onClick={(event) => {
+                event.stopPropagation();
+                reset();
+              }}
+              title="Revert to the bundle's authored selection"
+            >
+              ↺ reset to authored
+            </button>
+          )}
         </div>
       )}
     </li>
   );
 }
 
+/**
+ * Option row inside a decision card. The whole row is a button: clicking
+ * it asks the flip context to set this option as the effective selection.
+ * The fiber's authored selection wears a tiny "authored" tag when it is
+ * not the current effective option, so the reader can see at a glance
+ * that they're looking at a hypothetical.
+ *
+ * The bundle's `DecisionOption` collapses both selected + excluded into
+ * a flat shape (no separate `excluded_reason` here, unlike the graph-card
+ * `GraphDecision`); rationale lives in `description` and the supporting
+ * insight ids — both are surfaced under the option's label so the reader
+ * can see why this alternative is or isn't a good pick before clicking.
+ */
 function DecisionOptionItem({
   option,
   selected,
+  authored,
+  onPick,
 }: {
   option: DecisionOption;
   selected: boolean;
+  authored: boolean;
+  onPick: () => void;
 }) {
   return (
     <li
-      className={`astra-decision-option${selected ? ' astra-decision-option--selected' : ''}`}
+      className={[
+        'astra-decision-option',
+        selected ? 'astra-decision-option--selected' : '',
+        authored && !selected ? 'astra-decision-option--authored' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
-      <span className="astra-decision-option__label">{option.label}</span>
-      {option.description && (
-        <span className="astra-decision-option__description">{option.description}</span>
-      )}
+      <button
+        type="button"
+        className="astra-decision-option__btn"
+        aria-pressed={selected}
+        onClick={(event) => {
+          event.stopPropagation();
+          onPick();
+        }}
+      >
+        <span className="astra-decision-option__glyph" aria-hidden="true">
+          {selected ? '●' : '○'}
+        </span>
+        <span className="astra-decision-option__label">{option.label}</span>
+        {authored && !selected && (
+          <span
+            className="astra-decision-option__authored-tag"
+            title="Originally authored selection"
+          >
+            authored
+          </span>
+        )}
+        {option.description && (
+          <span className="astra-decision-option__description">
+            {option.description}
+          </span>
+        )}
+      </button>
       {option.insights.length > 0 && (
         <ul className="astra-decision-option__insights" aria-label="Supporting insights">
           {option.insights.map((id) => (
