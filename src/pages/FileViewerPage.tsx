@@ -601,7 +601,16 @@ function AstraFilePanel({
                   : undefined
               }
               resolvePaperPdf={(cacheKey: string) => {
-                const path = `/papers/${encodeURIComponent(cacheKey)}/paper.pdf`;
+                // Origin-aware URL: `/papers/<originId>/<cacheKey>/paper.pdf`.
+                // For local origins the host's paper-cache is read directly;
+                // for remote origins, portolan SSH-fetches the PDF on first
+                // request and caches it locally per-origin (see
+                // server/src/HttpApiAstraView.ts → handlePaperPdf). The
+                // legacy single-segment form (no originId) still works as a
+                // local-origin shortcut for any caller that hasn't been
+                // updated yet.
+                const safeOrigin = encodeURIComponent(originId ?? 'local');
+                const path = `/papers/${safeOrigin}/${encodeURIComponent(cacheKey)}/paper.pdf`;
                 return adapter.resolveAssetUrl ? adapter.resolveAssetUrl(path) : path;
               }}
             />
