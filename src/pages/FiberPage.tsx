@@ -289,7 +289,14 @@ export function FiberPage() {
       )}
 
       {!isFileMode && mode === 'narrative' && contentLoading && (
-        <div className="vellum-loading">Loading <em>{slug || 'fiber'}</em>…</div>
+        // role="status" + aria-live="polite" so AT users hear the
+        // transition without it interrupting their current focus. Without
+        // a role the loading text gets absorbed into the outer wrapper's
+        // auto-computed accessible name (same pattern that swallowed the
+        // 404 message before role="alert" landed above).
+        <div className="vellum-loading" role="status" aria-live="polite">
+          Loading <em>{slug || 'fiber'}</em>…
+        </div>
       )}
 
       {!isFileMode && mode === 'narrative' && !contentLoading && content?.mdast && (
@@ -308,7 +315,14 @@ export function FiberPage() {
       )}
 
       {!isFileMode && mode === 'narrative' && !contentLoading && slug && !content?.mdast && (
-        <div className="vellum-error">
+        // role="alert" so AT announces the miss instead of leaving the
+        // user on a near-empty page with no signal — without it the only
+        // a11y-tree node carrying the error text was the outer page
+        // wrapper, and the message got swallowed into the chrome's
+        // auto-computed accessible name (verified in agent-browser snapshot
+        // for the 404 route, where the e1 generic absorbed "Fiber X not
+        // found in this collection." with no landmark of its own).
+        <div className="vellum-error" role="alert">
           Fiber <em>{slug}</em> not found in this collection.
         </div>
       )}
@@ -319,7 +333,9 @@ export function FiberPage() {
           looks like a real error. Show a loading indicator until the graph
           lands; the "not found" branch then signals a genuine miss. */}
       {!isFileMode && mode === 'workspace' && graphLoading && (
-        <div className="vellum-loading">Loading <em>{slug || 'workspace'}</em>…</div>
+        <div className="vellum-loading" role="status" aria-live="polite">
+          Loading <em>{slug || 'workspace'}</em>…
+        </div>
       )}
 
       {!isFileMode && mode === 'workspace' && !graphLoading && (

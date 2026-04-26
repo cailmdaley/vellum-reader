@@ -953,6 +953,15 @@ body {
 .narrative-counter__row--inputs     .narrative-counter__glyph { color: var(--astra-input); }
 .narrative-counter__row--analyses   .narrative-counter__glyph { color: var(--astra-analysis); }
 .narrative-counter__row--refs       .narrative-counter__glyph { color: var(--gold); opacity: 0.85; }
+/* The --refs row is a static <div>, not a <button> — refs surface as
+   inline links throughout the body, so there's no kind-section to scroll
+   to. The shared `.narrative-counter__row` rule sets cursor:pointer (right
+   for the button rows above, dishonest for this one). Reset it so the
+   cursor honestly reports inertness; without this the row reads as
+   clickable (the a11y dump even tags it `clickable [cursor:pointer]`)
+   while a click does nothing, and the hover color-shift stays as a
+   harmless contrast tweak rather than an affordance hint. */
+.narrative-counter__row--refs { cursor: default; }
 
 @media (max-width: 960px) {
   .narrative-counter { display: none; }

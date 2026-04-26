@@ -227,6 +227,13 @@ export function FindingsStepper({ variant = 'inline' }: FindingsStepperProps) {
   return (
     <div
       className={`astra-findings-stepper astra-findings-stepper--${variant}`}
+      // role="group" lifts this from a generic focusable div to a labelled
+      // ARIA group. Without a role the stepper announces as just "Findings
+      // navigator" with no surrounding context — screen readers don't know
+      // it's a coherent widget. group is the right fit: a custom widget
+      // bundling prev/next buttons and a finding-index nav, focusable as a
+      // unit so onKeyDown can drive ←/→ across the whole stepper.
+      role="group"
       tabIndex={0}
       ref={rootRef}
       aria-label="Findings navigator"

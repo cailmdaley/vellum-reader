@@ -149,7 +149,11 @@ export function WorkspaceView({
 
   if (!currentNode) {
     return (
-      <div className="vellum-error">
+      // role="alert" mirrors the FiberPage narrative-mode 404 — the error
+      // is the only thing on screen and AT users need it announced rather
+      // than absorbed silently into the outer wrapper's auto-computed
+      // accessible name.
+      <div className="vellum-error" role="alert">
         Fiber <em>{currentSlug}</em> not found.
       </div>
     );
