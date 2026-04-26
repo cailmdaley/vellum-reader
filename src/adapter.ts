@@ -46,10 +46,17 @@ import type {
  * for table-typed outputs. Identical shape to lightcone-ui-core's `BuildResult`
  * but kept separate so vellum's adapter surface doesn't pull the cli build
  * machinery — only the data types.
+ *
+ * `mtime` is an opaque per-host staleness token that compares equal iff
+ * the source astra.yaml hasn't changed on disk. Used by the panel's
+ * focus-listener with {@link ReadOnlyAdapter.getAstraBundleMtime} to detect
+ * external edits. `null`/missing means the host doesn't expose a
+ * staleness signal; the panel falls back to host-driven `cacheBust`.
  */
 export interface AstraBundleResult {
   bundle: Bundle;
   csvs: Record<string, string>;
+  mtime?: string | null;
 }
 
 export interface GetAstraBundleOptions {
@@ -130,6 +137,18 @@ export interface ReadOnlyAdapter {
    * plus inlined CSV previews. See `vellum-reader/vellum-native-astra-renderer`.
    */
   getAstraBundle?(path: string, opts?: GetAstraBundleOptions): Promise<AstraBundleResult | null>;
+  /**
+   * Cheap staleness probe for an astra.yaml. Returns the same opaque
+   * `mtime` token shape as {@link AstraBundleResult.mtime} but without
+   * running the buildBundle pipeline — the renderer's focus listener
+   * uses this to decide whether to re-fetch the bundle. Optional;
+   * adapters that lack it cause the focus-staleness check to no-op.
+   *
+   * For portolan, this is a single fs.stat (local) or a single SSH
+   * stat (remote); both are dwarfed by buildBundle, so polling on
+   * window-focus is essentially free.
+   */
+  getAstraBundleMtime?(path: string, opts?: GetAstraBundleOptions): Promise<string | null>;
   /**
    * Read the raw YAML text for an astra.yaml path. Powers the astra renderer's
    * source-view chrome toggle (modal-only). Optional because the same hosts

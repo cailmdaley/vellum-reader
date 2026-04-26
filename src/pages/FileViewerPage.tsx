@@ -422,6 +422,13 @@ function AstraFilePanel({
   const [sourceStatus, setSourceStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     'idle',
   );
+  // Internal cache-bust counter, bumped by the focus-staleness check below.
+  // Combines with the host's `cacheBust` prop in every adapter call so a
+  // detected external edit (window-focus → mtime changed) triggers the same
+  // refetch path the host's Refresh button does. Kept distinct from `cacheBust`
+  // so the host's bool prop doesn't have to round-trip through the panel.
+  const [internalRefresh, setInternalRefresh] = useState(0);
+  const refetchTrigger = cacheBust || internalRefresh > 0;
   // File-anchored annotations on this astra path. Loaded eagerly so they
   // light up as soon as the bundle renders. Unlike the text/markdown branch
   // (which filters by `from`/`to`), astra annotations are matched by
@@ -446,7 +453,7 @@ function AstraFilePanel({
   useEffect(() => {
     let cancelled = false;
     adapter
-      .getFile(path, { originId, cacheBust })
+      .getFile(path, { originId, cacheBust: refetchTrigger })
       .then((file) => {
         if (cancelled) return;
         setIframeFile(file && file.kind === 'html' ? file : null);
@@ -458,11 +465,14 @@ function AstraFilePanel({
     return () => {
       cancelled = true;
     };
-  }, [adapter, path, originId, cacheBust]);
+  }, [adapter, path, originId, refetchTrigger]);
 
   // Bundle fetch: only when the adapter supports it. Switching ladder rungs
   // does not retrigger this — the bundle drives every rung. cacheBust DOES
-  // retrigger so a `Refresh` host action gets a fresh bundle.
+  // retrigger so a `Refresh` host action gets a fresh bundle. The internal
+  // refresh counter (bumped by the focus-staleness check) flows through the
+  // same `refetchTrigger`, so an external edit detected on window-focus
+  // takes the same code path as a manual Refresh.
   useEffect(() => {
     if (typeof adapter.getAstraBundle !== 'function') {
       setBundleStatus('unsupported');
@@ -473,7 +483,7 @@ function AstraFilePanel({
     setBundleStatus('loading');
     setBundleError(null);
     adapter
-      .getAstraBundle(path, { originId, cacheBust })
+      .getAstraBundle(path, { originId, cacheBust: refetchTrigger })
       .then((res) => {
         if (cancelled) return;
         if (!res) {
@@ -493,11 +503,48 @@ function AstraFilePanel({
     return () => {
       cancelled = true;
     };
-  }, [adapter, path, originId, cacheBust]);
+  }, [adapter, path, originId, refetchTrigger]);
+
+  // Focus-staleness check. When the user switches away and comes back to
+  // the tab, poll `getAstraBundleMtime` once; if the token differs from
+  // what we built against, bump the internal refresh counter (which feeds
+  // `refetchTrigger`, which retriggers the bundle/iframe effects above).
+  // Cheap — local: a single fs.stat; remote: a single SSH stat. Adapters
+  // without `getAstraBundleMtime` no-op (the listener still attaches but
+  // exits the early-return). Closes the constitution's "Bundle staleness"
+  // open question for `vellum-reader/vellum-native-astra-renderer`.
+  const knownMtime = bundleResult?.mtime ?? null;
+  useEffect(() => {
+    if (typeof adapter.getAstraBundleMtime !== 'function') return;
+    if (knownMtime == null) return;
+    let stopped = false;
+    const onFocus = () => {
+      if (stopped) return;
+      void adapter
+        .getAstraBundleMtime!(path, { originId })
+        .then((fresh) => {
+          if (stopped) return;
+          if (fresh != null && fresh !== knownMtime) {
+            setInternalRefresh((n) => n + 1);
+          }
+        })
+        .catch(() => {
+          // Don't bump on transient error — better to show stale than to
+          // spin in a refetch loop on a flaky probe.
+        });
+    };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      stopped = true;
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [adapter, path, originId, knownMtime]);
 
   // Astra annotations: file-keyed via the path. Re-fetched on `cacheBust` and
   // on host-driven `annotationRefreshKey` bumps (bulk actions in chrome).
-  // Adapters that don't store annotations return [] — silent no-op.
+  // Internal-refresh bumps don't include annotations — they re-anchor by
+  // selectedText + surrounding context, so they survive bundle re-renders
+  // without a re-fetch.
   useEffect(() => {
     let cancelled = false;
     adapter
@@ -544,7 +591,7 @@ function AstraFilePanel({
     setSourceStatus('loading');
     void (async () => {
       try {
-        const text = await adapter.getAstraSource!(path, { originId, cacheBust });
+        const text = await adapter.getAstraSource!(path, { originId, cacheBust: refetchTrigger });
         if (cancelled) return;
         if (text == null) {
           setSourceStatus('error');
@@ -567,9 +614,9 @@ function AstraFilePanel({
     // re-run, whose cleanup set `cancelled = true` before the in-flight
     // fetch could commit, leaving the body stuck on "Loading…". The
     // effect should only re-fetch when the user enters source mode for a
-    // (path, adapter, cacheBust) tuple — not when its own setState fires.
+    // (path, adapter, refetchTrigger) tuple — not when its own setState fires.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adapter, wantsSource, supportsSource, path, originId, cacheBust]);
+  }, [adapter, wantsSource, supportsSource, path, originId, refetchTrigger]);
 
   const handlePick = useCallback((next: AstraLadderRung) => {
     setRung(next);
