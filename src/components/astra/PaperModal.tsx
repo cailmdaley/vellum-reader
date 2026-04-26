@@ -45,6 +45,44 @@ import type { Bundle, Insight, PaperMetadata } from 'lightcone-ui-core';
 import { PdfReader, type PdfReaderHandle } from '../FileReader';
 import { scrollToAstraAnchor } from './AstraProse';
 
+/**
+ * Inert every body sibling of `keep` while the modal is open, so screen
+ * readers and keyboard focus can't reach the page underneath. `aria-modal`
+ * alone doesn't hide background siblings — agent-browser snapshots and
+ * NVDA/VoiceOver still see them. Mirrors portolan's `lockModalBackground`
+ * pattern, kept private here so vellum's PaperModal stays self-sufficient.
+ *
+ * Symmetric save/restore: each sibling's prior `inert` and `aria-hidden`
+ * state is captured and restored on unmount, which composes cleanly when
+ * a host's outer modal already inerted the page (paper modal opens *over*
+ * a workspace modal — the outer modal's `inert` was previously the
+ * sibling-of-workspace-modal default, and we restore to that on close).
+ *
+ * Anything mounted *after* this effect runs (e.g. a global search palette
+ * the user pops over the paper modal) is not in the snapshot at lock time
+ * and therefore stays interactive — same edge case the portolan helper
+ * handles by class-skipping `gs-palette` / `gs-backdrop`.
+ */
+function lockBodySiblings(keep: Element): () => void {
+  const restorers: Array<() => void> = [];
+  for (const child of Array.from(document.body.children)) {
+    if (child === keep) continue;
+    if (!(child instanceof HTMLElement)) continue;
+    const prevInert = child.inert;
+    const prevAriaHidden = child.getAttribute('aria-hidden');
+    child.inert = true;
+    child.setAttribute('aria-hidden', 'true');
+    restorers.push(() => {
+      child.inert = prevInert;
+      if (prevAriaHidden === null) child.removeAttribute('aria-hidden');
+      else child.setAttribute('aria-hidden', prevAriaHidden);
+    });
+  }
+  return () => {
+    while (restorers.length > 0) restorers.pop()!();
+  };
+}
+
 export interface PaperModalProps {
   /** DOI to open. Used as the key into `bundle.papers` and to filter
    *  insights. Required — the modal is keyed off this. */
@@ -96,26 +134,45 @@ export function PaperModal({
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
   const pdfRef = useRef<PdfReaderHandle | null>(null);
+  const scrimRef = useRef<HTMLDivElement | null>(null);
   const titleId = `astra-paper-modal-title-${encodeURIComponent(doi)}`;
 
   // Escape closes; lock body scroll while open. Mirrors paper-viewer.js's
   // `openBackdrop` / `closePaperModal`.
+  //
+  // Listen on `window` at capture phase so this fires *before* any host
+  // modal's `document`-level Escape handler (capture order: window →
+  // document → ... → target). Without this, a workspace-modal host that
+  // also listens for Escape on document at capture (portolan's
+  // `openVellumWorkspaceModal`, vellum-cli's preview shell) gets to run
+  // first — registration order on the same target wins capture, and the
+  // outer modal closes alongside this one. With `window`, this listener
+  // claims the event first and `stopImmediatePropagation()` prevents the
+  // outer handler from running at all.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
       e.stopPropagation();
+      e.preventDefault();
       onClose();
     };
-    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('keydown', onKey, true);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // Inert every body sibling so screen readers / agent-browser see only
+    // this modal — `aria-modal="true"` doesn't hide siblings on its own.
+    // Idempotent with hosts whose outer modal already inerted the page:
+    // we capture each sibling's prior inert state and restore to it.
+    const unlock = scrimRef.current ? lockBodySiblings(scrimRef.current) : () => {};
     // Initial focus on the close button — Tab cycles forward into the rail
     // (which holds the focusable controls) and back to close. Pdf preview
     // is canvas-only, no interactive children to trap focus around.
     closeRef.current?.focus();
     return () => {
-      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('keydown', onKey, true);
       document.body.style.overflow = prevOverflow;
+      unlock();
     };
   }, [onClose]);
 
@@ -167,6 +224,7 @@ export function PaperModal({
 
   return createPortal(
     <div
+      ref={scrimRef}
       className="astra-paper-modal-scrim"
       role="presentation"
       onClick={(e) => {
