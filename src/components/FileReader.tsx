@@ -780,7 +780,7 @@ async function loadPdfJs(): Promise<PdfJsModule> {
   return pdfJsPromise;
 }
 
-function PdfReader({ file }: FileReaderProps) {
+export function PdfReader({ file }: FileReaderProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

@@ -141,6 +141,24 @@ export interface ReadOnlyAdapter {
    * not a URL, which is why this is a separate method.
    */
   getAstraSource?(path: string, opts?: GetFileOptions): Promise<string | null>;
+  /**
+   * Resolve a server-relative asset path (`/project-file/...`,
+   * `/papers/<cache_key>/paper.pdf`, etc.) into a fully-qualified URL that
+   * the SPA can fetch. Necessary when the SPA origin and the server origin
+   * differ — portolan, for instance, serves the SPA from Vite at :5173 but
+   * the asset routes from its own server at :4004; without this hook,
+   * relative URLs from a server-rewritten Bundle would be fetched from the
+   * SPA origin and 404 (or worse, fall through to `index.html` and fail
+   * silently as a 0-byte image / "Invalid PDF structure"). Identity is the
+   * right default for hosts whose SPA and server share an origin
+   * (lightcone CLI, static deploy).
+   *
+   * The vellum-native astra renderer wires this into both
+   * `<AstraPaperView>`'s `resolveArtifact` (figure thumbnails, table CSV
+   * preview links, evidence links) and the in-modal paper PDF URL
+   * (`<PaperModal>` via `resolvePaperPdf`).
+   */
+  resolveAssetUrl?(path: string): string;
 }
 
 export interface Adapter extends ReadOnlyAdapter {

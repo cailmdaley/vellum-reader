@@ -7866,3 +7866,327 @@ a.pretext-prose-frag:hover {
   font-variant-caps: normal;
   letter-spacing: 0;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   PaperModal — Stage 5 substrate.
+
+   Sibling-and-replacement of paper-viewer.js's `pv-paper-modal`. Same
+   split-pane idea (PDF on the left, insights rail on the right), but
+   the PDF renders through vellum's `PdfReader`, retiring the
+   paper-viewer.js-side pdfjs duplication.
+
+   The citation row substrate (`.astra-finding__cite`) is unchanged
+   above; this section just adds the modal that opens when the citation
+   link is clicked. Z-index 10001 sits above `.vellum-modal-scrim`
+   (9999) so the paper modal can be triggered from inside a workspace
+   modal without disappearing behind it.
+   ────────────────────────────────────────────────────────────────── */
+
+.astra-paper-modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 18, 16, 0.82);
+  z-index: 10001;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.astra-paper-modal-shell {
+  margin: 40px;
+  flex: 1;
+  background: var(--page-bg, #EDE8E0);
+  color: var(--text, #2E2A26);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow, 0 12px 32px rgba(0, 0, 0, 0.18));
+}
+
+.astra-paper-modal__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  background: var(--page-bg, #EDE8E0);
+}
+
+.astra-paper-modal__title-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.astra-paper-modal__title {
+  margin: 0;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.3em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text, #2E2A26);
+}
+
+.astra-paper-modal__authors {
+  margin: 0;
+  font-size: 0.9em;
+  color: var(--text-muted, #7A7368);
+  line-height: 1.4;
+}
+
+.astra-paper-modal__doi {
+  margin: 0;
+  font-size: 0.82em;
+  color: var(--text-muted, #7A7368);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.astra-paper-modal__doi-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(154, 123, 53, 0.4);
+}
+
+.astra-paper-modal__doi-link:hover,
+.astra-paper-modal__doi-link:focus-visible {
+  color: var(--gold, #9A7B35);
+  border-bottom-style: solid;
+}
+
+.astra-paper-modal__close {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted, #7A7368);
+  font-size: 26px;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: 3px;
+  align-self: flex-start;
+}
+
+.astra-paper-modal__close:hover,
+.astra-paper-modal__close:focus-visible {
+  background: rgba(154, 123, 53, 0.08);
+  color: var(--text, #2E2A26);
+  outline: none;
+}
+
+.astra-paper-modal__body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.astra-paper-modal__pdf-pane {
+  flex: 1 1 60%;
+  min-width: 0;
+  background: #1f1c19;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.astra-paper-modal__pdf-pane .vellum-file-reader--pdf {
+  width: 100%;
+  max-width: 900px;
+  display: block;
+}
+
+.astra-paper-modal__pdf-pane .vellum-file-reader--pdf canvas {
+  margin: 0 auto 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.astra-paper-modal__pdf-uncached {
+  margin: auto;
+  max-width: 480px;
+  text-align: center;
+  font-family: 'EB Garamond', Georgia, serif;
+  color: rgba(237, 232, 224, 0.85);
+  background: rgba(237, 232, 224, 0.06);
+  padding: 24px 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(237, 232, 224, 0.15);
+  line-height: 1.55;
+}
+
+.astra-paper-modal__pdf-uncached code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.9em;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.astra-paper-modal__pdf-uncached-link {
+  color: var(--gold, #9A7B35);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
+}
+
+.astra-paper-modal__pdf-uncached-link:hover,
+.astra-paper-modal__pdf-uncached-link:focus-visible {
+  border-bottom-style: solid;
+}
+
+.astra-paper-modal__rail {
+  flex: 0 0 360px;
+  min-width: 0;
+  border-left: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  background: var(--page-bg, #EDE8E0);
+  overflow: auto;
+  padding: 14px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.astra-paper-modal__rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding-bottom: 8px;
+}
+
+.astra-paper-modal__rail-count {
+  font-size: 0.78em;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-paper-modal__rail-empty {
+  margin: 8px 0;
+  font-size: 0.88em;
+  color: var(--text-muted, #7A7368);
+  font-style: italic;
+}
+
+.astra-paper-modal__insights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.astra-paper-modal__insight {
+  border-left: 3px solid rgba(154, 123, 53, 0.35);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 0 4px 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.2s ease, border-left-color 0.2s ease;
+}
+
+.astra-paper-modal__insight--focus {
+  background: rgba(154, 123, 53, 0.18);
+  border-left-color: var(--gold, #9A7B35);
+  animation: astra-paper-modal-flash 1.6s ease-out;
+}
+
+@keyframes astra-paper-modal-flash {
+  0% { background: rgba(154, 123, 53, 0.32); }
+  100% { background: rgba(255, 255, 255, 0.4); }
+}
+
+.astra-paper-modal__insight-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.astra-paper-modal__insight-id {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-paper-modal__insight-claim {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.95em;
+  color: var(--text, #2E2A26);
+  line-height: 1.4;
+}
+
+.astra-paper-modal__insight-quote {
+  margin: 0;
+  font-style: italic;
+  font-size: 0.88em;
+  color: var(--text, #2E2A26);
+  line-height: 1.5;
+}
+
+.astra-paper-modal__insight-page {
+  margin: 0;
+  font-size: 0.78em;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-paper-modal__insight-informs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4em;
+  font-size: 0.85em;
+}
+
+.astra-paper-modal__insight-informs-label {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #7A7368);
+}
+
+.astra-paper-modal__insight-informs-pills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+}
+
+.astra-paper-modal__informs-pill {
+  font-family: inherit;
+  font-size: inherit;
+  border: 1px solid rgba(154, 123, 53, 0.35);
+  background: transparent;
+  color: var(--gold, #9A7B35);
+  padding: 1px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.astra-paper-modal__informs-pill:hover,
+.astra-paper-modal__informs-pill:focus-visible {
+  background: rgba(154, 123, 53, 0.12);
+  border-color: var(--gold, #9A7B35);
+  outline: none;
+}
+
+@media (max-width: 800px) {
+  .astra-paper-modal-shell { margin: 16px; }
+  .astra-paper-modal__body { flex-direction: column; }
+  .astra-paper-modal__pdf-pane { flex: 1 1 60%; }
+  .astra-paper-modal__rail {
+    flex: 0 0 auto;
+    border-left: none;
+    border-top: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+    max-height: 40%;
+  }
+}

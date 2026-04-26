@@ -35,7 +35,7 @@
  * See `vellum-reader/vellum-native-astra-renderer`.
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type {
   Bundle,
   Decision,
@@ -47,6 +47,16 @@ import type {
   PaperMetadata,
 } from 'lightcone-ui-core';
 import { AstraProse, scrollToAstraAnchor } from './AstraProse';
+import { PaperModal } from './PaperModal';
+
+/**
+ * Handler the citation row calls when the reader clicks a paper. Opens
+ * the in-modal evidence panel (PDF + insights rail) at the corresponding
+ * DOI. `focusInsightId` lets the click on a specific insight's row scroll
+ * the rail to that row and flash it (mirrors paper-viewer.js's
+ * focusInsightId option).
+ */
+type OpenPaper = (doi: string, focusInsightId?: string | null) => void;
 
 export type AstraLayout = 'linear' | 'personal';
 
@@ -63,6 +73,11 @@ export interface AstraPaperViewProps {
    *  deploys that flatten artifacts under their data root; portolan supplies
    *  a `/project-file/{originId}/...` resolver via the adapter. */
   resolveArtifact?: (artifactPath: string) => string;
+  /** Resolve a `cache_key` into a fetchable PDF URL for the in-modal
+   *  evidence preview. Defaults to `/papers/<cache_key>/paper.pdf` (the
+   *  mount portolan's `HttpApiAstraView.handlePaperPdf` exposes). Static
+   *  deploys can override to point at a flattened paper bundle. */
+  resolvePaperPdf?: (cacheKey: string) => string;
 }
 
 /**
@@ -90,10 +105,24 @@ export function AstraPaperView({
   csvs,
   layout = 'linear',
   resolveArtifact = identity,
+  resolvePaperPdf,
 }: AstraPaperViewProps) {
   const decisionsByInsight = bundle.decisions_by_insight ?? {};
   const decisionLabel = (key: string): string =>
     bundle.decisions[key]?.label ?? key;
+
+  // Paper modal state. Lifted here so a single modal services both the
+  // Findings (`<Evidence>`) and the Insights section — opening the modal
+  // from either surface goes through the same code path. `null` means
+  // closed; a non-null `{doi, focusInsightId}` means open.
+  const [openPaper, setOpenPaper] = useState<{
+    doi: string;
+    focusInsightId: string | null;
+  } | null>(null);
+  const handleOpenPaper = useCallback<OpenPaper>((doi, focusInsightId) => {
+    setOpenPaper({ doi, focusInsightId: focusInsightId ?? null });
+  }, []);
+  const handleClosePaper = useCallback(() => setOpenPaper(null), []);
 
   return (
     <article
@@ -131,6 +160,7 @@ export function AstraPaperView({
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
                   resolveArtifact={resolveArtifact}
+                  onOpenPaper={handleOpenPaper}
                 />
               </Section>
             )}
@@ -167,6 +197,7 @@ export function AstraPaperView({
                   papers={bundle.papers}
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
+                  onOpenPaper={handleOpenPaper}
                 />
               </Section>
             )}
@@ -203,12 +234,22 @@ export function AstraPaperView({
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
                   resolveArtifact={resolveArtifact}
+                  onOpenPaper={handleOpenPaper}
                 />
               </Section>
             )}
           </>
         );
       })()}
+      {openPaper && (
+        <PaperModal
+          doi={openPaper.doi}
+          focusInsightId={openPaper.focusInsightId}
+          bundle={bundle}
+          resolvePaperPdf={resolvePaperPdf}
+          onClose={handleClosePaper}
+        />
+      )}
     </article>
   );
 }
@@ -276,6 +317,7 @@ function FindingsList({
   decisionsByInsight,
   decisionLabel,
   resolveArtifact,
+  onOpenPaper,
 }: {
   findings: Finding[];
   insights: Bundle['insights'];
@@ -283,6 +325,7 @@ function FindingsList({
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
+  onOpenPaper: OpenPaper;
 }) {
   return (
     <ul className="astra-paper-view__findings">
@@ -295,6 +338,7 @@ function FindingsList({
           decisionsByInsight={decisionsByInsight}
           decisionLabel={decisionLabel}
           resolveArtifact={resolveArtifact}
+          onOpenPaper={onOpenPaper}
         />
       ))}
     </ul>
@@ -308,6 +352,7 @@ function FindingItem({
   decisionsByInsight,
   decisionLabel,
   resolveArtifact,
+  onOpenPaper,
 }: {
   finding: Finding;
   insights: Bundle['insights'];
@@ -315,6 +360,7 @@ function FindingItem({
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
+  onOpenPaper: OpenPaper;
 }) {
   // Aggregate every decision informed by this finding's evidence — paper-
   // view does the same on the insights rail. Dedup so the pill row stays
@@ -348,6 +394,7 @@ function FindingItem({
           insights={insights}
           papers={papers}
           resolveArtifact={resolveArtifact}
+          onOpenPaper={onOpenPaper}
         />
       )}
       {informedDecisions.length > 0 && (
@@ -383,11 +430,13 @@ function Evidence({
   insights,
   papers,
   resolveArtifact,
+  onOpenPaper,
 }: {
   evidence: FindingEvidence[];
   insights: Bundle['insights'];
   papers: Bundle['papers'];
   resolveArtifact: (p: string) => string;
+  onOpenPaper: OpenPaper;
 }) {
   return (
     <ul className="astra-finding__evidence">
@@ -410,6 +459,8 @@ function Evidence({
                 doi={insight?.doi}
                 page={insight?.page}
                 paper={insight?.doi ? papers[insight.doi] : undefined}
+                insightId={e.id}
+                onOpenPaper={onOpenPaper}
               />
             )}
             {url && (
@@ -431,25 +482,47 @@ function Evidence({
 
 /**
  * Paper citation row under evidence. Surfaces the paper title (or DOI when
- * the cache hasn't resolved metadata yet) plus an explicit page hint. Click
- * opens the DOI on doi.org — Stage 5 replaces this with the in-modal PDF
- * preview using vellum's PdfReader. Renders nothing when neither doi nor
- * page is present.
+ * the cache hasn't resolved metadata yet) plus an explicit page hint.
+ *
+ * Click opens the in-modal evidence panel (PDF + insights rail) — see
+ * `<PaperModal>`. The fallback `<a>` to `https://doi.org/<doi>` is kept
+ * for `Cmd+click` / middle-click, where the user explicitly asks for the
+ * publisher site instead of the modal. Renders nothing when neither doi
+ * nor page is present.
+ *
+ * `insightId` lets the modal open scrolled to a specific insight in the
+ * rail (mirrors paper-viewer.js's focusInsightId option). When omitted
+ * the modal opens at the top of the rail.
  *
  * `paper.cached` toggles a faint "uncached" marker so the reader can see why
  * a citation lacks a title — `astra papers fetch <doi>` will fill it in.
+ * Uncached citations still open the modal; the PDF pane shows a "not in
+ * cache" notice and the insights rail still renders.
  */
 function PaperCitation({
   doi,
   page,
   paper,
+  insightId,
+  onOpenPaper,
 }: {
   doi?: string;
   page?: number;
   paper?: PaperMetadata;
+  insightId?: string | null;
+  onOpenPaper: OpenPaper;
 }) {
   const title = paper?.title || doi;
   const href = doi ? `https://doi.org/${encodeURIComponent(doi)}` : undefined;
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!doi) return;
+    // Cmd/Ctrl/middle-click → let the browser open doi.org in a new tab.
+    // Plain click → open the in-modal evidence preview.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (event.button !== 0) return;
+    event.preventDefault();
+    onOpenPaper(doi, insightId ?? null);
+  };
   return (
     <div className="astra-finding__cite">
       {page != null && (
@@ -464,7 +537,13 @@ function PaperCitation({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              title={paper?.cached ? doi : `${doi} (paper not cached locally)`}
+              title={
+                paper?.cached
+                  ? `Open paper preview · ${doi}`
+                  : `Open paper preview · ${doi} (paper not cached locally)`
+              }
+              aria-label={`Open paper preview for ${title}`}
+              onClick={handleClick}
             >
               {title}
             </a>
@@ -661,11 +740,13 @@ function InsightsList({
   papers,
   decisionsByInsight,
   decisionLabel,
+  onOpenPaper,
 }: {
   insights: Bundle['insights'];
   papers: Bundle['papers'];
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
+  onOpenPaper: OpenPaper;
 }) {
   const ids = Object.keys(insights);
   return (
@@ -690,6 +771,8 @@ function InsightsList({
                 doi={ins.doi}
                 page={ins.page}
                 paper={ins.doi ? papers[ins.doi] : undefined}
+                insightId={id}
+                onOpenPaper={onOpenPaper}
               />
             )}
             {informedDecisions.length > 0 && (
@@ -877,6 +960,7 @@ function SubAnalysesList({
   decisionsByInsight,
   decisionLabel,
   resolveArtifact,
+  onOpenPaper,
 }: {
   bundle: Bundle;
   csvs?: Record<string, string>;
@@ -884,6 +968,7 @@ function SubAnalysesList({
   decisionsByInsight: Record<string, string[]>;
   decisionLabel: (key: string) => string;
   resolveArtifact: (p: string) => string;
+  onOpenPaper: OpenPaper;
 }) {
   return (
     <ul className="astra-paper-view__sub-analyses">
@@ -935,6 +1020,7 @@ function SubAnalysesList({
                   decisionsByInsight={decisionsByInsight}
                   decisionLabel={decisionLabel}
                   resolveArtifact={resolveArtifact}
+                  onOpenPaper={onOpenPaper}
                 />
               </SubSection>
             )}

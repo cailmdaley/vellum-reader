@@ -595,6 +595,15 @@ function AstraFilePanel({
               bundle={bundleResult.bundle}
               csvs={bundleResult.csvs}
               layout={rungToLayout(effectiveRung)}
+              resolveArtifact={
+                adapter.resolveAssetUrl
+                  ? (p: string) => adapter.resolveAssetUrl!(p)
+                  : undefined
+              }
+              resolvePaperPdf={(cacheKey: string) => {
+                const path = `/papers/${encodeURIComponent(cacheKey)}/paper.pdf`;
+                return adapter.resolveAssetUrl ? adapter.resolveAssetUrl(path) : path;
+              }}
             />
           ) : (
             <div className="astra-paper-view-host__loading">Loading bundle…</div>
