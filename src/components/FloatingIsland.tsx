@@ -26,6 +26,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useMode, type Mode } from '~/contexts/ModeContext';
 import { useAdapter } from '~/contexts/AdapterContext';
 import { FILE_TARGET_ROUTE, useFileTarget } from '~/contexts/FileTargetContext';
+import { useWorkspaceSlot } from '~/contexts/WorkspaceSlotContext';
 import type { SearchHit, GraphNode, GraphLink } from '~/utils/content-types';
 import { statusGlyph } from '~/utils/fiber-status';
 import { PretextNav, type NavItem } from './PretextNav';
@@ -35,6 +36,24 @@ const MODES: { id: Mode; letter: string; full: string }[] = [
   { id: 'workspace', letter: 'W', full: 'Workspace' },
   { id: 'delta', letter: 'Δ', full: 'Delta' },
 ];
+
+/** Apply WorkspaceSlotContext label/letter overrides to the static MODES
+ *  table. Embedding hosts that swap the workspace body (portolan's
+ *  kanban-in-vellum) typically swap the chrome label too — "Workspace" → "Kanban",
+ *  "W" → "K". Standalone vellum doesn't provide the context, so the defaults
+ *  pass through unchanged. */
+function applyWorkspaceLabelOverride(
+  modes: typeof MODES,
+  label: string | null,
+  letter: string | null,
+): typeof MODES {
+  if (label === null && letter === null) return modes;
+  return modes.map((m) =>
+    m.id === 'workspace'
+      ? { ...m, full: label ?? m.full, letter: letter ?? m.letter }
+      : m,
+  );
+}
 
 /**
  * Width tier for progressive disclosure. Measured via ResizeObserver
@@ -93,6 +112,11 @@ export function FloatingIsland({
   const adapter = useAdapter();
   const navigate = useNavigate();
   const location = useLocation();
+  const { label: workspaceLabel, letter: workspaceLetter } = useWorkspaceSlot();
+  const modes = useMemo(
+    () => applyWorkspaceLabelOverride(MODES, workspaceLabel, workspaceLetter),
+    [workspaceLabel, workspaceLetter],
+  );
   // File mode locks Workspace + Delta — they're fiber-collection concepts.
   // The buttons stay rendered so the chrome shape doesn't shift, but they're
   // greyed and inert. FiberPage's keyboard handler also blocks 2/3 in file mode.
@@ -290,7 +314,7 @@ export function FloatingIsland({
       {/* ── Header row: modes · search ── */}
       <div className="thumb-index__header">
         <nav className="thumb-index__modes" aria-label="View mode">
-          {MODES.map(({ id, letter, full }) => {
+          {modes.map(({ id, letter, full }) => {
             // In file mode, only Narrative is meaningful. Workspace + Delta
             // need an AstraGraph and a fiber slug; greying the buttons signals
             // "open a fiber to use these" without hiding the chrome.

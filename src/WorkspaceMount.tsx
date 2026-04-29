@@ -21,6 +21,7 @@
 //   <AdapterProvider adapter={portolanAdapter}>
 //     <WorkspaceMount initialFilePath="/abs/path/file.md" originId="local" editable />
 //   </AdapterProvider>
+import type { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ThemeProvider, mergeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS } from 'myst-to-react';
@@ -34,8 +35,9 @@ import {
   FileTargetProvider,
   type FileTarget,
 } from './contexts/FileTargetContext';
-import { ModeProvider } from './contexts/ModeContext';
+import { ModeProvider, type Mode } from './contexts/ModeContext';
 import { VellumThemeProvider } from './contexts/ThemeContext';
+import { WorkspaceSlotProvider } from './contexts/WorkspaceSlotContext';
 import type { AnnotationAction, AnnotationBulkAction } from './utils/content-types';
 
 const vellumRenderers = mergeRenderers(
@@ -71,6 +73,24 @@ export interface WorkspaceMountProps {
   annotationActions?: AnnotationAction[];
   /** Bulk actions rendered in the file-mode toolbar when ≥1 annotation is present. */
   headerAnnotationActions?: AnnotationBulkAction[];
+  /** When set, replaces `<WorkspaceView>` for the Workspace tab. The host
+   *  owns the rendered surface; vellum keeps the tab chrome (FloatingIsland)
+   *  and the rest of the page layout. WorkspaceAnatomy in the Canvas is
+   *  also suppressed, and `--canvas-width` is dropped to 0 so the slot
+   *  fills the page. Used by portolan to embed the kanban grid in vellum.
+   *  Mounted lazily — only when the user is on the Workspace tab. */
+  workspaceSlot?: ReactNode;
+  /** Wide-layout label for the Workspace tab in FloatingIsland. Defaults to
+   *  "Workspace". Hosts that swap the slot typically swap the label too
+   *  (portolan: "Kanban"). */
+  workspaceLabel?: string;
+  /** Narrow-layout single-letter glyph for the Workspace tab. Defaults to
+   *  "W". Portolan's kanban host passes "K". */
+  workspaceLetter?: string;
+  /** Mode to land on at first render. Defaults to 'narrative'. Hosts opening
+   *  vellum on a non-narrative deep link (e.g. `initialMode: 'workspace'`
+   *  paired with `workspaceSlot` for kanban-on-open) pass this. */
+  initialMode?: Mode;
 }
 
 export function WorkspaceMount({
@@ -82,6 +102,10 @@ export function WorkspaceMount({
   jumpToLine,
   annotationActions,
   headerAnnotationActions,
+  workspaceSlot,
+  workspaceLabel,
+  workspaceLetter,
+  initialMode,
 }: WorkspaceMountProps) {
   // File mode wins if both are passed — prevents an ambiguous mount where
   // the URL says "fiber" but the FileTarget context says "file."
@@ -114,12 +138,20 @@ export function WorkspaceMount({
         <VellumThemeProvider>
           <CollectionProvider eyebrow={eyebrow}>
             <DecisionFlipProvider>
-              <ModeProvider>
+              <ModeProvider initialMode={initialMode}>
                 <FileTargetProvider target={fileTarget}>
-                  <Routes>
-                    <Route path="/" element={<FiberPage />} />
-                    <Route path="*" element={<FiberPage />} />
-                  </Routes>
+                  <WorkspaceSlotProvider
+                    value={{
+                      slot: workspaceSlot ?? null,
+                      label: workspaceLabel ?? null,
+                      letter: workspaceLetter ?? null,
+                    }}
+                  >
+                    <Routes>
+                      <Route path="/" element={<FiberPage />} />
+                      <Route path="*" element={<FiberPage />} />
+                    </Routes>
+                  </WorkspaceSlotProvider>
                 </FileTargetProvider>
               </ModeProvider>
             </DecisionFlipProvider>

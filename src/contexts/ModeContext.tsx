@@ -12,8 +12,18 @@ const ModeContext = createContext<ModeContextValue>({
   setMode: () => {},
 });
 
-export function ModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<Mode>('narrative');
+export function ModeProvider({
+  children,
+  initialMode = 'narrative',
+}: {
+  children: ReactNode;
+  /** Mode to land on at first render. Defaults to 'narrative' (vellum's
+   *  standalone behaviour). Embedding hosts that want to deep-link into
+   *  Workspace or Delta pass this. After first render, `setMode` controls
+   *  the active mode like normal. */
+  initialMode?: Mode;
+}) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   return (
     <ModeContext.Provider value={{ mode, setMode }}>
       {children}

@@ -16,6 +16,7 @@ import { useMode, type Mode } from '~/contexts/ModeContext';
 import { useTheme } from '~/contexts/ThemeContext';
 import { useDelta } from '~/utils/use-delta';
 import { FILE_TARGET_ROUTE, useFileTarget, type FileTarget } from '~/contexts/FileTargetContext';
+import { useWorkspaceSlot } from '~/contexts/WorkspaceSlotContext';
 import { FileViewerPage, isAstraPath, type SaveState } from './FileViewerPage';
 import type { Annotation, AnnotationBulkAction, AstraGraph, FiberContent } from '~/utils/content-types';
 
@@ -41,12 +42,20 @@ export function FiberPage() {
   const adapter = useAdapter();
   const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
   const fileTarget = useFileTarget();
+  const workspaceSlot = useWorkspaceSlot();
   // File mode: the workspace was opened with `initialFilePath` and the URL
   // is parked at the FILE_TARGET_ROUTE marker. Once the user navigates to a
   // slug (wikilink, search, ↑ to the index), pathname changes and the
   // workspace reverts to fiber mode for the rest of this mount's life.
   const isFileMode = location.pathname === FILE_TARGET_ROUTE && !!fileTarget;
   const slug = isFileMode ? '' : location.pathname.replace(/^\/+|\/+$/g, '');
+  // Embedding hosts (portolan's kanban-in-vellum) override the Workspace tab
+  // body via WorkspaceSlotContext. When the slot is set and the user is on
+  // the Workspace tab, FiberPage renders the slot in place of
+  // `<WorkspaceView>`, suppresses `<WorkspaceAnatomy>` in the Canvas, and
+  // adds `vellum-page--workspace-slot` so CSS can drop --canvas-width to 0
+  // (mirroring the delta-mode treatment).
+  const useWorkspaceSlotRender = !isFileMode && mode === 'workspace' && workspaceSlot.slot !== null;
 
   // File-mode toolbar state — same lift pattern FileViewerModal uses, just
   // surfaced inside the workspace shell instead of a free-standing modal.
@@ -230,7 +239,7 @@ export function FiberPage() {
 
   return (
     <div
-      className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}`}
+      className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}${useWorkspaceSlotRender ? ' vellum-page--workspace-slot' : ''}`}
       role="region"
       aria-label={currentNode ? `Vellum — ${currentNode.label}` : 'Vellum'}
     >
@@ -250,7 +259,7 @@ export function FiberPage() {
               the selected fiber's decomposition (decisions, findings, inputs,
               outputs) as a column of cards. */}
           <Canvas>
-            {mode === 'workspace' && anatomyNode ? (
+            {mode === 'workspace' && anatomyNode && !useWorkspaceSlotRender ? (
               <WorkspaceAnatomy
                 node={anatomyNode}
                 onNavigate={(s) => navigate(`/${s}`)}
@@ -327,18 +336,24 @@ export function FiberPage() {
         </div>
       )}
 
+      {/* Embedding hosts (portolan's kanban-in-vellum) own the workspace tab
+          body when they provide a slot. Render the slot directly — the host
+          carries its own loading/error states, so we don't gate on
+          graphLoading the way the built-in WorkspaceView does. */}
+      {useWorkspaceSlotRender && workspaceSlot.slot}
+
       {/* Workspace consumes the AstraGraph. While it's still loading,
           WorkspaceView's `nodeBySlug.get(currentSlug)` lookup misses and
           the view renders "Fiber X not found" — a transient flash that
           looks like a real error. Show a loading indicator until the graph
           lands; the "not found" branch then signals a genuine miss. */}
-      {!isFileMode && mode === 'workspace' && graphLoading && (
+      {!isFileMode && mode === 'workspace' && !useWorkspaceSlotRender && graphLoading && (
         <div className="vellum-loading" role="status" aria-live="polite">
           Loading <em>{slug || 'workspace'}</em>…
         </div>
       )}
 
-      {!isFileMode && mode === 'workspace' && !graphLoading && (
+      {!isFileMode && mode === 'workspace' && !useWorkspaceSlotRender && !graphLoading && (
         <WorkspaceView
           nodes={graph.nodes}
           links={graph.links}

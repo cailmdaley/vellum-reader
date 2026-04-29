@@ -47,6 +47,12 @@ export {
   DecisionFlipProvider,
   useDecisionFlip,
 } from './contexts/DecisionFlipContext';
+export { useMode, type Mode } from './contexts/ModeContext';
+// react-router-dom isn't installed in every consumer's node_modules — vellum
+// hoists it as a direct dependency. Re-exporting `useNavigate` lets the
+// kanban host (rendered inside vellum's MemoryRouter) navigate without
+// portolan needing its own react-router install.
+export { useNavigate } from 'react-router-dom';
 export type {
   GraphDecision,
   GraphFinding,
