@@ -24,7 +24,30 @@ import type { GraphNode } from '~/utils/content-types';
 interface FiberHeaderProps {
   frontmatter: Record<string, any>;
   graphNode?: GraphNode;
+  /**
+   * Body-extracted lede (from `stripFrontmatterNodes` in NarrativeView).
+   * Currently unused by the masthead — the lede slot is sourced directly
+   * from `frontmatter.outcome` instead. Kept on the prop signature so the
+   * caller can keep passing it without churn; remove when the body-extract
+   * path is dropped.
+   */
   lede?: string | null;
+}
+
+/**
+ * Split a YAML literal-block outcome (`outcome: |-`) into paragraphs.
+ *
+ * The block-scalar form preserves both the soft line wraps that exist
+ * for editor readability *and* the blank lines that separate real
+ * paragraphs. Treating the whole string as preformatted gives ugly
+ * mid-paragraph hard breaks; splitting on blank lines and joining
+ * intra-paragraph wraps with spaces gives clean prose paragraphs.
+ */
+function paragraphsFromOutcome(raw: string): string[] {
+  return raw
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
+    .filter(Boolean);
 }
 
 /** myst-frontmatter author shape is an object; astra-spec emits a bare name
@@ -77,6 +100,14 @@ export function FiberHeader({ frontmatter, graphNode }: FiberHeaderProps) {
   const venue = typeof frontmatter.venue === 'string' ? frontmatter.venue : undefined;
   const doi = typeof frontmatter.doi === 'string' ? frontmatter.doi : undefined;
   const license = typeof frontmatter.license === 'string' ? frontmatter.license : undefined;
+  // Felt fibers carry a `outcome:` literal-block scalar. The kanban card
+  // surfaces it as the at-a-glance status report; on click-through the
+  // deeper FiberPage was dropping it on the floor (the `vellum-fiber-
+  // header__lede` slot existed in CSS but FiberHeader.tsx didn't emit it
+  // after the Pass-6 preprint refactor). Render it here so the deep view
+  // shows the same report the kanban card promised.
+  const outcomeRaw = typeof frontmatter.outcome === 'string' ? frontmatter.outcome.trim() : '';
+  const outcomeParagraphs = outcomeRaw ? paragraphsFromOutcome(outcomeRaw) : [];
 
   const hasBelowRule = keywords.length > 0 || date || venue || doi || license;
 
@@ -108,6 +139,17 @@ export function FiberHeader({ frontmatter, graphNode }: FiberHeaderProps) {
             </span>
           ))}
         </div>
+      )}
+
+      {outcomeParagraphs.length > 0 && (
+        <section
+          className="vellum-fiber-header__lede"
+          aria-label="Fiber outcome"
+        >
+          {outcomeParagraphs.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+        </section>
       )}
 
       {hasBelowRule && (

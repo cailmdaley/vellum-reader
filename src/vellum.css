@@ -1330,7 +1330,11 @@ body {
   font-size: 0.78rem;
   line-height: 1.55;
 }
+/* Single-paragraph ledes (the original use-case) sit flush; multi-
+   paragraph outcomes (the kanban-report case) need breathing room
+   between paragraphs so the structure of the report is legible. */
 .vellum-fiber-header__lede > p { margin: 0; }
+.vellum-fiber-header__lede > p + p { margin-top: 0.65em; }
 
 .vellum-fiber-header__status {
   display: flex;
