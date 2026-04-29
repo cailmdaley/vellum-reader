@@ -12,6 +12,7 @@ export type {
   FileContent,
   GraphNode,
   GraphLink,
+  HistoryEvent,
   LogEvent,
   LogResponse,
   RawFiber,
