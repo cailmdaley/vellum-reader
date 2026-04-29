@@ -19,6 +19,8 @@
  * happens through the shared CSS custom properties (`--ink`, fonts, etc).
  */
 
+import { Fragment, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type { GraphNode } from '~/utils/content-types';
 
 interface FiberHeaderProps {
@@ -48,6 +50,66 @@ function paragraphsFromOutcome(raw: string): string[] {
     .split(/\n\s*\n/)
     .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
     .filter(Boolean);
+}
+
+/**
+ * Render a paragraph of outcome text as React children, surfacing
+ * the inline syntax that kanban-bound outcomes routinely carry:
+ *
+ *   - `[[slug]]` and `[[slug|label]]`  → SPA <Link> to /slug
+ *   - `` `code` ``                     → <code>
+ *   - `**bold**`                       → <strong>
+ *   - `*emphasis*`                     → <em>
+ *
+ * Outcomes are short prose; this is a focused inline-only pass, not
+ * the full markdown pipeline (no block-level constructs, no nesting
+ * across the four shapes). Wikilinks dominate; the rest cover the
+ * cases authors reach for inside an outcome lede. Anything else
+ * stays as text. Mirrors the body-side wikilink convention from
+ * `mystra/src/transform/render-markdown.ts`: slug becomes `/<slug>`,
+ * label defaults to slug.
+ *
+ * The fall-through case (no inline syntax in the paragraph) returns
+ * a single string so paragraphs without wikilinks/code/etc emit a
+ * single text node — keeping the DOM identical to the pre-renderer
+ * shape for plain prose.
+ */
+const INLINE_TOKEN_RE =
+  /(?<wikilink>\[\[(?<slug>[^\]|]+?)(?:\|(?<label>[^\]]*?))?\]\])|(?<code>`(?<codeval>[^`]+)`)|(?<strong>\*\*(?<strongval>[^*]+)\*\*)|(?<em>\*(?<emval>[^*]+)\*)/g;
+
+function renderInlineOutcome(paragraph: string): ReactNode {
+  const out: ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  // `lastIndex` resets on every fresh paragraph because we re-construct
+  // the loop here; the regex object itself is module-scoped but we never
+  // pause between calls, so resetting via while-loop completion is fine.
+  INLINE_TOKEN_RE.lastIndex = 0;
+  while ((m = INLINE_TOKEN_RE.exec(paragraph)) !== null) {
+    const start = m.index;
+    if (start > last) out.push(paragraph.slice(last, start));
+    const groups = m.groups ?? {};
+    if (groups.wikilink) {
+      const slug = (groups.slug ?? '').trim();
+      const label = (groups.label?.trim() || slug);
+      out.push(
+        <Link key={`w${key++}`} to={`/${slug}`}>
+          {label}
+        </Link>,
+      );
+    } else if (groups.code) {
+      out.push(<code key={`c${key++}`}>{groups.codeval}</code>);
+    } else if (groups.strong) {
+      out.push(<strong key={`b${key++}`}>{groups.strongval}</strong>);
+    } else if (groups.em) {
+      out.push(<em key={`i${key++}`}>{groups.emval}</em>);
+    }
+    last = start + m[0].length;
+  }
+  if (last === 0) return paragraph; // no inline tokens — single string node
+  if (last < paragraph.length) out.push(paragraph.slice(last));
+  return <Fragment>{out}</Fragment>;
 }
 
 /** myst-frontmatter author shape is an object; astra-spec emits a bare name
@@ -147,7 +209,7 @@ export function FiberHeader({ frontmatter, graphNode }: FiberHeaderProps) {
           aria-label="Fiber outcome"
         >
           {outcomeParagraphs.map((p, i) => (
-            <p key={i}>{p}</p>
+            <p key={i}>{renderInlineOutcome(p)}</p>
           ))}
         </section>
       )}
