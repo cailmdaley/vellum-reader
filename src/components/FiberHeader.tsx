@@ -22,6 +22,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { GraphNode } from '~/utils/content-types';
+import { HISTORY_CARD_ANCHOR_ID } from './HistoryCard';
 
 interface FiberHeaderProps {
   frontmatter: Record<string, any>;
@@ -34,6 +35,14 @@ interface FiberHeaderProps {
    * path is dropped.
    */
   lede?: string | null;
+  /**
+   * Number of editorial events on the fiber's `felt history` chain.
+   * Drives the ※n indicator next to the cartouche; absent (or 0) silences
+   * the indicator so the masthead shows nothing for fibers without
+   * accreted history. `※` is the komejirushi (U+203B) — the Japanese
+   * editorial-note marker, apt for the editorial-event register.
+   */
+  historyCount?: number;
 }
 
 /**
@@ -154,7 +163,7 @@ function orcidHref(orcid: string): string {
   return `https://orcid.org/${orcid}`;
 }
 
-export function FiberHeader({ frontmatter, graphNode }: FiberHeaderProps) {
+export function FiberHeader({ frontmatter, graphNode, historyCount = 0 }: FiberHeaderProps) {
   const name = frontmatter.name ?? frontmatter.title ?? graphNode?.label ?? 'Untitled';
   const authors = normalizeAuthors(frontmatter.authors);
   const keywords = toStringArray(frontmatter.keywords ?? frontmatter.tags);
@@ -175,7 +184,30 @@ export function FiberHeader({ frontmatter, graphNode }: FiberHeaderProps) {
 
   return (
     <header className="vellum-fiber-header">
-      <h1 className="vellum-fiber-header__title">{name}</h1>
+      <h1 className="vellum-fiber-header__title">
+        {name}
+        {historyCount > 0 && (
+          // Anchored to the title so the indicator rides with the
+          // cartouche; the link jumps the reader straight to the History
+          // Card in the canvas margin. `※` is the komejirushi (U+203B) —
+          // the Japanese editorial-note marker. Aria label spells the
+          // gloss out so AT users hear "n editorial events" rather than
+          // a bare glyph.
+          <a
+            className="vellum-fiber-header__history-indicator"
+            href={`#${HISTORY_CARD_ANCHOR_ID}`}
+            aria-label={`${historyCount} editorial ${historyCount === 1 ? 'event' : 'events'} — jump to history`}
+            title={`${historyCount} editorial ${historyCount === 1 ? 'event' : 'events'} on this fiber`}
+          >
+            <span className="vellum-fiber-header__history-glyph" aria-hidden="true">
+              ※
+            </span>
+            <span className="vellum-fiber-header__history-count" aria-hidden="true">
+              {historyCount}
+            </span>
+          </a>
+        )}
+      </h1>
 
       {authors.length > 0 && (
         <div className="vellum-fiber-header__authors" role="list">

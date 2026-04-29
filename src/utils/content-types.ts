@@ -327,6 +327,33 @@ export interface LogResponse {
 }
 
 /**
+ * One editorial event from a fiber's `felt history` chain.
+ *
+ * Editorial events are agent-written prose summaries appended at the end
+ * of a Shuttle session (or any other moment a worker chooses to file
+ * one). They form the per-fiber memory chain across sessions; the
+ * History Card surfaces them in Vellum's Narrative-mode margin column.
+ *
+ * `summaryAst` is the mdast root pre-parsed server-side so the client
+ * renders through the same MyST → React pipeline used for fiber bodies
+ * — keeps wikilink, link, emphasis handling consistent with prose.
+ */
+export interface HistoryEvent {
+  /** ISO 8601 timestamp emitted by the felt CLI (`occurred_at`). */
+  occurredAt: string;
+  /** Author of the event (`actor`); typically `<user>@<host>` or `external`. */
+  actor: string;
+  /** Raw markdown summary as written via `felt history append`. */
+  summary: string;
+  /** Pre-parsed mdast for the summary. Opaque type to match FiberContent.mdast. */
+  summaryAst: any;
+}
+
+export interface HistoryResponse {
+  events: HistoryEvent[];
+}
+
+/**
  * A project file served through the adapter's `getFile` surface.
  *
  * Represents an arbitrary file the reader can display (code, markdown, pdf,

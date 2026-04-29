@@ -9,10 +9,15 @@
  * to the preview the reader just clicked. From there the floating
  * card is draggable and resizable.
  *
- * The pretext lockup needs a concrete pixel width to lay out into, so the
- * preview is a fixed size (falls in Card's "summary" tier). At viewports
- * narrow enough that the fixed width won't fit in the gutter, the whole
- * margin substrate is already hidden by the reader's responsive rules.
+ * Width is single-margin-denizen — the preview takes whatever the
+ * canvas column resolves to via `marginaliaWidth(readCanvasWidth())`.
+ * Drag the divider, the preview reflows; pretext lays the lockup at
+ * the new width with no compact / summary / full breakpoints (per
+ * `vellum-reader/context-cards` `disclosure-model: continuous-pretext`
+ * and `vellum-reader/history-card`'s ratification of the single-width
+ * rule). At viewports narrow enough that the preview won't fit in the
+ * gutter, the whole margin substrate is already hidden by the
+ * reader's responsive rules.
  */
 
 import { useEffect, useRef, useState } from 'react';

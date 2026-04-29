@@ -31,8 +31,16 @@ import { GhostToc } from './GhostToc';
 import { LeftRailToc } from './LeftRailToc';
 import { BacklinkNodes } from './BacklinkNodes';
 import { FiberEditor } from './FiberEditor';
+import { HistoryCard } from './HistoryCard';
 import type { LightboxImage } from './Lightbox';
-import type { Annotation, FiberContent, GraphNode, GraphLink } from '~/utils/content-types';
+import type {
+  Annotation,
+  FiberContent,
+  GraphNode,
+  GraphLink,
+  HistoryEvent,
+} from '~/utils/content-types';
+import { marginaliaWidth, readCanvasWidth } from '~/utils/canvas-geometry';
 import { useAdapter } from '~/contexts/AdapterContext';
 import { useAnnotationActions } from '~/contexts/AnnotationActionsContext';
 import { useTheme } from '~/contexts/ThemeContext';
@@ -270,6 +278,44 @@ export function NarrativeView({
   const [editorBuffer, setEditorBuffer] = useState<string | null>(null);
   const [editorLoading, setEditorLoading] = useState(false);
   const [contentWidth, setContentWidth] = useState<number>(INITIAL_CONTENT_WIDTH);
+
+  // Editorial history (felt history --editorial). Fetched per-slug so the
+  // History Card and the FiberHeader's ※n indicator both see the same
+  // count without two adapter calls. Empty array when the fiber has no
+  // events recorded — both surfaces silently drop out in that case.
+  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setHistoryEvents([]);
+    if (!content.slug) return;
+    adapter.getFiberHistory(content.slug).then((events) => {
+      if (!cancelled) setHistoryEvents(events);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [adapter, content.slug]);
+
+  // History Card width tracks the canvas column — same single-margin-denizen
+  // rule that drives MarginCardPreview, MarginFindingsStepper, and the
+  // ContextCardLayer's pinned cards. Drag the divider, the Card reflows.
+  const [historyCardWidth, setHistoryCardWidth] = useState<number>(() =>
+    marginaliaWidth(readCanvasWidth()),
+  );
+  useEffect(() => {
+    const update = () => setHistoryCardWidth(marginaliaWidth(readCanvasWidth()));
+    update();
+    window.addEventListener('resize', update);
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+    return () => {
+      window.removeEventListener('resize', update);
+      observer.disconnect();
+    };
+  }, []);
 
   const currentNode = graphNodes.find((n) => n.slug === content.slug);
 
@@ -771,6 +817,7 @@ export function NarrativeView({
               frontmatter={content.frontmatter ?? {}}
               graphNode={currentNode}
               lede={lede}
+              historyCount={historyEvents.length}
             />
             <AuthoringLintStrip messages={content.messages} />
           </>
@@ -857,6 +904,18 @@ export function NarrativeView({
           childSubKeys={childSubKeys}
           parentSubKeys={parentSubKeys}
           parentSubSlugs={parentSubSlugs}
+        />
+      )}
+      {/* History Card — editorial event chain for the current fiber. Rendered
+          as a fixed-position margin denizen below the thumb-index, so the
+          trail of agent-written prose summaries reads alongside the fiber
+          masthead. Width tracks the canvas column; height is bounded with
+          internal scroll so shuttle-heavy fibers don't stretch the column. */}
+      {historyEvents.length > 0 && (
+        <HistoryCard
+          events={historyEvents}
+          width={historyCardWidth}
+          onNavigate={(s) => navigate(`/${s}`)}
         />
       )}
       {showLeftRailToc && <LeftRailToc proseRef={proseRef} node={currentNode} />}

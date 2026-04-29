@@ -35,6 +35,7 @@ import type {
   AstraGraph,
   FiberContent,
   FileContent,
+  HistoryEvent,
   LogResponse,
   RawFiber,
   SearchHit,
@@ -120,6 +121,16 @@ export interface ReadOnlyAdapter {
   getAnnotations(slug: string, opts?: GetAnnotationsOptions): Promise<Annotation[]>;
   searchFibers(query: string): Promise<SearchHit[]>;
   getDeltaSince(since: string, limit?: number): Promise<LogResponse>;
+  /**
+   * Editorial-event chain for a fiber. Returns the per-session prose
+   * summaries written via `felt history append`, newest-first.
+   *
+   * Hosts that don't surface a felt-history backend (the static viewer,
+   * portolan against a remote host without `felt` installed) return an
+   * empty array — the History Card and the masthead `※n` indicator
+   * silently drop out, matching "no events recorded."
+   */
+  getFiberHistory(slug: string): Promise<HistoryEvent[]>;
   /**
    * Load an arbitrary project file by path. Distinct from `getFiberContent`,
    * which is slug-keyed and myst-rendered. Hosts that expose no generic file

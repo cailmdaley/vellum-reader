@@ -11,6 +11,8 @@ import type {
   AstraGraph,
   FiberContent,
   FileContent,
+  HistoryEvent,
+  HistoryResponse,
   LogResponse,
   RawFiber,
   SearchHit,
@@ -52,6 +54,18 @@ export function createLightconeAdapter(): Adapter {
       const res = await fetch(`/api/log?${params}`).catch(() => null);
       if (!res || !res.ok) return { since, count: 0, events: [] };
       return res.json() as Promise<LogResponse>;
+    },
+
+    async getFiberHistory(slug: string): Promise<HistoryEvent[]> {
+      // Multi-segment slugs (`vellum-reader/history-card`) ride through
+      // the `/api/history/*` catch-all without per-segment encoding —
+      // mystra's express route resolves the full path via `req.params[0]`.
+      // We percent-encode segments anyway to defend against unusual
+      // characters in transitional fiber ids.
+      const res = await fetch(`/api/history/${encodeSlug(slug)}`).catch(() => null);
+      if (!res || res.status === 404 || !res.ok) return [];
+      const data = (await res.json().catch(() => null)) as HistoryResponse | null;
+      return data?.events ?? [];
     },
 
     async getAnnotations(slug: string, opts: GetAnnotationsOptions = {}): Promise<Annotation[]> {
