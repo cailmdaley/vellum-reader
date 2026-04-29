@@ -21,8 +21,8 @@
 //   <AdapterProvider adapter={portolanAdapter}>
 //     <WorkspaceMount initialFilePath="/abs/path/file.md" originId="local" editable />
 //   </AdapterProvider>
-import type { ReactNode } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { ThemeProvider, mergeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS } from 'myst-to-react';
 import 'react-tweet/theme.css';
@@ -35,7 +35,7 @@ import {
   FileTargetProvider,
   type FileTarget,
 } from './contexts/FileTargetContext';
-import { ModeProvider, type Mode } from './contexts/ModeContext';
+import { ModeProvider, useMode, type Mode } from './contexts/ModeContext';
 import { VellumThemeProvider } from './contexts/ThemeContext';
 import { WorkspaceSlotProvider } from './contexts/WorkspaceSlotContext';
 import type { AnnotationAction, AnnotationBulkAction } from './utils/content-types';
@@ -91,6 +91,25 @@ export interface WorkspaceMountProps {
    *  vellum on a non-narrative deep link (e.g. `initialMode: 'workspace'`
    *  paired with `workspaceSlot` for kanban-on-open) pass this. */
   initialMode?: Mode;
+  /** Callback invoked once on mount with a host-facing API for the embedded
+   *  workspace: flip mode, read mode, navigate to a slug. Used by hosts (e.g.
+   *  portolan) that need to drive the workspace from outside the React tree —
+   *  for example, a global `k` hotkey that flips an open workspace to the
+   *  Kanban tab in place. The api object is stable across re-renders; called
+   *  again with `null` on unmount so callers can drop their reference. */
+  apiRef?: (api: WorkspaceMountApi | null) => void;
+}
+
+/** Host-facing handle returned from `apiRef`. */
+export interface WorkspaceMountApi {
+  /** Flip the active mode. */
+  setMode: (mode: Mode) => void;
+  /** Read the current mode. Returns the latest committed value. */
+  getMode: () => Mode;
+  /** Navigate the embedded workspace's MemoryRouter to a fiber path. Pass a
+   *  bare slug (e.g. `'portolan/portolan'`) — the leading `/` is added if
+   *  absent. */
+  navigate: (slug: string) => void;
 }
 
 export function WorkspaceMount({
@@ -106,6 +125,7 @@ export function WorkspaceMount({
   workspaceLabel,
   workspaceLetter,
   initialMode,
+  apiRef,
 }: WorkspaceMountProps) {
   // File mode wins if both are passed — prevents an ambiguous mount where
   // the URL says "fiber" but the FileTarget context says "file."
@@ -151,6 +171,12 @@ export function WorkspaceMount({
                       <Route path="/" element={<FiberPage />} />
                       <Route path="*" element={<FiberPage />} />
                     </Routes>
+                    {/* Bridge that hands setMode + navigate out to embedding
+                        hosts (apiRef). Renders nothing; lives inside
+                        ModeProvider + MemoryRouter so it can call useMode
+                        and useNavigate. Skipped entirely when no apiRef is
+                        passed so vellum's standalone App.tsx pays no cost. */}
+                    {apiRef ? <WorkspaceApiBridge apiRef={apiRef} /> : null}
                   </WorkspaceSlotProvider>
                 </FileTargetProvider>
               </ModeProvider>
@@ -160,4 +186,41 @@ export function WorkspaceMount({
       </ThemeProvider>
     </MemoryRouter>
   );
+}
+
+/**
+ * Internal bridge that surfaces `setMode` / `navigate` / `getMode` to a host
+ * outside the React tree via the `apiRef` callback. Renders nothing.
+ *
+ * Lives as a sibling of <Routes> so it can call `useMode()` (under
+ * ModeProvider) and `useNavigate()` (under MemoryRouter) without re-entering
+ * either provider. The api object is rebuilt whenever `setMode` or `navigate`
+ * change identity (in practice: mount once, since both are stable). A
+ * `modeRef` keeps `getMode()` reading the *latest* mode without forcing the
+ * api object to be rebuilt on every mode change.
+ *
+ * Cleanup pushes `null` to the host so a closed modal's stale handle can't
+ * accidentally drive a new modal.
+ */
+function WorkspaceApiBridge({
+  apiRef,
+}: {
+  apiRef: (api: WorkspaceMountApi | null) => void;
+}) {
+  const { mode, setMode } = useMode();
+  const navigate = useNavigate();
+  const modeRef = useRef(mode);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+  useEffect(() => {
+    const api: WorkspaceMountApi = {
+      setMode,
+      getMode: () => modeRef.current,
+      navigate: (slug) => navigate(slug.startsWith('/') ? slug : `/${slug}`),
+    };
+    apiRef(api);
+    return () => apiRef(null);
+  }, [apiRef, setMode, navigate]);
+  return null;
 }

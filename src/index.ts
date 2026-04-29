@@ -35,7 +35,7 @@ export type { FileViewerPageProps } from './pages/FileViewerPage';
 export { FileViewerModal } from './components/FileViewerModal';
 export type { FileViewerModalProps } from './components/FileViewerModal';
 export { WorkspaceMount } from './WorkspaceMount';
-export type { WorkspaceMountProps } from './WorkspaceMount';
+export type { WorkspaceMountProps, WorkspaceMountApi } from './WorkspaceMount';
 export { FiberCard } from './components/FiberCard';
 export type { FiberCardProps } from './components/FiberCard';
 export { Card } from './components/Card';
