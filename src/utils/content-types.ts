@@ -271,6 +271,43 @@ export interface AnnotationBulkAction {
   ) => void | Promise<void>;
 }
 
+/**
+ * Host-defined per-selection action rendered alongside `+ Note` in the
+ * floating selection toolbar. The toolbar sees a fresh prose selection
+ * before any annotation has been persisted; a single action takes that
+ * raw selection and does something with it (the canonical case is "promote
+ * the selection into a new draft fiber" — the read→author bridge from the
+ * vellum-marginalia constitution).
+ *
+ * Surface contract is symmetric to `AnnotationBulkAction` but operates on
+ * a transient selection rather than a persisted annotation list. The host
+ * reaches here when the user explicitly clicks; nothing renders until at
+ * least one action is registered.
+ */
+export interface AnnotationSingleAction {
+  id: string;
+  label: string;
+  title?: string;
+  onInvoke: (
+    selection: {
+      selectedText: string;
+      contextBefore: string;
+      contextAfter: string;
+    },
+    ctx: {
+      /** Slug of the fiber the selection was made on. Used by handlers
+       *  that need to nest the new artifact under the source — e.g. the
+       *  file-as-fiber promote path writes `<sourceSlug>/notes-…`. */
+      currentSlug: string;
+      /** React Router navigate, plumbed in from `TextAnnotationLayer` so
+       *  handlers running outside the router (registered at app startup
+       *  in `main.tsx`) can route the user to the artifact they just
+       *  created. */
+      navigate: (to: string) => void;
+    },
+  ) => void | Promise<void>;
+}
+
 export interface Annotation {
   id: string;
   slug: string;

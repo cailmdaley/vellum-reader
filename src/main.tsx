@@ -6,7 +6,10 @@ import { createLightconeAdapter } from './api';
 import { AdapterProvider } from './contexts/AdapterContext';
 import { AnnotationActionsProvider } from './contexts/AnnotationActionsContext';
 import { ModeProvider } from './contexts/ModeContext';
-import type { AnnotationBulkAction } from './utils/content-types';
+import type {
+  AnnotationBulkAction,
+  AnnotationSingleAction,
+} from './utils/content-types';
 import 'katex/dist/katex.min.css';
 import './vellum.css';
 
@@ -87,11 +90,73 @@ const annotationBulkActions: AnnotationBulkAction[] = import.meta.env.DEV ? [
   },
 ] : [];
 
+/**
+ * Compose the body of a fiber promoted from a single live selection (no
+ * annotation persisted, no comment yet). Mirrors the bulk-action body
+ * shape — wikilink to the source, blockquote of the selection — so the
+ * resulting fiber reads consistently no matter which path produced it.
+ *
+ * The wikilink at the top of the body is the link semantic for the
+ * promoted fiber (resolves the open question in the constitution): mystra
+ * builds the source fiber's backlinks index from `[[…]]` references in
+ * descendant bodies, so the new fiber surfaces under "Cited by" on the
+ * source without any frontmatter ceremony. If a richer typed link
+ * (e.g. `sources:` frontmatter) is later wanted, this is the place to
+ * extend.
+ */
+function composeSelectionFiberBody(sourceSlug: string, selectedText: string): string {
+  const lines: string[] = [];
+  if (sourceSlug) {
+    lines.push(`[[${sourceSlug}]]`);
+    lines.push('');
+  }
+  const trimmed = selectedText.trim();
+  if (trimmed) {
+    for (const line of trimmed.split('\n')) lines.push(`> ${line}`);
+    lines.push('');
+  }
+  return lines.join('\n').trim();
+}
+
+const annotationSingleActions: AnnotationSingleAction[] = import.meta.env.DEV ? [
+  {
+    id: 'create-fiber',
+    label: '+ Fiber',
+    title: 'Promote selection into a new draft fiber',
+    onInvoke: async (selection, ctx) => {
+      const sourceSlug = ctx.currentSlug;
+      const title = sourceSlug ? `Note on ${sourceSlug}` : `Annotation note`;
+      const body = composeSelectionFiberBody(sourceSlug, selection.selectedText);
+      try {
+        const res = await fetch('/api/file-as-fiber', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceSlug, title, body, kind: 'note' }),
+        });
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          console.error('[create-fiber] failed', res.status, result);
+          alert(`Create fiber failed: ${result?.error ?? res.status}`);
+          return;
+        }
+        console.log('[create-fiber] created', result.fiberId, 'at', result.path);
+        ctx.navigate(`/${result.fiberId}`);
+      } catch (err) {
+        console.error('[create-fiber] network error', err);
+        alert(`Create fiber network error: ${(err as Error).message}`);
+      }
+    },
+  },
+] : [];
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AdapterProvider adapter={adapter}>
-        <AnnotationActionsProvider bulkActions={annotationBulkActions}>
+        <AnnotationActionsProvider
+          bulkActions={annotationBulkActions}
+          singleActions={annotationSingleActions}
+        >
           <ModeProvider>
             <App />
           </ModeProvider>

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Annotation } from '~/utils/content-types';
 import { useAdapter } from '~/contexts/AdapterContext';
+import { useAnnotationActions } from '~/contexts/AnnotationActionsContext';
 
 interface TextAnnotationLayerProps {
   slug: string;
@@ -194,6 +196,14 @@ export function TextAnnotationLayer({
   onAnnotationsChange,
 }: TextAnnotationLayerProps) {
   const adapter = useAdapter();
+  const navigate = useNavigate();
+  // Per-selection actions ("+ Fiber" — promote the live selection into a
+  // new draft fiber). Bulk actions surface elsewhere via
+  // `NarrativeAnnotationActionsBar`; the toolbar here only sees the
+  // single-selection variant. Empty in published vellum-demos and any
+  // other host that didn't register actions, so the toolbar collapses
+  // back to "+ Note" only — no harm done.
+  const { singleActions } = useAnnotationActions();
   const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -440,6 +450,33 @@ export function TextAnnotationLayer({
     if (showCommentBox && commentInputRef.current) commentInputRef.current.focus();
   }, [showCommentBox]);
 
+  const handleSingleAction = useCallback(
+    async (actionId: string) => {
+      if (!selectionContext) return;
+      const action = singleActions.find((a) => a.id === actionId);
+      if (!action) return;
+      // Snapshot the selection up front: invoking the action may close
+      // the toolbar (reset via `setSelectionRect(null)` below) and the
+      // browser's native selection clears as soon as the user clicks our
+      // button. Pass the captured triple to the handler so even an
+      // async-after-await read sees the same text the user picked.
+      const sel = { ...selectionContext };
+      setSelectionRect(null);
+      setShowCommentBox(false);
+      setSelectionContext(null);
+      window.getSelection()?.removeAllRanges();
+      try {
+        await action.onInvoke(sel, { currentSlug: slug, navigate });
+      } catch (err) {
+        // Handler-internal errors (network, alert) are the action's
+        // responsibility; this catch keeps a thrown handler from
+        // blowing up the layer.
+        console.error(`[annotation-action ${actionId}] threw`, err);
+      }
+    },
+    [singleActions, selectionContext, slug, navigate],
+  );
+
   const positionedMarks = (() => {
     const MIN_GAP = 16;
     let lastTop = -999;
@@ -454,7 +491,7 @@ export function TextAnnotationLayer({
     <>
       {selectionRect && !showCommentBox && (
         <div
-          className="ann-toolbar"
+          className="ann-toolbar ann-toolbar--actions"
           style={{
             position: 'fixed',
             top: selectionRect.top - 40,
@@ -471,6 +508,27 @@ export function TextAnnotationLayer({
           >
             + Note
           </button>
+          {/*
+            Host-supplied single-selection actions render to the right of
+            "+ Note" so the canonical commenting affordance keeps its
+            position and any host extensions stack alongside it. The
+            order in `singleActions` controls left-to-right order — a
+            host that registers `+ Fiber` first sees it adjacent to the
+            note button.
+          */}
+          {singleActions.map((action) => (
+            <button
+              key={action.id}
+              className="ann-toolbar__btn"
+              title={action.title ?? action.label}
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleSingleAction(action.id);
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
         </div>
       )}
 

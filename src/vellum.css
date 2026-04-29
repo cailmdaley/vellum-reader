@@ -3124,6 +3124,24 @@ body {
   padding: 4px;
   animation: ann-appear 0.15s ease-out both;
 }
+/* Multi-button toolbar — host-supplied single-actions ("+ Fiber" et al.)
+   stack to the right of the canonical "+ Note" button. Flex with a
+   tight gap keeps buttons visually grouped without disturbing the
+   `.ann-toolbar--comment` block layout (textarea + actions row stacked
+   vertically). The variant class is applied alongside `.ann-toolbar`
+   only in the buttons-only mode. */
+.ann-toolbar--actions {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+/* Hairline divider between adjacent action buttons. Only shows when
+   more than one button is present — single "+ Note" toolbar (no host
+   singleActions registered) renders as a single chip with no rule. */
+.ann-toolbar--actions > .ann-toolbar__btn + .ann-toolbar__btn {
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+}
 
 @keyframes ann-appear {
   from { opacity: 0; transform: translateY(4px); }
