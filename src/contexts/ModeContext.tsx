@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-export type Mode = 'narrative' | 'workspace' | 'delta';
+export type Mode = 'narrative' | 'workspace' | 'find' | 'delta';
 
 interface ModeContextValue {
   mode: Mode;
@@ -19,8 +19,8 @@ export function ModeProvider({
   children: ReactNode;
   /** Mode to land on at first render. Defaults to 'narrative' (vellum's
    *  standalone behaviour). Embedding hosts that want to deep-link into
-   *  Workspace or Delta pass this. After first render, `setMode` controls
-   *  the active mode like normal. */
+   *  Workspace, Find, or Delta pass this. After first render, `setMode`
+   *  controls the active mode like normal. */
   initialMode?: Mode;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);

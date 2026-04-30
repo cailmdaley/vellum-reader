@@ -23,7 +23,8 @@ import type { Annotation, AnnotationBulkAction, AstraGraph, FiberContent } from 
 const MODE_KEYS: Record<string, Mode> = {
   '1': 'narrative',
   '2': 'workspace',
-  '3': 'delta',
+  '3': 'find',
+  '4': 'delta',
 };
 
 function saveStatusText(s: SaveState): string {
@@ -49,13 +50,16 @@ export function FiberPage() {
   // workspace reverts to fiber mode for the rest of this mount's life.
   const isFileMode = location.pathname === FILE_TARGET_ROUTE && !!fileTarget;
   const slug = isFileMode ? '' : location.pathname.replace(/^\/+|\/+$/g, '');
-  // Embedding hosts (portolan's kanban-in-vellum) override the Workspace tab
-  // body via WorkspaceSlotContext. When the slot is set and the user is on
-  // the Workspace tab, FiberPage renders the slot in place of
-  // `<WorkspaceView>`, suppresses `<WorkspaceAnatomy>` in the Canvas, and
-  // adds `vellum-page--workspace-slot` so CSS can drop --canvas-width to 0
-  // (mirroring the delta-mode treatment).
+  // Embedding hosts (portolan's kanban-in-vellum, Find-in-vellum) override
+  // tab bodies via WorkspaceSlotContext. When a slot is set and the user is
+  // on that tab, FiberPage renders the slot in place of the built-in view,
+  // suppresses `<WorkspaceAnatomy>` in the Canvas, and adds
+  // `vellum-page--workspace-slot` so CSS can drop --canvas-width to 0
+  // (mirroring the delta-mode treatment) — same chrome treatment for both
+  // workspace and find slots.
   const useWorkspaceSlotRender = !isFileMode && mode === 'workspace' && workspaceSlot.slot !== null;
+  const useFindSlotRender = !isFileMode && mode === 'find' && workspaceSlot.findSlot !== null;
+  const useTabSlotRender = useWorkspaceSlotRender || useFindSlotRender;
 
   // File-mode toolbar state — same lift pattern FileViewerModal uses, just
   // surfaced inside the workspace shell instead of a free-standing modal.
@@ -239,7 +243,7 @@ export function FiberPage() {
 
   return (
     <div
-      className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}${useWorkspaceSlotRender ? ' vellum-page--workspace-slot' : ''}`}
+      className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}${useTabSlotRender ? ' vellum-page--workspace-slot' : ''}`}
       role="region"
       aria-label={currentNode ? `Vellum — ${currentNode.label}` : 'Vellum'}
     >
@@ -336,11 +340,23 @@ export function FiberPage() {
         </div>
       )}
 
-      {/* Embedding hosts (portolan's kanban-in-vellum) own the workspace tab
-          body when they provide a slot. Render the slot directly — the host
-          carries its own loading/error states, so we don't gate on
+      {/* Embedding hosts (portolan's kanban-in-vellum, Find-in-vellum) own
+          the tab body when they provide a slot. Render the slot directly —
+          the host carries its own loading/error states, so we don't gate on
           graphLoading the way the built-in WorkspaceView does. */}
       {useWorkspaceSlotRender && workspaceSlot.slot}
+
+      {/* Find tab. Default empty state when no slot provided (vellum
+          standalone has no Find content of its own — it ships the tab so
+          embedding hosts can fill it). When the host provides a findSlot,
+          render that. Same chrome treatment as workspaceSlot
+          (--canvas-width=0 via vellum-page--workspace-slot). */}
+      {!isFileMode && mode === 'find' && useFindSlotRender && workspaceSlot.findSlot}
+      {!isFileMode && mode === 'find' && !useFindSlotRender && (
+        <div className="vellum-loading" role="status" aria-live="polite">
+          Find — no surface provided by the embedding host.
+        </div>
+      )}
 
       {/* Workspace consumes the AstraGraph. While it's still loading,
           WorkspaceView's `nodeBySlug.get(currentSlug)` lookup misses and

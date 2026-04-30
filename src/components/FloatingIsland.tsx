@@ -34,25 +34,39 @@ import { PretextNav, type NavItem } from './PretextNav';
 const MODES: { id: Mode; letter: string; full: string }[] = [
   { id: 'narrative', letter: 'N', full: 'Narrative' },
   { id: 'workspace', letter: 'W', full: 'Workspace' },
-  { id: 'delta', letter: 'Δ', full: 'Delta' },
+  { id: 'find',      letter: 'F', full: 'Find' },
+  { id: 'delta',     letter: 'Δ', full: 'Delta' },
 ];
 
 /** Apply WorkspaceSlotContext label/letter overrides to the static MODES
- *  table. Embedding hosts that swap the workspace body (portolan's
- *  kanban-in-vellum) typically swap the chrome label too — "Workspace" → "Kanban",
- *  "W" → "K". Standalone vellum doesn't provide the context, so the defaults
- *  pass through unchanged. */
-function applyWorkspaceLabelOverride(
+ *  table. Embedding hosts that swap a tab body (portolan's kanban-in-vellum,
+ *  Find-in-vellum) typically swap the chrome label too — e.g. "Workspace" →
+ *  "Kanban", "W" → "K". Standalone vellum doesn't provide the context, so the
+ *  defaults pass through unchanged. */
+function applySlotLabelOverrides(
   modes: typeof MODES,
-  label: string | null,
-  letter: string | null,
+  workspaceLabel: string | null,
+  workspaceLetter: string | null,
+  findLabel: string | null,
+  findLetter: string | null,
 ): typeof MODES {
-  if (label === null && letter === null) return modes;
-  return modes.map((m) =>
-    m.id === 'workspace'
-      ? { ...m, full: label ?? m.full, letter: letter ?? m.letter }
-      : m,
-  );
+  if (
+    workspaceLabel === null &&
+    workspaceLetter === null &&
+    findLabel === null &&
+    findLetter === null
+  ) {
+    return modes;
+  }
+  return modes.map((m) => {
+    if (m.id === 'workspace') {
+      return { ...m, full: workspaceLabel ?? m.full, letter: workspaceLetter ?? m.letter };
+    }
+    if (m.id === 'find') {
+      return { ...m, full: findLabel ?? m.full, letter: findLetter ?? m.letter };
+    }
+    return m;
+  });
 }
 
 /**
@@ -112,10 +126,15 @@ export function FloatingIsland({
   const adapter = useAdapter();
   const navigate = useNavigate();
   const location = useLocation();
-  const { label: workspaceLabel, letter: workspaceLetter } = useWorkspaceSlot();
+  const {
+    label: workspaceLabel,
+    letter: workspaceLetter,
+    findLabel,
+    findLetter,
+  } = useWorkspaceSlot();
   const modes = useMemo(
-    () => applyWorkspaceLabelOverride(MODES, workspaceLabel, workspaceLetter),
-    [workspaceLabel, workspaceLetter],
+    () => applySlotLabelOverrides(MODES, workspaceLabel, workspaceLetter, findLabel, findLetter),
+    [workspaceLabel, workspaceLetter, findLabel, findLetter],
   );
   // File mode locks Workspace + Delta — they're fiber-collection concepts.
   // The buttons stay rendered so the chrome shape doesn't shift, but they're

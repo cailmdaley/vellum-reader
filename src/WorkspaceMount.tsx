@@ -87,9 +87,20 @@ export interface WorkspaceMountProps {
   /** Narrow-layout single-letter glyph for the Workspace tab. Defaults to
    *  "W". Portolan's kanban host passes "K". */
   workspaceLetter?: string;
+  /** When set, fills the Find tab's body. The Find tab is always rendered
+   *  in vellum's mode strip; without a slot it renders an empty placeholder.
+   *  Used by portolan to embed the Find tab (Spatial section + cross-project
+   *  fiber tree/search/recents) inside vellum. Mounted lazily — only when
+   *  the user is on the Find tab. */
+  findSlot?: ReactNode;
+  /** Wide-layout label for the Find tab in FloatingIsland. Defaults to "Find". */
+  findLabel?: string;
+  /** Narrow-layout single-letter glyph for the Find tab. Defaults to "F". */
+  findLetter?: string;
   /** Mode to land on at first render. Defaults to 'narrative'. Hosts opening
    *  vellum on a non-narrative deep link (e.g. `initialMode: 'workspace'`
-   *  paired with `workspaceSlot` for kanban-on-open) pass this. */
+   *  paired with `workspaceSlot` for kanban-on-open, or `initialMode: 'find'`
+   *  paired with `findSlot` for portolan's Find tab) pass this. */
   initialMode?: Mode;
   /** Callback invoked once on mount with a host-facing API for the embedded
    *  workspace: flip mode, read mode, navigate to a slug. Used by hosts (e.g.
@@ -124,6 +135,9 @@ export function WorkspaceMount({
   workspaceSlot,
   workspaceLabel,
   workspaceLetter,
+  findSlot,
+  findLabel,
+  findLetter,
   initialMode,
   apiRef,
 }: WorkspaceMountProps) {
@@ -165,6 +179,9 @@ export function WorkspaceMount({
                       slot: workspaceSlot ?? null,
                       label: workspaceLabel ?? null,
                       letter: workspaceLetter ?? null,
+                      findSlot: findSlot ?? null,
+                      findLabel: findLabel ?? null,
+                      findLetter: findLetter ?? null,
                     }}
                   >
                     <Routes>

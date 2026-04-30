@@ -548,6 +548,8 @@ body {
 .thumb-index__mode--narrative.thumb-index__mode--active,
 .thumb-index__mode--workspace:hover,
 .thumb-index__mode--workspace.thumb-index__mode--active,
+.thumb-index__mode--find:hover,
+.thumb-index__mode--find.thumb-index__mode--active,
 .thumb-index__mode--delta:hover,
 .thumb-index__mode--delta.thumb-index__mode--active {
   color: var(--counter);
