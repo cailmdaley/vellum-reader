@@ -9066,6 +9066,72 @@ a.pretext-prose-frag:hover {
   color: var(--text);
 }
 
+/* ── Keyboard focus — Stage 8 ────────────────────────────────────────
+   Events are focusable via roving tabindex (tabIndex 0/-1 in TSX).
+   `:focus-visible` shows a gold outline so keyboard users have a clear
+   active-item indicator; `:focus` (without visible) stays invisible to
+   suppress the outline during mouse clicks, which already provide hover
+   and selection affordance. `outline-offset: -2px` insets the ring
+   inside the item border so it doesn't bleed into neighbours. */
+.history-card__event {
+  outline: none;
+}
+.history-card__event:focus-visible {
+  outline: 2px solid var(--gold, #b8860b);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+/* ── Load-more strip — Stage 7 ───────────────────────────────────────
+   Thin footer strip that appears between the scrollable events list and
+   the mechanical-toggle footer when more events exist beyond the current
+   render window (INITIAL_VISIBLE = 20). The button is styled to match
+   the mechanical toggle's typographic register. `aria-live="polite"` on
+   the container announces the updated count to screen readers when more
+   events load. */
+.history-card__load-more {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 14px 5px;
+  border-top: 1px solid var(--border-faint, rgba(30, 28, 25, 0.12));
+}
+
+.history-card__load-more-btn {
+  /* Reset browser button chrome */
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  /* Typography — matches the mechanical-toggle register */
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  opacity: 0.7;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.history-card__load-more-btn:hover {
+  opacity: 1;
+  color: var(--text);
+}
+.history-card__load-more-btn:focus-visible {
+  outline: 2px solid var(--gold, #b8860b);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.history-card__load-more-count {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
 /* The History Card visually claims the same column as the thumb-index;
    when the canvas column is too narrow to host a meaningful card body,
    stop rendering the chrome so the column doesn't crowd the prose. The

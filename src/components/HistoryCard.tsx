@@ -20,10 +20,22 @@
  *   editorial events in chronological order.
  * - A small kind glyph prepends each event's meta row so the reader knows
  *   the event class at a glance.
+ * - Size deltas ("+3 lines") are computed client-side from consecutive
+ *   mechanical events in chronological order — more informative than the
+ *   raw absolute size.
  *
  * Bounded height with internal scroll keeps the card from dominating the
  * margin on shuttle-heavy fibers; the masthead `※n` indicator anchor
  * brings it back into view when scrolled past.
+ *
+ * Lazy-load: the events list caps at INITIAL_VISIBLE (20) rendered items.
+ * A "load older" strip below the list reveals more in pages of 20. This
+ * keeps the DOM small for fibers with 100+ history events.
+ *
+ * Keyboard: roving tabindex on the events list. Arrow keys move between
+ * events; Home/End jump to first/last. Tab enters the list at the active
+ * item; Shift+Tab leaves it. The toggle footer button is in the normal
+ * tab order.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -46,6 +58,9 @@ const EMPTY_REFERENCES = {
 // page so the simple id is fine; if the constitution ever sprouts more
 // than one HistoryCard mount we'll thread it through props.
 export const HISTORY_CARD_ANCHOR_ID = 'history-card';
+
+// Lazy-load page size — initial render cap and increment on "load older".
+const INITIAL_VISIBLE = 20;
 
 interface HistoryCardProps {
   events: HistoryEvent[];
@@ -175,21 +190,54 @@ function kindMeta(kind: HistoryEvent['kind']): {
 }
 
 /**
- * Compact one-line description for mechanical events: show the changed fields
- * (for `edit`), the size in lines (for others), or a minimal label.
+ * Compact one-line description for mechanical events. For `edit` events,
+ * show the changed fields. For size-bearing events, show the delta ("+3
+ * lines", "−12 lines") when available, falling back to the absolute size.
+ * Delta is computed from consecutive mechanical events; see
+ * `mechanicalDeltaMap` in HistoryCard.
  */
-function mechanicalDescription(ev: HistoryEvent): string {
+function mechanicalBody(
+  ev: HistoryEvent,
+  delta: { lines?: number; chars?: number } | undefined,
+): string {
   if (ev.kind === 'edit' && ev.fieldsChanged?.length) {
     return ev.fieldsChanged.join(', ');
   }
-  if (ev.sizeLines != null) return `${ev.sizeLines} lines`;
-  if (ev.sizeChars != null) return `${ev.sizeChars} chars`;
-  return '';
+  const parts: string[] = [];
+  if (delta?.lines !== undefined) {
+    const sign = delta.lines >= 0 ? '+' : '';
+    parts.push(`${sign}${delta.lines} lines`);
+  } else if (ev.sizeLines != null) {
+    parts.push(`${ev.sizeLines} lines`);
+  }
+  if (parts.length === 0) {
+    if (delta?.chars !== undefined) {
+      const sign = delta.chars >= 0 ? '+' : '';
+      parts.push(`${sign}${delta.chars} chars`);
+    } else if (ev.sizeChars != null) {
+      parts.push(`${ev.sizeChars} chars`);
+    }
+  }
+  return parts.join(', ');
 }
 
 export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
   const proseRef = useRef<HTMLOListElement>(null);
   const [showMechanical, setShowMechanical] = useState(false);
+
+  // Stage 7: lazy-load — cap initial render at INITIAL_VISIBLE events.
+  // "Load older" reveals 20 more per click. Reset when events array changes
+  // (slug navigation) so the card always starts fresh on a new fiber.
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+    setFocusedEventIdx(0);
+  }, [events]);
+
+  // Stage 8: roving tabindex — one event in the list is the active tab
+  // stop at a time. Arrow keys shift the active item; focus follows.
+  const [focusedEventIdx, setFocusedEventIdx] = useState(0);
+  const eventRefs = useRef<Array<HTMLLIElement | null>>([]);
 
   const editorialEvents = useMemo(
     () => events.filter((ev) => (ev.kind ?? 'editorial') === 'editorial'),
@@ -206,6 +254,38 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
     [showMechanical, events, editorialEvents],
   );
 
+  // Stage 6 (partial): compute size deltas between consecutive mechanical
+  // events in chronological order so the HistoryCard can display "+3 lines"
+  // instead of the raw absolute size. True byte-level diffs (for
+  // external_edit events) require felt to store per-version content
+  // snapshots, which it does not yet do; that extension is deferred.
+  const mechanicalDeltaMap = useMemo(() => {
+    const map = new Map<string, { lines?: number; chars?: number }>();
+    // Sort all mechanical events ascending (oldest first) to compute deltas.
+    const chron = events
+      .filter((ev) => ev.kind !== undefined && ev.kind !== 'editorial')
+      .slice()
+      .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+
+    let prevLines: number | undefined;
+    let prevChars: number | undefined;
+    for (const ev of chron) {
+      const delta: { lines?: number; chars?: number } = {};
+      if (ev.sizeLines !== undefined && prevLines !== undefined) {
+        delta.lines = ev.sizeLines - prevLines;
+      }
+      if (ev.sizeChars !== undefined && prevChars !== undefined) {
+        delta.chars = ev.sizeChars - prevChars;
+      }
+      if (Object.keys(delta).length) {
+        map.set(ev.occurredAt, delta);
+      }
+      if (ev.sizeLines !== undefined) prevLines = ev.sizeLines;
+      if (ev.sizeChars !== undefined) prevChars = ev.sizeChars;
+    }
+    return map;
+  }, [events]);
+
   // Stable mdast keys for myst-to-react, scoped per event so no two
   // events collide. Memoized because the events array is otherwise
   // re-allocated by the fetch effect on every refresh tick.
@@ -218,6 +298,19 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
       ),
     [visibleEvents],
   );
+
+  // Stage 7: slice to visibleCount for lazy rendering.
+  const slicedEvents = useMemo(
+    () => eventsWithKeys.slice(0, visibleCount),
+    [eventsWithKeys, visibleCount],
+  );
+  const hasMore = eventsWithKeys.length > visibleCount;
+
+  // Stage 8: clamp focused index when the event list shrinks (e.g. when
+  // the mechanical toggle is turned off, reducing the list length).
+  useEffect(() => {
+    setFocusedEventIdx((idx) => Math.min(idx, Math.max(0, slicedEvents.length - 1)));
+  }, [slicedEvents.length]);
 
   // Wikilink delegation — same path FiberCard uses. Native click
   // listener (not an onClick prop) so React's accessibility-tree
@@ -262,14 +355,48 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
           {editorialEvents.length}
         </span>
       </header>
-      <ol className="history-card__events" ref={proseRef}>
-        {eventsWithKeys.map((ev, i) => {
+      <ol
+        className="history-card__events"
+        ref={proseRef}
+        aria-label="History events"
+        onKeyDown={(e) => {
+          const len = slicedEvents.length;
+          if (!len) return;
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const next = Math.min(focusedEventIdx + 1, len - 1);
+            setFocusedEventIdx(next);
+            eventRefs.current[next]?.focus();
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prev = Math.max(focusedEventIdx - 1, 0);
+            setFocusedEventIdx(prev);
+            eventRefs.current[prev]?.focus();
+          } else if (e.key === 'Home') {
+            e.preventDefault();
+            setFocusedEventIdx(0);
+            eventRefs.current[0]?.focus();
+          } else if (e.key === 'End') {
+            e.preventDefault();
+            const last = len - 1;
+            setFocusedEventIdx(last);
+            eventRefs.current[last]?.focus();
+          }
+        }}
+      >
+        {slicedEvents.map((ev, i) => {
           const { glyph, label, cssClass } = kindMeta(ev.kind);
           const isMechanical = ev.kind !== undefined && ev.kind !== 'editorial';
+          const delta = isMechanical ? mechanicalDeltaMap.get(ev.occurredAt) : undefined;
           return (
             <li
               key={`${ev.occurredAt}-${i}`}
               className={`history-card__event ${cssClass}`}
+              tabIndex={focusedEventIdx === i ? 0 : -1}
+              ref={(el) => {
+                eventRefs.current[i] = el;
+              }}
+              onFocus={() => setFocusedEventIdx(i)}
             >
               <div className="history-card__event-meta">
                 <span
@@ -298,7 +425,7 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
               </div>
               {isMechanical ? (
                 <div className="history-card__event-mechanical-body">
-                  {mechanicalDescription(ev)}
+                  {mechanicalBody(ev, delta)}
                 </div>
               ) : (
                 <div className="history-card__event-summary">
@@ -313,6 +440,21 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
           );
         })}
       </ol>
+      {hasMore && (
+        <div className="history-card__load-more" aria-live="polite">
+          <button
+            type="button"
+            className="history-card__load-more-btn"
+            onClick={() => setVisibleCount((n) => n + INITIAL_VISIBLE)}
+            aria-label={`Load ${Math.min(INITIAL_VISIBLE, eventsWithKeys.length - visibleCount)} older events`}
+          >
+            ↑ {Math.min(INITIAL_VISIBLE, eventsWithKeys.length - visibleCount)} older
+          </button>
+          <span className="history-card__load-more-count" aria-hidden="true">
+            {visibleCount} / {eventsWithKeys.length}
+          </span>
+        </div>
+      )}
       {mechanicalEvents.length > 0 && (
         <footer className="history-card__mechanical-footer">
           <button
