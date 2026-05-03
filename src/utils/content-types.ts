@@ -192,6 +192,9 @@ export interface GraphLink {
 export interface AstraGraph {
   nodes: GraphNode[];
   links: GraphLink[];
+  /** Optional collection root. Hosts can provide this so empty/index routes
+   * converge on a real fiber with normal thumb-index context. */
+  rootSlug?: string | null;
 }
 
 export interface SearchHit {
@@ -255,6 +258,13 @@ export interface AnnotationBulkAction {
   id: string;
   label: string;
   title?: string;
+  /** When true, the bar/toolbar renders the button in a quietly
+   *  destructive register (muted, slightly red on hover) so a wandering
+   *  click against an irreversible action — Clear, Delete all — reads
+   *  as different from the everyday actions sitting beside it.
+   *  Recommended for any action that calls `confirm()` or otherwise
+   *  cannot be undone. */
+  destructive?: boolean;
   applicableTo?: (annotation: Annotation) => boolean;
   onInvoke: (
     annotations: Annotation[],
@@ -364,26 +374,44 @@ export interface LogResponse {
 }
 
 /**
- * One editorial event from a fiber's `felt history` chain.
+ * One event from a fiber's `felt history` chain.
  *
- * Editorial events are agent-written prose summaries appended at the end
- * of a Shuttle session (or any other moment a worker chooses to file
- * one). They form the per-fiber memory chain across sessions; the
- * History Card surfaces them in Vellum's Narrative-mode margin column.
+ * Two broad event classes:
  *
- * `summaryAst` is the mdast root pre-parsed server-side so the client
- * renders through the same MyST → React pipeline used for fiber bodies
- * — keeps wikilink, link, emphasis handling consistent with prose.
+ * **Editorial** — `kind: 'editorial'`. Agent-written prose summaries appended
+ * at session boundaries via `felt history append`. Carry a markdown `summary`
+ * and a pre-parsed `summaryAst` for MyST → React rendering.
+ *
+ * **Mechanical** — `kind: 'external_edit' | 'edit' | 'add' | 'rm'`. Automatic
+ * mutations recorded by the felt daemon. No prose summary; carry size metadata
+ * and, for `edit` events, the list of changed fields.
+ *
+ * `kind` is optional for backwards compatibility: older server responses that
+ * predate Stage 4 (mechanical-events toggle) do not include it. Consumers
+ * should treat `kind === undefined` as `'editorial'`.
  */
 export interface HistoryEvent {
   /** ISO 8601 timestamp emitted by the felt CLI (`occurred_at`). */
   occurredAt: string;
   /** Author of the event (`actor`); typically `<user>@<host>` or `external`. */
   actor: string;
-  /** Raw markdown summary as written via `felt history append`. */
-  summary: string;
-  /** Pre-parsed mdast for the summary. Opaque type to match FiberContent.mdast. */
-  summaryAst: any;
+  /**
+   * Event kind. Editorial events carry prose; mechanical events carry byte
+   * metadata. Absent in legacy server responses — treat as `'editorial'`.
+   */
+  kind?: 'editorial' | 'external_edit' | 'edit' | 'add' | 'rm';
+  // ── Editorial-only ──────────────────────────────────────────────────
+  /** Raw markdown summary (editorial events only). */
+  summary?: string;
+  /** Pre-parsed mdast for the summary (editorial events only). */
+  summaryAst?: any;
+  // ── Mechanical-only ─────────────────────────────────────────────────
+  /** Character count after the mutation. */
+  sizeChars?: number;
+  /** Line count after the mutation. */
+  sizeLines?: number;
+  /** For `edit` events: list of frontmatter fields changed (e.g. `['tag', 'untag']`). */
+  fieldsChanged?: string[];
 }
 
 export interface HistoryResponse {

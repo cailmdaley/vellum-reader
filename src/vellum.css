@@ -755,6 +755,19 @@ body {
 }
 .thumb-index__nav-scroll::-webkit-scrollbar { display: none; }
 
+/* Tree-affordance for children row: small indent so it reads as "below"
+   the siblings row, paired with the `↳` glyph in the markup. The parent
+   row has its own `←` arrow; siblings stay left-flush as the baseline.
+   Together: three tree-rows with directional cues, no separate diagram. */
+.thumb-index__nav-row--children {
+  padding-left: 10px;
+}
+.thumb-index__nav-glyph {
+  display: inline-block;
+  margin-right: 3px;
+  opacity: 0.7;
+}
+
 /* ── PretextNav — single-line scrollable nav strip ── */
 .pretext-nav {
   overflow-x: auto;
@@ -3096,6 +3109,101 @@ body {
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ── In-margin draft (write-in-place annotation composing) ──
+   When the user clicks "+ Note" on a fresh selection, the draft
+   appears here as a contentEditable margin note styled identically
+   to the persisted variant — italic Garamond, gold gutter rule,
+   muted color. What you type is what you'll see; the persisted
+   note swaps in below with no visual jump on save. */
+.ann-margin-note--draft {
+  /* Don't dim the draft on hover the way persisted notes do — the
+     reader IS interacting with it. Override the cursor too: it's
+     a text-input surface, not a click target. */
+  cursor: text;
+  /* A whisper brighter than rest-state persisted notes so the
+     draft reads as "this one is live" — color: var(--text) (instead
+     of --text-muted) plus the gold rule already present from the
+     base class. */
+  color: var(--text);
+  border-left-color: var(--gold);
+}
+.ann-margin-note--draft:hover {
+  background: transparent;
+}
+.ann-margin-note__compose {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.ann-margin-note__body--editable {
+  /* contentEditable — let it grow as the user types. -webkit-line-clamp
+     from the base body would truncate text mid-compose, hide the caret,
+     and feel broken; reset display to block. */
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+  overflow: visible;
+  outline: none;
+  /* Caret hint without a hard border — the gold gutter rail signals
+     editability already. A faint underglow only on focus keeps the
+     surface from looking like a rendered note when the user has
+     dropped attention elsewhere. */
+  min-height: 1.4em;
+}
+.ann-margin-note__body--editable:focus {
+  /* No outline — the gold gutter rule + cursor blink is enough. */
+}
+.ann-margin-note__body--editable:empty::before {
+  /* Italic placeholder using ::before so the contentEditable's
+     selection model isn't polluted by real text. Vanishes the
+     moment the user types. */
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.ann-margin-note__actions {
+  display: flex;
+  gap: 4px;
+  /* Sit just below the body, baseline-aligned with the gold rule.
+     Not italic — these are chrome, not prose. */
+  font-style: normal;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+}
+.ann-margin-note__btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 1px 4px;
+  font: inherit;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0.78;
+  transition: color 120ms ease, opacity 120ms ease;
+}
+.ann-margin-note__btn:hover {
+  color: var(--ink);
+  opacity: 1;
+}
+.ann-margin-note__btn--save {
+  color: var(--gold);
+  opacity: 1;
+}
+.ann-margin-note__btn--save:hover {
+  /* Slight fill on the active option so the eye knows where Enter goes. */
+  background: var(--gold-faint);
+  border-radius: 2px;
+}
+.ann-margin-note__btn--save:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 /* ── Annotation Highlights ──
@@ -6293,21 +6401,75 @@ a.pretext-prose-frag:hover {
   padding: 4px 10px;
 }
 
+/* Destructive bulk action — Clear, Delete, anything irreversible.
+   Quietly muted at rest (so it doesn't visually compete with the
+   everyday Send/Fiber buttons), then shifts to a soft brick red on
+   hover so the gesture reads as "this one's different" before the
+   user commits. The hover bg is a tinted version of the standard
+   --gold-faint, kept low-saturation so the bar stays porch-morning
+   in temperament. The hover border-radius matches the base bulk
+   button for visual consistency. */
+.vellum-modal-btn--destructive {
+  color: var(--text-muted);
+}
+.vellum-modal-btn--destructive:hover {
+  background: rgba(160, 48, 48, 0.10);
+  color: #A03030;
+}
+.vellum-modal-btn--destructive .vellum-modal-btn__count {
+  background: rgba(160, 48, 48, 0.10);
+  color: var(--text-muted);
+}
+.vellum-modal-btn--destructive:hover .vellum-modal-btn__count {
+  background: rgba(160, 48, 48, 0.20);
+  color: #A03030;
+}
+
 /* Narrative bulk-action toolbar — same button shape as
    .vellum-modal-btn--bulk but mounted above the FiberHeader masthead
    so it doesn't depend on theme chrome. Quiet by default; surfaces
    only when the host registered bulkActions and ≥1 annotation exists. */
+/* Wrapper row that hosts ThemePicker + NarrativeAnnotationActionsBar
+   side-by-side. flex-wrap drops the bar to its own line when the
+   prose column is too narrow; the picker keeps its baseline-aligned
+   gap so its visual rhythm matches whether the bar is present or not.
+   ThemePicker's existing `margin-bottom` carries the row's bottom
+   spacing — don't add another here or the gap doubles. */
+.vellum-narrative-chrome-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.vellum-narrative-chrome-row .theme-picker {
+  /* Reset margin so the wrapper owns vertical spacing — picker had
+     its own margin-bottom that conflicted with the row's gap when
+     both children laid out in one line. */
+  margin-bottom: 0;
+}
+
 .vellum-narrative-action-bar {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   flex-wrap: wrap;
   gap: 8px 12px;
-  padding: 6px 0 10px;
-  margin-bottom: 4px;
-  border-bottom: 1px dotted var(--border);
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 11px;
   color: var(--text-muted);
+  /* When inline with ThemePicker, push to the right edge of the row.
+     Falls through harmlessly when the bar wraps to its own line —
+     `margin-left: auto` is a no-op without sibling competition. */
+  margin-left: auto;
+}
+/* Restore the old standalone bottom-of-row chrome (gap + dotted rule)
+   only when the bar is NOT inside the chrome row (i.e. it's standing
+   on its own as it used to). The chrome-row variant is visually
+   absorbed into the picker rhythm and doesn't need its own border. */
+:not(.vellum-narrative-chrome-row) > .vellum-narrative-action-bar {
+  padding: 6px 0 10px;
+  margin-bottom: 4px;
+  margin-left: 0;
+  border-bottom: 1px dotted var(--border);
 }
 .vellum-narrative-action-bar__caption {
   text-transform: uppercase;
@@ -8817,6 +8979,91 @@ a.pretext-prose-frag:hover {
   background: color-mix(in srgb, var(--gold, #b8860b) 12%, transparent);
   padding: 0 0.25em;
   border-radius: 2px;
+}
+
+/* ── Event-kind glyph ────────────────────────────────────────────────
+   Prepends every event's meta row — ※ for editorial (gold), short ASCII
+   symbols for mechanical events (muted). Rendered in IBM Plex Mono to
+   match the metadata register; min-width so the meta row stays aligned
+   across event kinds. */
+.history-card__event-kind-glyph {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  min-width: 1ch;
+  /* Default color — overridden per event kind below. */
+  color: var(--text-muted);
+}
+.history-card__event--editorial .history-card__event-kind-glyph {
+  color: var(--gold, #b8860b);
+}
+
+/* ── Mechanical events ───────────────────────────────────────────────
+   Rendered dimmer and at a smaller scale than editorial events so they
+   read as metadata rather than prose. The kind modifier classes come
+   from `kindMeta()` in HistoryCard.tsx. */
+.history-card__event--external-edit,
+.history-card__event--edit,
+.history-card__event--add,
+.history-card__event--rm,
+.history-card__event--mechanical {
+  opacity: 0.62;
+  padding-top: 6px;
+  padding-bottom: 7px;
+}
+.history-card__event--external-edit .history-card__event-meta,
+.history-card__event--edit .history-card__event-meta,
+.history-card__event--add .history-card__event-meta,
+.history-card__event--rm .history-card__event-meta,
+.history-card__event--mechanical .history-card__event-meta {
+  font-size: 0.62rem;
+  margin-bottom: 2px;
+}
+
+.history-card__event-mechanical-body {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Mechanical-events toggle footer ────────────────────────────────
+   Thin strip below the scrollable events list. `flex-shrink: 0` keeps
+   it pinned at the card bottom as events scroll past. The toggle is a
+   plain <button> reset to match the card's typographic register. */
+.history-card__mechanical-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 5px 14px 7px;
+  border-top: 1px solid var(--border-faint, rgba(30, 28, 25, 0.12));
+}
+
+.history-card__mechanical-toggle {
+  /* Reset browser button chrome */
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  /* Typography — matches the event metadata register */
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  opacity: 0.7;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.history-card__mechanical-toggle:hover {
+  opacity: 1;
+  color: var(--text);
+}
+.history-card__mechanical-toggle--active {
+  opacity: 0.9;
+  color: var(--text);
 }
 
 /* The History Card visually claims the same column as the thumb-index;

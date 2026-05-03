@@ -381,16 +381,19 @@ export function NarrativeView({
   }, [editorBuffer, editorLoading]);
 
   useEffect(() => {
-    // Fetch every annotation in the project, not just those keyed to
-    // this slug. Annotations are anchored to the *text*; the layer's
-    // findAnnotationInDom decides which ones match the current prose
-    // by selectedText + surrounding context. This way a note travels
-    // wherever its passage appears (a quote that lives on two pages
-    // shows up on both) and the slug field is just a record of where
-    // the note was first written.
+    // Scope annotations to the current fiber's slug. Cross-slug text
+    // matching (a quote that lives on two pages shows up on both) was the
+    // earlier design but pollutes everything: short selections match
+    // anywhere and the "first occurrence" fallback fires when context
+    // doesn't disambiguate. Bring it back as an explicit "find this
+    // passage elsewhere" action if needed.
+    if (!content.slug) {
+      setAnnotations([]);
+      return;
+    }
     setAnnotations([]);
     let cancelled = false;
-    adapter.getAnnotations('').then((anns) => {
+    adapter.getAnnotations(content.slug).then((anns) => {
       if (!cancelled) setAnnotations(anns);
     });
     return () => {
@@ -797,27 +800,28 @@ export function NarrativeView({
       >
         {editorBuffer === null && (
           <>
-            {/* Theme picker sits above the fiber title in every theme —
-                the FloatingIsland (where it used to live) is hidden in
-                lightcone-linear, so any chrome common to all three themes
-                belongs inside the prose column itself. */}
-            <ThemePicker />
-            {/* Annotation bulk-action bar surfaces above the masthead so
-                the actions are visible regardless of whether the
-                FloatingIsland chrome is gated by the active theme.
-                Renders only when both annotations exist on the page and
-                the host registered actions via AnnotationActionsProvider. */}
-            <NarrativeAnnotationActionsBar
-              currentSlug={content.slug}
-              annotations={annotations}
-              bulkActions={annotationBulkActions}
-              onRefreshAnnotations={refreshAnnotations}
-            />
+            {/* Above-masthead chrome row. ThemePicker sits left;
+                NarrativeAnnotationActionsBar floats right via
+                margin-left: auto when present. The wrapper flex-wraps,
+                so on narrow widths the bar drops to its own line — the
+                "if there's room" affordance is automatic. The bar
+                renders nothing when the host hasn't registered actions
+                or when no annotations exist on this fiber, so the row
+                degrades cleanly to just the picker. */}
+            <div className="vellum-narrative-chrome-row">
+              <ThemePicker />
+              <NarrativeAnnotationActionsBar
+                currentSlug={content.slug}
+                annotations={annotations}
+                bulkActions={annotationBulkActions}
+                onRefreshAnnotations={refreshAnnotations}
+              />
+            </div>
             <FiberHeader
               frontmatter={content.frontmatter ?? {}}
               graphNode={currentNode}
               lede={lede}
-              historyCount={historyEvents.length}
+              historyCount={historyEvents.filter((e) => (e.kind ?? 'editorial') === 'editorial').length}
             />
             <AuthoringLintStrip messages={content.messages} />
           </>
