@@ -687,6 +687,17 @@ body {
   text-overflow: ellipsis;
 }
 .thumb-index__parent:hover { color: #2E2A26; }
+/* "You are here" state — the parent button reads as a positional
+   anchor at the top of the host's ladder (global IndexView). Receded
+   color + non-interactive cursor distinguishes it from "you can go
+   back". The arrow's opacity drops further so the row reads as a
+   marker rather than a back-link. */
+.thumb-index__parent--at-index {
+  color: #B5AFA5;
+  cursor: default;
+}
+.thumb-index__parent--at-index:hover { color: #B5AFA5; }
+.thumb-index__parent--at-index .thumb-index__arrow { opacity: 0.25; }
 .thumb-index__arrow {
   margin-right: 3px;
   opacity: 0.5;
@@ -8997,73 +9008,51 @@ a.pretext-prose-frag:hover {
   color: var(--gold, #b8860b);
 }
 
-/* ── Mechanical events ───────────────────────────────────────────────
-   Rendered dimmer and at a smaller scale than editorial events so they
-   read as metadata rather than prose. The kind modifier classes come
-   from `kindMeta()` in HistoryCard.tsx. */
-.history-card__event--external-edit,
-.history-card__event--edit,
-.history-card__event--add,
-.history-card__event--rm,
-.history-card__event--mechanical {
-  opacity: 0.62;
-  padding-top: 6px;
-  padding-bottom: 7px;
-}
-.history-card__event--external-edit .history-card__event-meta,
-.history-card__event--edit .history-card__event-meta,
-.history-card__event--add .history-card__event-meta,
-.history-card__event--rm .history-card__event-meta,
-.history-card__event--mechanical .history-card__event-meta {
-  font-size: 0.62rem;
-  margin-bottom: 2px;
+/* ── Dangling tail ────────────────────────────────────────────────────
+   Mechanical activity that postdates the most-recent editorial event.
+   Rendered as the first row (above the latest editorial event) with an
+   amber left-rule and tinted background — strong enough to read as an
+   action signal without dominating the editorial prose.
+
+   For agents on dispatch: "summarize what you find before adding to it."
+   For humans skimming the kanban: "this fiber needs narrating." */
+.history-card__event--dangling-tail {
+  background: color-mix(in srgb, var(--amber, #B8963E) 8%, transparent);
+  border-left: 2px solid var(--amber, #B8963E);
+  padding-left: 12px;
+  /* Slightly tighter vertical rhythm — it's metadata, not prose. */
+  padding-top: 7px;
+  padding-bottom: 8px;
 }
 
-.history-card__event-mechanical-body {
+.history-card__dangling-tail-body {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 0.62rem;
+  font-size: 0.64rem;
+  letter-spacing: 0.03em;
+  color: var(--amber, #B8963E);
+  font-weight: 500;
+  /* Wrap gracefully in the narrow margin column. */
+  white-space: normal;
+  line-height: 1.4;
+}
+
+/* ── Cluster badge ────────────────────────────────────────────────────
+   Subordinate metadata row below an editorial event's summary. Encodes
+   the mechanical activity that followed this editorial event up to the
+   next more-recent editorial event: "then N saves, +M lines, K actors."
+   Dimmer and smaller than the editorial content so it reads as texture,
+   not as a competing signal. */
+.history-card__cluster-badge {
+  margin-top: 5px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.60rem;
   letter-spacing: 0.03em;
   color: var(--text-muted);
+  opacity: 0.65;
+  /* Keep on one line in most cases; truncate if column is very narrow. */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* ── Mechanical-events toggle footer ────────────────────────────────
-   Thin strip below the scrollable events list. `flex-shrink: 0` keeps
-   it pinned at the card bottom as events scroll past. The toggle is a
-   plain <button> reset to match the card's typographic register. */
-.history-card__mechanical-footer {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 5px 14px 7px;
-  border-top: 1px solid var(--border-faint, rgba(30, 28, 25, 0.12));
-}
-
-.history-card__mechanical-toggle {
-  /* Reset browser button chrome */
-  appearance: none;
-  -webkit-appearance: none;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  /* Typography — matches the event metadata register */
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  opacity: 0.7;
-  transition: opacity 0.12s ease, color 0.12s ease;
-}
-.history-card__mechanical-toggle:hover {
-  opacity: 1;
-  color: var(--text);
-}
-.history-card__mechanical-toggle--active {
-  opacity: 0.9;
-  color: var(--text);
 }
 
 /* ── Keyboard focus — Stage 8 ────────────────────────────────────────
@@ -9083,12 +9072,10 @@ a.pretext-prose-frag:hover {
 }
 
 /* ── Load-more strip — Stage 7 ───────────────────────────────────────
-   Thin footer strip that appears between the scrollable events list and
-   the mechanical-toggle footer when more events exist beyond the current
-   render window (INITIAL_VISIBLE = 20). The button is styled to match
-   the mechanical toggle's typographic register. `aria-live="polite"` on
-   the container announces the updated count to screen readers when more
-   events load. */
+   Thin footer strip that appears below the scrollable editorial-event
+   list when more events exist beyond the current render window
+   (INITIAL_VISIBLE = 20). `aria-live="polite"` on the container
+   announces the updated count to screen readers when more events load. */
 .history-card__load-more {
   flex-shrink: 0;
   display: flex;

@@ -1,41 +1,41 @@
 /**
- * HistoryCard — editorial + mechanical event chain for a fiber, rendered
- * as a margin Card in Narrative mode.
+ * HistoryCard — narrated activity log for a fiber, rendered as a margin
+ * Card in Narrative mode.
  *
- * The card surfaces the per-fiber `felt history` event chain so the trail
- * of agent-written summaries (editorial) and byte-level mutations
- * (mechanical) is legible right next to the fiber body. It's a margin
- * denizen — width set by the canvas column, not by the card itself — and
- * read-only: `felt history append` stays in the CLI.
+ * Shape: editorial events are the **spine** — authored prose summaries that
+ * agents and humans write at session boundaries via `felt history append`.
+ * Mechanical events (external_edit / edit / add / rm) fold into **cluster
+ * badges** attached below the editorial event they forward-look from:
+ * "then N saves, +M lines, K actors." Mechanical activity that postdates
+ * the most-recent editorial event surfaces as the **dangling tail** — an
+ * action-signal row above the latest editorial event: "⚠ dangling: N saves
+ * since last narrated · last edit Xh ago." For agents on dispatch, the
+ * dangling tail is a structural cue: summarize what you find before adding
+ * to it.
  *
  * Visual register:
  * - The card wears the same Weathered Substrate chrome as the unified Card
  *   primitive (border, palette, EB Garamond), with a komejirushi (`※`,
  *   U+203B) glyph in the chrome — the Japanese editorial-note marker.
  * - Editorial events render in full Garamond prose with author + relative
- *   timestamp. They're the default (prominent) view.
- * - Mechanical events (external_edit / edit / add / rm) render as compact
- *   metadata rows — dimmer, smaller, kind-badged — and are hidden behind
- *   a toggle. Default: off. Toggling reveals them inline, interleaved with
- *   editorial events in chronological order.
- * - A small kind glyph prepends each event's meta row so the reader knows
- *   the event class at a glance.
- * - Size deltas ("+3 lines") are computed client-side from consecutive
- *   mechanical events in chronological order — more informative than the
- *   raw absolute size.
+ *   timestamp. They're the default (and only) list items.
+ * - Each editorial event may carry a cluster badge below its summary —
+ *   dimmer IBM Plex Mono metadata encoding what happened in the gap before
+ *   the next (more recent) editorial event.
+ * - The dangling tail row uses an amber accent so it reads as a warning
+ *   signal without dominating the editorial prose.
  *
  * Bounded height with internal scroll keeps the card from dominating the
  * margin on shuttle-heavy fibers; the masthead `※n` indicator anchor
  * brings it back into view when scrolled past.
  *
- * Lazy-load: the events list caps at INITIAL_VISIBLE (20) rendered items.
- * A "load older" strip below the list reveals more in pages of 20. This
- * keeps the DOM small for fibers with 100+ history events.
+ * Lazy-load: the editorial spine caps at INITIAL_VISIBLE (20) items. A
+ * "↑ N older" strip reveals more in pages of 20. Mechanical events are
+ * cluster-folded client-side; the DOM never holds individual mech events.
  *
  * Keyboard: roving tabindex on the events list. Arrow keys move between
- * events; Home/End jump to first/last. Tab enters the list at the active
- * item; Shift+Tab leaves it. The toggle footer button is in the normal
- * tab order.
+ * all focusable rows (dangling tail + editorial events); Home/End jump to
+ * first/last. Tab enters the list at the active item; Shift+Tab leaves it.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -43,6 +43,11 @@ import { ArticleProvider, ThemeProvider, useNodeRenderers } from '@myst-theme/pr
 import { DEFAULT_RENDERERS, MyST } from 'myst-to-react';
 import { assignMdastKeys } from '~/utils/mdast-keys';
 import type { HistoryEvent } from '~/utils/content-types';
+import {
+  clusterPhrase,
+  computeClusterGroups,
+  danglingPhrase,
+} from '~/utils/history-clusters';
 
 // myst-frontmatter's `Citations` interface requires `order` and `data`,
 // not the bare `{}` that older surfaces tolerated. Build a single empty
@@ -54,12 +59,10 @@ const EMPTY_REFERENCES = {
   footnotes: {},
 };
 
-// Anchor id for the masthead `※n` indicator's deep link. Single-element
-// page so the simple id is fine; if the constitution ever sprouts more
-// than one HistoryCard mount we'll thread it through props.
+// Anchor id for the masthead `※n` indicator's deep link.
 export const HISTORY_CARD_ANCHOR_ID = 'history-card';
 
-// Lazy-load page size — initial render cap and increment on "load older".
+// Lazy-load page size — initial render cap and increment on "load older."
 const INITIAL_VISIBLE = 20;
 
 interface HistoryCardProps {
@@ -98,13 +101,6 @@ function HistoryProseRoot({ mdast }: { mdast: any }) {
 /**
  * Coarse relative-time formatter — "just now", "2 hours ago", "3 days
  * ago", falling back to a short ISO date for anything older than a year.
- *
- * Native `Intl.RelativeTimeFormat` produces fine output ("2 days ago"),
- * but it doesn't pick the unit for you. We pick the largest unit whose
- * value is non-zero so a 5-day gap reads as "5 days ago," not "120 hours
- * ago." Future timestamps clamp to "just now" — felt's `occurred_at` is
- * server-stamped at append time, so a future timestamp is a clock-skew
- * artifact rather than a real signal.
  */
 function relativeTime(occurredAt: string): string {
   const occurred = Date.parse(occurredAt);
@@ -128,8 +124,6 @@ function relativeTime(occurredAt: string): string {
   for (const [unit, secondsPerUnit] of units) {
     if (abs >= secondsPerUnit) {
       const value = Math.round(seconds / secondsPerUnit);
-      // Anything older than a year falls back to a short date so the
-      // reader gets a real anchor instead of a vague "2 years ago".
       if (unit === 'year' && Math.abs(value) >= 1) {
         try {
           return new Date(occurred).toLocaleDateString(undefined, {
@@ -158,164 +152,69 @@ function shortActor(actor: string): string {
   return at > 0 ? actor.slice(0, at) : actor;
 }
 
-/**
- * Visual vocabulary per event kind.
- *
- * `glyph` is rendered in IBM Plex Mono before the actor line so a reader
- * can parse the kind at a glance without reading the label. `label` is the
- * accessible text fallback used for the title attribute and aria-label.
- * `cssClass` is the BEM modifier applied to the event `<li>` so CSS can
- * assign color / opacity without JavaScript.
- */
-function kindMeta(kind: HistoryEvent['kind']): {
-  glyph: string;
-  label: string;
-  cssClass: string;
-} {
-  switch (kind) {
-    case 'editorial':
-    case undefined:
-      return { glyph: '※', label: 'editorial', cssClass: 'history-card__event--editorial' };
-    case 'external_edit':
-      return { glyph: '~', label: 'file changed', cssClass: 'history-card__event--external-edit' };
-    case 'edit':
-      return { glyph: '∂', label: 'edited', cssClass: 'history-card__event--edit' };
-    case 'add':
-      return { glyph: '+', label: 'added', cssClass: 'history-card__event--add' };
-    case 'rm':
-      return { glyph: '−', label: 'removed', cssClass: 'history-card__event--rm' };
-    default:
-      return { glyph: '·', label: kind as string, cssClass: 'history-card__event--mechanical' };
-  }
-}
-
-/**
- * Compact one-line description for mechanical events. For `edit` events,
- * show the changed fields. For size-bearing events, show the delta ("+3
- * lines", "−12 lines") when available, falling back to the absolute size.
- * Delta is computed from consecutive mechanical events; see
- * `mechanicalDeltaMap` in HistoryCard.
- */
-function mechanicalBody(
-  ev: HistoryEvent,
-  delta: { lines?: number; chars?: number } | undefined,
-): string {
-  if (ev.kind === 'edit' && ev.fieldsChanged?.length) {
-    return ev.fieldsChanged.join(', ');
-  }
-  const parts: string[] = [];
-  if (delta?.lines !== undefined) {
-    const sign = delta.lines >= 0 ? '+' : '';
-    parts.push(`${sign}${delta.lines} lines`);
-  } else if (ev.sizeLines != null) {
-    parts.push(`${ev.sizeLines} lines`);
-  }
-  if (parts.length === 0) {
-    if (delta?.chars !== undefined) {
-      const sign = delta.chars >= 0 ? '+' : '';
-      parts.push(`${sign}${delta.chars} chars`);
-    } else if (ev.sizeChars != null) {
-      parts.push(`${ev.sizeChars} chars`);
-    }
-  }
-  return parts.join(', ');
-}
-
 export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
   const proseRef = useRef<HTMLOListElement>(null);
-  const [showMechanical, setShowMechanical] = useState(false);
 
-  // Stage 7: lazy-load — cap initial render at INITIAL_VISIBLE events.
-  // "Load older" reveals 20 more per click. Reset when events array changes
-  // (slug navigation) so the card always starts fresh on a new fiber.
+  // Stage 7: lazy-load — cap initial render at INITIAL_VISIBLE editorial
+  // events. "Load older" reveals 20 more per click. Reset when events
+  // array changes (slug navigation) so the card always starts fresh.
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE);
-    setFocusedEventIdx(0);
+    setFocusedIdx(0);
   }, [events]);
 
-  // Stage 8: roving tabindex — one event in the list is the active tab
-  // stop at a time. Arrow keys shift the active item; focus follows.
-  const [focusedEventIdx, setFocusedEventIdx] = useState(0);
-  const eventRefs = useRef<Array<HTMLLIElement | null>>([]);
+  // Stage 8: roving tabindex — one focusable row is the active tab stop
+  // at a time. Arrow keys shift the active item; focus follows.
+  // The index space covers: dangling tail row (slot 0 when present) +
+  // editorial events (slots 0..n-1 or 1..n when dangling tail is shown).
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
+
+  // ── Data layer ──────────────────────────────────────────────────────
 
   const editorialEvents = useMemo(
     () => events.filter((ev) => (ev.kind ?? 'editorial') === 'editorial'),
     [events],
   );
-  const mechanicalEvents = useMemo(
-    () => events.filter((ev) => ev.kind !== undefined && ev.kind !== 'editorial'),
+
+  // Cluster computation: per-gap cluster badges + dangling tail.
+  const { clusterMap, danglingTail } = useMemo(
+    () => computeClusterGroups(events),
     [events],
   );
 
-  // When showMechanical is on, show all events interleaved. Otherwise editorial only.
-  const visibleEvents = useMemo(
-    () => (showMechanical ? events : editorialEvents),
-    [showMechanical, events, editorialEvents],
-  );
-
-  // Stage 6 (partial): compute size deltas between consecutive mechanical
-  // events in chronological order so the HistoryCard can display "+3 lines"
-  // instead of the raw absolute size. True byte-level diffs (for
-  // external_edit events) require felt to store per-version content
-  // snapshots, which it does not yet do; that extension is deferred.
-  const mechanicalDeltaMap = useMemo(() => {
-    const map = new Map<string, { lines?: number; chars?: number }>();
-    // Sort all mechanical events ascending (oldest first) to compute deltas.
-    const chron = events
-      .filter((ev) => ev.kind !== undefined && ev.kind !== 'editorial')
-      .slice()
-      .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
-
-    let prevLines: number | undefined;
-    let prevChars: number | undefined;
-    for (const ev of chron) {
-      const delta: { lines?: number; chars?: number } = {};
-      if (ev.sizeLines !== undefined && prevLines !== undefined) {
-        delta.lines = ev.sizeLines - prevLines;
-      }
-      if (ev.sizeChars !== undefined && prevChars !== undefined) {
-        delta.chars = ev.sizeChars - prevChars;
-      }
-      if (Object.keys(delta).length) {
-        map.set(ev.occurredAt, delta);
-      }
-      if (ev.sizeLines !== undefined) prevLines = ev.sizeLines;
-      if (ev.sizeChars !== undefined) prevChars = ev.sizeChars;
-    }
-    return map;
-  }, [events]);
-
-  // Stable mdast keys for myst-to-react, scoped per event so no two
-  // events collide. Memoized because the events array is otherwise
-  // re-allocated by the fetch effect on every refresh tick.
+  // Stable mdast keys for myst-to-react, scoped per event.
   const eventsWithKeys = useMemo(
     () =>
-      visibleEvents.map((ev, i) =>
+      editorialEvents.map((ev, i) =>
         ev.summaryAst
           ? { ...ev, summaryAst: assignMdastKeys({ ...ev.summaryAst }, `history-${i}`) }
           : ev,
       ),
-    [visibleEvents],
+    [editorialEvents],
   );
 
-  // Stage 7: slice to visibleCount for lazy rendering.
+  // Lazy-load: slice to visibleCount.
   const slicedEvents = useMemo(
     () => eventsWithKeys.slice(0, visibleCount),
     [eventsWithKeys, visibleCount],
   );
   const hasMore = eventsWithKeys.length > visibleCount;
 
-  // Stage 8: clamp focused index when the event list shrinks (e.g. when
-  // the mechanical toggle is turned off, reducing the list length).
-  useEffect(() => {
-    setFocusedEventIdx((idx) => Math.min(idx, Math.max(0, slicedEvents.length - 1)));
-  }, [slicedEvents.length]);
+  // ── Focusable slot accounting ───────────────────────────────────────
+  // Slot 0 = dangling tail row (if present), else first editorial event.
+  // Slots [danglingOffset .. danglingOffset + slicedEvents.length - 1] = editorial events.
+  const danglingOffset = danglingTail ? 1 : 0;
+  const totalFocusable = danglingOffset + slicedEvents.length;
 
-  // Wikilink delegation — same path FiberCard uses. Native click
-  // listener (not an onClick prop) so React's accessibility-tree
-  // `onclick=noop` instrumentation doesn't surface the prose container
-  // as a generic clickable.
+  // Clamp focus index when the list shrinks (e.g. slug navigation or
+  // lazy-load count reset).
+  useEffect(() => {
+    setFocusedIdx((idx) => Math.min(idx, Math.max(0, totalFocusable - 1)));
+  }, [totalFocusable]);
+
+  // ── Wikilink delegation ─────────────────────────────────────────────
   useEffect(() => {
     const node = proseRef.current;
     if (!node || !onNavigate) return;
@@ -325,8 +224,6 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
       if (!anchor) return;
       const href = anchor.getAttribute('href');
       if (!href) return;
-      // Internal slug refs are MyST link nodes with `url: "/<slug>"`;
-      // wikilink transformer (mystra) emits the same shape.
       if (href.startsWith('/')) {
         e.preventDefault();
         onNavigate(href.slice(1));
@@ -355,64 +252,82 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
           {editorialEvents.length}
         </span>
       </header>
+
       <ol
         className="history-card__events"
         ref={proseRef}
         aria-label="History events"
         onKeyDown={(e) => {
-          const len = slicedEvents.length;
-          if (!len) return;
+          if (!totalFocusable) return;
           if (e.key === 'ArrowDown') {
             e.preventDefault();
-            const next = Math.min(focusedEventIdx + 1, len - 1);
-            setFocusedEventIdx(next);
-            eventRefs.current[next]?.focus();
+            const next = Math.min(focusedIdx + 1, totalFocusable - 1);
+            setFocusedIdx(next);
+            rowRefs.current[next]?.focus();
           } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            const prev = Math.max(focusedEventIdx - 1, 0);
-            setFocusedEventIdx(prev);
-            eventRefs.current[prev]?.focus();
+            const prev = Math.max(focusedIdx - 1, 0);
+            setFocusedIdx(prev);
+            rowRefs.current[prev]?.focus();
           } else if (e.key === 'Home') {
             e.preventDefault();
-            setFocusedEventIdx(0);
-            eventRefs.current[0]?.focus();
+            setFocusedIdx(0);
+            rowRefs.current[0]?.focus();
           } else if (e.key === 'End') {
             e.preventDefault();
-            const last = len - 1;
-            setFocusedEventIdx(last);
-            eventRefs.current[last]?.focus();
+            const last = totalFocusable - 1;
+            setFocusedIdx(last);
+            rowRefs.current[last]?.focus();
           }
         }}
       >
+        {/* Dangling tail — unsummarized mechanical activity since the last
+            editorial event. Rendered above (before, in newest-first order)
+            the latest editorial event. Strong amber accent signals action:
+            "summarize what you find before adding to it." */}
+        {danglingTail && (
+          <li
+            className="history-card__event history-card__event--dangling-tail"
+            tabIndex={focusedIdx === 0 ? 0 : -1}
+            ref={(el) => {
+              rowRefs.current[0] = el;
+            }}
+            onFocus={() => setFocusedIdx(0)}
+          >
+            <div className="history-card__dangling-tail-body">
+              {danglingPhrase(danglingTail, relativeTime)}
+            </div>
+          </li>
+        )}
+
+        {/* Editorial spine — newest first. Each event may carry a cluster
+            badge below its summary encoding the mechanical activity that
+            followed it up to the next (more recent) editorial event. */}
         {slicedEvents.map((ev, i) => {
-          const { glyph, label, cssClass } = kindMeta(ev.kind);
-          const isMechanical = ev.kind !== undefined && ev.kind !== 'editorial';
-          const delta = isMechanical ? mechanicalDeltaMap.get(ev.occurredAt) : undefined;
+          const slotIdx = danglingOffset + i;
+          const cluster = clusterMap.get(ev.occurredAt);
           return (
             <li
               key={`${ev.occurredAt}-${i}`}
-              className={`history-card__event ${cssClass}`}
-              tabIndex={focusedEventIdx === i ? 0 : -1}
+              className="history-card__event history-card__event--editorial"
+              tabIndex={focusedIdx === slotIdx ? 0 : -1}
               ref={(el) => {
-                eventRefs.current[i] = el;
+                rowRefs.current[slotIdx] = el;
               }}
-              onFocus={() => setFocusedEventIdx(i)}
+              onFocus={() => setFocusedIdx(slotIdx)}
             >
               <div className="history-card__event-meta">
                 <span
                   className="history-card__event-kind-glyph"
                   aria-hidden="true"
-                  title={label}
+                  title="editorial"
                 >
-                  {glyph}
+                  ※
                 </span>
                 <span className="history-card__event-actor" title={ev.actor}>
                   {shortActor(ev.actor)}
                 </span>
-                <span
-                  className="history-card__event-sep"
-                  aria-hidden="true"
-                >
+                <span className="history-card__event-sep" aria-hidden="true">
                   ·
                 </span>
                 <time
@@ -423,23 +338,23 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
                   {relativeTime(ev.occurredAt)}
                 </time>
               </div>
-              {isMechanical ? (
-                <div className="history-card__event-mechanical-body">
-                  {mechanicalBody(ev, delta)}
-                </div>
-              ) : (
-                <div className="history-card__event-summary">
-                  {ev.summaryAst ? (
-                    <HistoryProseRoot mdast={ev.summaryAst} />
-                  ) : (
-                    <p>{ev.summary}</p>
-                  )}
+              <div className="history-card__event-summary">
+                {ev.summaryAst ? (
+                  <HistoryProseRoot mdast={ev.summaryAst} />
+                ) : (
+                  <p>{ev.summary}</p>
+                )}
+              </div>
+              {cluster && (
+                <div className="history-card__cluster-badge">
+                  {clusterPhrase(cluster)}
                 </div>
               )}
             </li>
           );
         })}
       </ol>
+
       {hasMore && (
         <div className="history-card__load-more" aria-live="polite">
           <button
@@ -454,21 +369,6 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
             {visibleCount} / {eventsWithKeys.length}
           </span>
         </div>
-      )}
-      {mechanicalEvents.length > 0 && (
-        <footer className="history-card__mechanical-footer">
-          <button
-            type="button"
-            className={`history-card__mechanical-toggle${showMechanical ? ' history-card__mechanical-toggle--active' : ''}`}
-            onClick={() => setShowMechanical((v) => !v)}
-            aria-pressed={showMechanical}
-            aria-label={showMechanical ? 'Hide file changes' : `Show ${mechanicalEvents.length} file change${mechanicalEvents.length === 1 ? '' : 's'}`}
-          >
-            {showMechanical
-              ? 'hide file changes'
-              : `+ ${mechanicalEvents.length} file change${mechanicalEvents.length === 1 ? '' : 's'}`}
-          </button>
-        </footer>
       )}
     </section>
   );

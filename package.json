@@ -11,7 +11,9 @@
     "dev": "vite --port 3200",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview --port 3200",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
   },
   "peerDependencies": {
     "react": "^18.2.0",
