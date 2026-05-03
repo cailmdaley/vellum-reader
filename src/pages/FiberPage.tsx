@@ -39,7 +39,7 @@ export function FiberPage() {
   const navigate = useNavigate();
   const { mode, setMode } = useMode();
   const { themeId } = useTheme();
-  const { eyebrow } = useCollection();
+  const { eyebrow, onIndexEscalate } = useCollection();
   const adapter = useAdapter();
   const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
   const fileTarget = useFileTarget();
@@ -138,6 +138,13 @@ export function FiberPage() {
       cancelled = true;
     };
   }, [adapter, graphVersion]);
+
+  useEffect(() => {
+    if (isFileMode || slug || graphLoading) return;
+    const rootSlug = graph.rootSlug;
+    if (!rootSlug || !graph.nodes.some((node) => node.slug === rootSlug)) return;
+    navigate(`/${rootSlug}`, { replace: true });
+  }, [graph.rootSlug, graph.nodes, graphLoading, isFileMode, navigate, slug]);
 
   useEffect(() => {
     if (isEditing || !pendingContentReload) return;
@@ -280,6 +287,7 @@ export function FiberPage() {
         backlinkNodes={citingBacklinks}
         deltaCount={deltaCount}
         onNavigate={(s) => navigate(`/${s}`)}
+        onIndexEscalate={onIndexEscalate}
       />
 
       {isFileMode && fileTarget && (
@@ -482,7 +490,10 @@ function FileModeView({
               <button
                 key={action.id}
                 type="button"
-                className="vellum-modal-btn vellum-modal-btn--bulk"
+                className={
+                  'vellum-modal-btn vellum-modal-btn--bulk' +
+                  (action.destructive ? ' vellum-modal-btn--destructive' : '')
+                }
                 title={action.title ?? action.label}
                 aria-label={`${action.label}, ${applicable.length} ${
                   applicable.length === 1 ? 'annotation' : 'annotations'

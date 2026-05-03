@@ -111,6 +111,14 @@ interface FloatingIslandProps {
   backlinkNodes: GraphNode[];
   deltaCount?: number;
   onNavigate: (slug: string) => void;
+  /** Optional host hook fired when the user clicks the `← index` button on
+   *  a root fiber (no parent in the local graph). Embedding hosts that
+   *  layer a higher-level synthetic collection on top of vellum — e.g.
+   *  portolan's "global Vellum index" sitting above each city — pass this
+   *  to escape upward one scope level instead of bouncing through the
+   *  local rootSlug redirect. Omit to keep the historical local-only
+   *  `navigate('')` behaviour. */
+  onIndexEscalate?: () => void;
 }
 
 export function FloatingIsland({
@@ -121,6 +129,7 @@ export function FloatingIsland({
   backlinkNodes,
   deltaCount = 0,
   onNavigate,
+  onIndexEscalate,
 }: FloatingIslandProps) {
   const { mode, setMode } = useMode();
   const adapter = useAdapter();
@@ -475,8 +484,26 @@ export function FloatingIsland({
             ) : (
               <button
                 className="thumb-index__parent"
-                onClick={() => onNavigate('')}
-                title="Index — all top-level fibers"
+                onClick={() => {
+                  // Root fiber with no parent in the local graph. If an
+                  // embedding host wired `onIndexEscalate` through
+                  // CollectionContext, treat the click as "escape upward
+                  // one scope level" — the host typically tears down this
+                  // modal and remounts vellum on a synthetic higher-level
+                  // collection (portolan's global Vellum index). Without
+                  // a host hook, fall back to the historical local-only
+                  // `navigate('')`; FiberPage's rootSlug-redirect effect
+                  // bounces straight back to this fiber when a rootSlug
+                  // exists (effectively a no-op), and lands on
+                  // <IndexView> when it doesn't.
+                  if (onIndexEscalate) onIndexEscalate();
+                  else onNavigate('');
+                }}
+                title={
+                  onIndexEscalate
+                    ? 'Index — escalate to global'
+                    : 'Index — all top-level fibers'
+                }
                 aria-label="Back to index"
               >
                 <span className="thumb-index__arrow" aria-hidden="true">←</span>
@@ -512,9 +539,11 @@ export function FloatingIsland({
             </div>
           )}
 
-          {/* Siblings — labeled scrollable line */}
+          {/* Siblings — labeled scrollable line. Peers of the current node:
+              left-aligned (no indent), no glyph. The tree-affordance below
+              (children with `↳` + indent) reads against this baseline. */}
           {allSiblings.length > 0 && (
-            <div className="thumb-index__nav-row">
+            <div className="thumb-index__nav-row thumb-index__nav-row--siblings">
               <span className="thumb-index__nav-label">{allSiblings.length} siblings</span>
               <div className="thumb-index__nav-scroll">
                 <PretextNav
@@ -531,10 +560,18 @@ export function FloatingIsland({
             </div>
           )}
 
-          {/* Children — labeled scrollable line */}
+          {/* Children — one level below current. Visual: small indent + `↳`
+              glyph so the row reads as "what's below this fiber" rather
+              than another flat list at the same level as siblings. The
+              parent row has ←, children have ↳; together the rail's three
+              tree-rows (parent / siblings / children) carry directional
+              cues without needing a separate diagram. */}
           {allChildNodes.length > 0 && (
-            <div className="thumb-index__nav-row">
-              <span className="thumb-index__nav-label">{allChildNodes.length} children</span>
+            <div className="thumb-index__nav-row thumb-index__nav-row--children">
+              <span className="thumb-index__nav-label">
+                <span className="thumb-index__nav-glyph" aria-hidden="true">↳</span>
+                {allChildNodes.length} children
+              </span>
               <div className="thumb-index__nav-scroll">
                 <PretextNav
                   items={allChildNodes.map((child): NavItem => ({

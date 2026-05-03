@@ -58,6 +58,15 @@ export interface WorkspaceMountProps {
    *  FiberPage can hand it to IndexView without a prop chain through every
    *  view. Omit to leave the eyebrow blank. */
   eyebrow?: string;
+  /** Invoked when the user clicks the thumb-index `← index` button while
+   *  sitting at the *top* of this collection's local graph (a root fiber
+   *  with no parent). Lets the embedding host (e.g. portolan) treat that
+   *  click as "escape upward one scope level" — typically by closing this
+   *  modal and remounting vellum against a higher-level synthetic
+   *  collection (the global Vellum index). Omit to keep the button's
+   *  current local-only behaviour (`navigate('')`, which the FiberPage
+   *  rootSlug-redirect bounces back from when a root fiber exists). */
+  onIndexEscalate?: () => void;
   /** Absolute file path to open in the workspace's narrative slot, instead
    *  of a fiber slug. When set, FiberPage mounts FileViewerPage and disables
    *  the Workspace/Delta modes. Mutually exclusive with `initialSlug`. */
@@ -126,6 +135,7 @@ export interface WorkspaceMountApi {
 export function WorkspaceMount({
   initialSlug = '',
   eyebrow,
+  onIndexEscalate,
   initialFilePath,
   originId,
   editable,
@@ -170,7 +180,7 @@ export function WorkspaceMount({
             The provider also writes data-theme onto <html>, which is the
             selector backing :root[data-theme=…] scoped CSS. */}
         <VellumThemeProvider>
-          <CollectionProvider eyebrow={eyebrow}>
+          <CollectionProvider eyebrow={eyebrow} onIndexEscalate={onIndexEscalate}>
             <DecisionFlipProvider>
               <ModeProvider initialMode={initialMode}>
                 <FileTargetProvider target={fileTarget}>
