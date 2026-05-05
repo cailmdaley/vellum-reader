@@ -13,7 +13,7 @@ import type { Annotation, AnnotationAction, AnnotationBulkAction } from '../util
 export interface FileViewerModalProps {
   path: string;
   originId?: string;
-  cityId?: string;
+  collectionId?: string;
   editable?: boolean;
   /** 1-indexed line to jump to when the file opens. */
   jumpToLine?: number;

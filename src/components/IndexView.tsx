@@ -10,9 +10,9 @@
  * slash in its id, no matter whether its intermediate parent has its
  * own `<dir>/<dir>.md` file. The earlier graph-based "no `contains`
  * parent" rule let depth-2+ orphans surface here when the intermediate
- * directory wasn't itself a fiber, which is exactly the loom case
- * (`~/loom/.felt/portolan/vellum-dogfood/some-leaf` with no
- * `portolan/vellum-dogfood/vellum-dogfood.md` to parent it).
+ * directory wasn't itself a fiber, which is exactly the nested-folder case
+ * (`.felt/reference/notes/some-leaf` with no
+ * `reference/notes/notes.md` to parent it).
  *
  * One section, status-blind. Active and open first by status priority;
  * closed and suspended sink to the bottom; createdAt desc within each
