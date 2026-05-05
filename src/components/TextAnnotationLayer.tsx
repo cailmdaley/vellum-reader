@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import type { Annotation } from '~/utils/content-types';
 import { useAdapter } from '~/contexts/AdapterContext';
 import { useAnnotationActions } from '~/contexts/AnnotationActionsContext';
+import { useAnnotationComposer } from '~/hooks/useAnnotationComposer';
+import { AnnotationPopover } from './AnnotationPopover';
 
 interface TextAnnotationLayerProps {
   slug: string;
@@ -205,8 +207,6 @@ export function TextAnnotationLayer({
   // back to "+ Note" only — no harm done.
   const { singleActions } = useAnnotationActions();
   const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
-  const [showCommentBox, setShowCommentBox] = useState(false);
-  const [commentText, setCommentText] = useState('');
   const [selectionContext, setSelectionContext] = useState<{
     selectedText: string;
     contextBefore: string;
@@ -217,8 +217,82 @@ export function TextAnnotationLayer({
     annotation: Annotation;
     rect: DOMRect;
   } | null>(null);
-  const [editingComment, setEditingComment] = useState<string | null>(null);
-  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Substrate-agnostic composer state — text, open/dismiss, keyboard
+  // handling. The hook fires our `onSubmit` (which extracts the
+  // selection-context triple and calls the adapter); on truthy result
+  // it resets text + open. We layer prose-specific concerns on top:
+  // `draftTop` for in-margin positioning, `draftInputRef` for the
+  // contentEditable element (so we can place the caret at end after
+  // focus), and clearing the browser's native selection on success.
+  const composer = useAnnotationComposer({
+    onSubmit: async (text) => {
+      if (!selectionContext) return null;
+      const ann = await adapter.createAnnotation({
+        slug,
+        selectedText: selectionContext.selectedText,
+        contextBefore: selectionContext.contextBefore,
+        contextAfter: selectionContext.contextAfter,
+        comment: text,
+      });
+      if (!ann) return null;
+      onAnnotationsChange([...annotations, ann]);
+      setSelectionRect(null);
+      setSelectionContext(null);
+      setDraftTop(null);
+      window.getSelection()?.removeAllRanges();
+      return ann;
+    },
+  });
+
+  // ContentEditable div for the in-margin draft. Using a div (not textarea)
+  // so it inherits .ann-margin-note__body styling verbatim — italic
+  // Garamond, the gold gutter rule, line-clamping — and the user's
+  // typed text looks identical to the persisted note while they're
+  // composing it. Save/Cancel sit below. Owned locally (not via
+  // composer.inputRef) so we can place the caret at end after focus —
+  // a contentEditable-specific gesture the substrate-agnostic hook
+  // shouldn't carry.
+  const draftInputRef = useRef<HTMLDivElement>(null);
+  // Top coordinate (wrapper-relative) where the draft margin note should
+  // anchor. Computed once when "+ Note" is clicked from the captured
+  // selection rect; avoids re-reading selection on every render (the
+  // browser's native selection clears as soon as the user clicks our
+  // button or focuses the contentEditable).
+  const [draftTop, setDraftTop] = useState<number | null>(null);
+  // Bumped whenever the prose reflows (divider drag, viewport resize, theme
+  // swap, lazy-image load) so the mark-creation effect re-runs and re-anchors
+  // every highlight. Without this, dragging CanvasDivider rebuilds the
+  // pretext layout's per-line DOM via React reconciliation and silently
+  // destroys the imperatively-inserted `<mark>` elements that
+  // `range.surroundContents()` placed earlier — highlights and their margin
+  // notes vanish until the next re-render is triggered some other way.
+  const [reanchorTick, setReanchorTick] = useState(0);
+
+  useEffect(() => {
+    const prose = proseRef.current;
+    if (!prose || typeof ResizeObserver === 'undefined') return;
+    // Observe the prose element directly. Catches every reflow source we
+    // care about (divider drag → --canvas-width change → prose width
+    // change; window resize; theme swap; deferred image/figure load) with
+    // one mechanism. The dedup happens via `setMarks(...)`'s identity
+    // comparison in the consuming effect — duplicate ticks are cheap.
+    let lastWidth = prose.getBoundingClientRect().width;
+    let lastHeight = prose.getBoundingClientRect().height;
+    const observer = new ResizeObserver(() => {
+      const rect = prose.getBoundingClientRect();
+      if (rect.width === lastWidth && rect.height === lastHeight) return;
+      lastWidth = rect.width;
+      lastHeight = rect.height;
+      // RAF defers the re-anchor until the layout pass that triggered the
+      // resize has settled — pretext rebuilds its per-line DOM inside the
+      // same frame as the width change, so we want our mark wrappers to
+      // land after that DOM exists, not against a half-torn-down tree.
+      requestAnimationFrame(() => setReanchorTick((n) => n + 1));
+    });
+    observer.observe(prose);
+    return () => observer.disconnect();
+  }, [proseRef]);
 
   useEffect(() => {
     const prose = proseRef.current;
@@ -236,15 +310,18 @@ export function TextAnnotationLayer({
         if (selectedText.length < 3) return;
 
         setSelectionRect(range.getBoundingClientRect());
-        setShowCommentBox(false);
-        setCommentText('');
+        // A new selection supersedes any in-flight composer; the user
+        // is signalling "I want to comment on this passage instead".
+        composer.dismiss();
         setSelectionContext(getContext(sel, proseEl));
       });
     }
 
     prose.addEventListener('mouseup', handleMouseUp);
     return () => prose.removeEventListener('mouseup', handleMouseUp);
-  }, [proseRef]);
+    // `composer.dismiss` is referentially stable (useCallback with empty
+    // deps in the hook), so the captured closure is safe across renders.
+  }, [proseRef, composer.dismiss]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -253,14 +330,14 @@ export function TextAnnotationLayer({
       if (target.closest('.ann-highlight')) return;
       if (target.closest('.ann-margin-note')) return;
       setSelectionRect(null);
-      setShowCommentBox(false);
       setActivePopover(null);
-      setEditingComment(null);
+      setDraftTop(null);
+      composer.dismiss();
     }
 
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [composer.dismiss]);
 
   useEffect(() => {
     const prose = proseRef.current;
@@ -385,7 +462,6 @@ export function TextAnnotationLayer({
       e.preventDefault();
       e.stopPropagation();
       setActivePopover({ annotation: ann, rect: mark.getBoundingClientRect() });
-      setEditingComment(null);
       setSelectionRect(null);
     }
 
@@ -401,33 +477,18 @@ export function TextAnnotationLayer({
         parent.normalize();
       }
     };
-  }, [annotations, proseRef, wrapperRef]);
-
-  const handleSubmit = useCallback(async () => {
-    if (!selectionContext || !commentText.trim()) return;
-    const ann = await adapter.createAnnotation({
-      slug,
-      selectedText: selectionContext.selectedText,
-      contextBefore: selectionContext.contextBefore,
-      contextAfter: selectionContext.contextAfter,
-      comment: commentText.trim(),
-    });
-    if (ann) {
-      onAnnotationsChange([...annotations, ann]);
-      setSelectionRect(null);
-      setShowCommentBox(false);
-      setCommentText('');
-      setSelectionContext(null);
-      window.getSelection()?.removeAllRanges();
-    }
-  }, [adapter, slug, selectionContext, commentText, annotations, onAnnotationsChange]);
+    // `reanchorTick` re-runs this effect after a prose reflow (CanvasDivider
+    // drag, viewport resize, etc.), which is when pretext's per-line DOM
+    // gets rebuilt and our imperative `<mark>` wrappers vanish along with
+    // it. The cleanup above unwraps any stale marks before the new pass
+    // wraps fresh ones — see the ResizeObserver effect above for the
+    // tick source.
+  }, [annotations, proseRef, wrapperRef, reanchorTick]);
 
   const handleUpdate = useCallback(async (id: string, comment: string) => {
     const ann = await adapter.updateAnnotation(id, comment);
     if (ann) {
       onAnnotationsChange(annotations.map((annotation) => (annotation.id === id ? ann : annotation)));
-      setActivePopover(null);
-      setEditingComment(null);
     }
   }, [adapter, annotations, onAnnotationsChange]);
 
@@ -442,13 +503,22 @@ export function TextAnnotationLayer({
     const el = mark.markEls[0];
     if (!el) return;
     setActivePopover({ annotation: ann, rect: el.getBoundingClientRect() });
-    setEditingComment(null);
     setSelectionRect(null);
   }, []);
 
   useEffect(() => {
-    if (showCommentBox && commentInputRef.current) commentInputRef.current.focus();
-  }, [showCommentBox]);
+    if (composer.open && draftInputRef.current) {
+      draftInputRef.current.focus();
+      // Place caret at the end so subsequent typing appends rather than
+      // pre-pending (matters when the placeholder is replaced by typing).
+      const range = document.createRange();
+      range.selectNodeContents(draftInputRef.current);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  }, [composer.open]);
 
   const handleSingleAction = useCallback(
     async (actionId: string) => {
@@ -462,7 +532,7 @@ export function TextAnnotationLayer({
       // async-after-await read sees the same text the user picked.
       const sel = { ...selectionContext };
       setSelectionRect(null);
-      setShowCommentBox(false);
+      composer.dismiss();
       setSelectionContext(null);
       window.getSelection()?.removeAllRanges();
       try {
@@ -489,7 +559,7 @@ export function TextAnnotationLayer({
 
   return (
     <>
-      {selectionRect && !showCommentBox && (
+      {selectionRect && !composer.open && (
         <div
           className="ann-toolbar ann-toolbar--actions"
           style={{
@@ -503,7 +573,21 @@ export function TextAnnotationLayer({
             className="ann-toolbar__btn"
             onClick={(e) => {
               e.stopPropagation();
-              setShowCommentBox(true);
+              // Capture the wrapper-relative top of the selection so the
+              // draft margin note anchors at the same y as the highlighted
+              // passage. Read once now — once the user focuses the
+              // contentEditable below, the browser's native selection
+              // clears and selectionRect would no longer match the
+              // highlighted text's position. Falls back to 0 if the
+              // wrapper isn't available (defensive; shouldn't happen).
+              const wrapper = wrapperRef.current;
+              if (wrapper && selectionRect) {
+                const wrapperRect = wrapper.getBoundingClientRect();
+                setDraftTop(selectionRect.top - wrapperRect.top);
+              } else {
+                setDraftTop(0);
+              }
+              composer.start();
             }}
           >
             + Note
@@ -532,46 +616,68 @@ export function TextAnnotationLayer({
         </div>
       )}
 
-      {selectionRect && showCommentBox && (
+      {composer.open && draftTop !== null && (
+        // In-margin draft: the contentEditable IS a margin note, styled
+        // identically (italic Garamond, gold gutter rule). Saving makes
+        // the persisted note swap in below this draft with no visual
+        // jump — what you typed is already what you'll see. Save/Cancel
+        // tuck under the body so they don't compete with the prose.
+        // Anchors at the wrapper-relative draft top captured at "+ Note"
+        // click time; same coordinate space as the persisted marks.
+        // The composer hook owns text + open + keyboard; we own the
+        // contentEditable + caret-end positioning + draftTop.
         <div
-          className="ann-toolbar ann-toolbar--comment"
-          style={{
-            position: 'fixed',
-            top: selectionRect.bottom + 8,
-            left: selectionRect.left,
-          }}
+          className="ann-margin-note ann-margin-note--draft"
+          style={{ top: draftTop }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <textarea
-            ref={commentInputRef}
-            className="ann-toolbar__input"
-            placeholder="Add a note..."
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void handleSubmit();
-              }
-              if (e.key === 'Escape') {
-                setShowCommentBox(false);
-                setSelectionRect(null);
-              }
-            }}
-            rows={2}
-          />
-          <div className="ann-toolbar__actions">
-            <button className="ann-toolbar__submit" disabled={!commentText.trim()} onClick={() => void handleSubmit()}>
-              Save
-            </button>
-            <button
-              className="ann-toolbar__cancel"
-              onClick={() => {
-                setShowCommentBox(false);
-                setSelectionRect(null);
+          <div className="ann-margin-note__compose">
+            <div
+              ref={draftInputRef}
+              className="ann-margin-note__body ann-margin-note__body--editable"
+              contentEditable
+              suppressContentEditableWarning
+              role="textbox"
+              aria-label="Add a note"
+              data-placeholder="Add a note…"
+              onInput={(e) => composer.setText(e.currentTarget.textContent ?? '')}
+              onKeyDown={(e) => {
+                // The composer's keyDown handles Enter (submit) and
+                // Escape (dismiss); we only need to clear the prose-
+                // specific extras (selectionRect + draftTop) on
+                // dismiss. Wrap to do both.
+                if (e.key === 'Escape') {
+                  setSelectionRect(null);
+                  setDraftTop(null);
+                }
+                composer.keyDown(e);
               }}
-            >
-              Cancel
-            </button>
+              // Stop bubbling so the document-level mousedown handler
+              // (which closes the toolbar on outside clicks) doesn't
+              // dismiss our draft when the user clicks into it.
+              onMouseDown={(e) => e.stopPropagation()}
+            />
+            <div className="ann-margin-note__actions">
+              <button
+                type="button"
+                className="ann-margin-note__btn ann-margin-note__btn--save"
+                disabled={!composer.text.trim()}
+                onClick={() => void composer.submit()}
+              >
+                save
+              </button>
+              <button
+                type="button"
+                className="ann-margin-note__btn ann-margin-note__btn--cancel"
+                onClick={() => {
+                  setSelectionRect(null);
+                  setDraftTop(null);
+                  composer.dismiss();
+                }}
+              >
+                cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -605,69 +711,15 @@ export function TextAnnotationLayer({
       })}
 
       {activePopover && (
-        <div
-          className="ann-popover"
-          style={{
-            position: 'fixed',
-            top: activePopover.rect.bottom + 8,
-            left: activePopover.rect.left,
-          }}
-        >
-          <div className="ann-popover__selected">
-            "{activePopover.annotation.selectedText.length > 60
-              ? `${activePopover.annotation.selectedText.slice(0, 60)}…`
-              : activePopover.annotation.selectedText}"
-          </div>
-          {editingComment !== null ? (
-            <div className="ann-popover__edit">
-              <textarea
-                className="ann-popover__input"
-                value={editingComment}
-                onChange={(e) => setEditingComment(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    void handleUpdate(activePopover.annotation.id, editingComment);
-                  }
-                  if (e.key === 'Escape') setEditingComment(null);
-                }}
-                rows={2}
-                autoFocus
-              />
-              <div className="ann-toolbar__actions">
-                <button className="ann-toolbar__submit" onClick={() => void handleUpdate(activePopover.annotation.id, editingComment)}>
-                  Save
-                </button>
-                <button className="ann-toolbar__cancel" onClick={() => setEditingComment(null)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="ann-popover__comment">{activePopover.annotation.comment}</div>
-          )}
-          <div className="ann-popover__actions">
-            {editingComment === null && (
-              <button className="ann-popover__btn" onClick={() => setEditingComment(activePopover.annotation.comment)}>
-                Edit
-              </button>
-            )}
-            <button
-              className="ann-popover__btn ann-popover__btn--delete"
-              onClick={() => void handleDelete(activePopover.annotation.id)}
-            >
-              Delete
-            </button>
-          </div>
-          <div className="ann-popover__time">
-            {new Date(activePopover.annotation.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </div>
-        </div>
+        <AnnotationPopover
+          annotation={activePopover.annotation}
+          top={activePopover.rect.bottom + 8}
+          left={activePopover.rect.left}
+          positionStrategy="fixed"
+          onEdit={(next) => handleUpdate(activePopover.annotation.id, next)}
+          onDelete={() => handleDelete(activePopover.annotation.id)}
+          onClose={() => setActivePopover(null)}
+        />
       )}
     </>
   );

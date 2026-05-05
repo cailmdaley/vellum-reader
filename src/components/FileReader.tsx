@@ -66,6 +66,9 @@ import { assignMdastKeys } from '../utils/mdast-keys';
 import { PretextProse } from './PretextProse';
 import { ThemePicker } from './ThemePicker';
 import { FiberHeader } from './FiberHeader';
+import { TextAnnotationLayer } from './TextAnnotationLayer';
+import { AnnotationPopover } from './AnnotationPopover';
+import { useAnnotationComposer } from '../hooks/useAnnotationComposer';
 // Static ?url import: Vite resolves this to a string URL at transform time,
 // which survives symlinked-package serving via /@fs/. A dynamic import()?url
 // goes through a different path where the ?url query gets dropped for
@@ -236,19 +239,63 @@ function TextReader({
   onAnnotationsChangeRef.current = onAnnotationsChange;
 
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
-  const [commentDraft, setCommentDraft] = useState('');
-  const [showCommentBox, setShowCommentBox] = useState(false);
   const [popover, setPopover] = useState<PopoverInfo | null>(null);
-  const [editingComment, setEditingComment] = useState<string | null>(null);
-  const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Substrate-agnostic composer state — text, open/dismiss, keyboard
+  // handling. The hook fires our `onSubmit`, which enriches the create
+  // payload with CodeMirror-specific char-offset/line metadata before
+  // dispatching to the adapter; on truthy result it resets text + open.
+  // Selection-clearing and popover-dismissal stay here because they're
+  // substrate-bound (CodeMirror selection / wrapper-relative popover
+  // positioning).
+  const composer = useAnnotationComposer({
+    onSubmit: async (text) => {
+      if (!selection || !annotationSlug) return null;
+      const view = viewRef.current;
+      const doc = view?.state.doc;
+      const line = doc ? doc.lineAt(selection.from).number : 1;
+      const endLine = doc ? doc.lineAt(selection.to).number : line;
+      const content = doc?.toString() ?? '';
+      const contextBefore = content.slice(Math.max(0, selection.from - 30), selection.from);
+      const contextAfter = content.slice(selection.to, Math.min(content.length, selection.to + 30));
+      try {
+        const created = await adapter.createAnnotation({
+          slug: annotationSlug,
+          kind: 'text',
+          filePath: annotationSlug,
+          originId: annotationOriginId,
+          selectedText: selection.text,
+          originalText: selection.text,
+          contextBefore,
+          contextAfter,
+          comment: text,
+          from: selection.from,
+          to: selection.to,
+          line,
+          endLine,
+        });
+        if (!created) return null;
+        onAnnotationsChangeRef.current?.([...annotationsRef.current, created]);
+        setSelection(null);
+        view?.dispatch({ selection: EditorSelection.cursor(selection.to) });
+        return created;
+      } catch (err) {
+        console.error('createAnnotation failed', err);
+        return null;
+      }
+    },
+  });
+
+  // `dismissAll` is the catch-all the legacy code used to wipe every
+  // composer/popover surface back to baseline. The composer hook owns
+  // its own dismiss; we layer the substrate-bound resets on top
+  // (selection, popover). Kept as a stable callback because it's
+  // referenced from effect deps.
   const dismissAll = useCallback(() => {
     setSelection(null);
-    setShowCommentBox(false);
-    setCommentDraft('');
+    composer.dismiss();
     setPopover(null);
-    setEditingComment(null);
-  }, []);
+  }, [composer.dismiss]);
 
   const coordsRelativeToWrapper = useCallback(
     (view: EditorView, pos: number): { top: number; left: number } | null => {
@@ -330,13 +377,13 @@ function TextReader({
           const sel = update.state.selection.main;
           if (sel.empty) {
             setSelection(null);
-            setShowCommentBox(false);
+            composer.dismiss();
             return;
           }
           const text = update.state.doc.sliceString(sel.from, sel.to);
           if (text.trim().length < 2) {
             setSelection(null);
-            setShowCommentBox(false);
+            composer.dismiss();
             return;
           }
           const coords = coordsRelativeToWrapper(update.view, sel.from);
@@ -372,7 +419,10 @@ function TextReader({
       view.destroy();
       viewRef.current = null;
     };
-  }, [file.path, file.content, file.language, editable, jumpToLine, canAnnotate, coordsRelativeToWrapper]);
+    // `composer.dismiss` is referentially stable (useCallback with empty
+    // deps in the hook), so including it in the deps doesn't trigger
+    // editor re-mounts on every composer state flip.
+  }, [file.path, file.content, file.language, editable, jumpToLine, canAnnotate, coordsRelativeToWrapper, composer.dismiss]);
 
   // Keep decorations in sync with incoming annotations without rebuilding the
   // whole editor (which would throw away cursor state on every fetch).
@@ -406,7 +456,6 @@ function TextReader({
         left: rect.left - wrapRect.left,
       });
       setSelection(null);
-      setEditingComment(null);
     };
     host.addEventListener('click', onClick, true);
     return () => host.removeEventListener('click', onClick, true);
@@ -423,80 +472,51 @@ function TextReader({
       // Click inside the editor that's not on a mark — let the selection
       // listener refresh the toolbar, but close any open popover.
       setPopover(null);
-      setEditingComment(null);
     };
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [canAnnotate]);
 
-  useEffect(() => {
-    if (showCommentBox) commentInputRef.current?.focus();
-  }, [showCommentBox]);
+  // useAnnotationComposer auto-focuses inputRef when `composer.open`
+  // flips true; FileReader binds composer.inputRef to the textarea
+  // below, so no extra focus effect needed here.
 
-  const submitNew = useCallback(async () => {
-    if (!selection || !annotationSlug) return;
-    const comment = commentDraft.trim();
-    if (!comment) return;
-    const view = viewRef.current;
-    const doc = view?.state.doc;
-    const line = doc ? doc.lineAt(selection.from).number : 1;
-    const endLine = doc ? doc.lineAt(selection.to).number : line;
-    const content = doc?.toString() ?? '';
-    const contextBefore = content.slice(Math.max(0, selection.from - 30), selection.from);
-    const contextAfter = content.slice(selection.to, Math.min(content.length, selection.to + 30));
-    try {
-      const created = await adapter.createAnnotation({
-        slug: annotationSlug,
-        kind: 'text',
-        filePath: annotationSlug,
-        originId: annotationOriginId,
-        selectedText: selection.text,
-        originalText: selection.text,
-        contextBefore,
-        contextAfter,
-        comment,
-        from: selection.from,
-        to: selection.to,
-        line,
-        endLine,
-      });
-      if (!created) return;
-      onAnnotationsChangeRef.current?.([...annotationsRef.current, created]);
-      dismissAll();
-      view?.dispatch({ selection: EditorSelection.cursor(selection.to) });
-    } catch (err) {
-      console.error('createAnnotation failed', err);
-    }
-  }, [adapter, annotationSlug, annotationOriginId, commentDraft, dismissAll, selection]);
+  // Popover Edit handler — adapter call + upstream list update; the
+  // shared <AnnotationPopover/> owns its own editing UI/state and
+  // closes itself on resolve via onClose.
+  const handleEdit = useCallback(
+    async (annotationId: string, next: string) => {
+      try {
+        const updated = await adapter.updateAnnotation(annotationId, next);
+        if (!updated) return;
+        const list = annotationsRef.current.map((a) =>
+          a.id === updated.id ? updated : a,
+        );
+        onAnnotationsChangeRef.current?.(list);
+      } catch (err) {
+        console.error('updateAnnotation failed', err);
+      }
+    },
+    [adapter],
+  );
 
-  const submitEdit = useCallback(async () => {
-    if (!popover || editingComment == null) return;
-    const next = editingComment.trim();
-    if (!next) return;
-    try {
-      const updated = await adapter.updateAnnotation(popover.annotation.id, next);
-      if (!updated) return;
-      const list = annotationsRef.current.map((a) => (a.id === updated.id ? updated : a));
-      onAnnotationsChangeRef.current?.(list);
-      setPopover({ ...popover, annotation: updated });
-      setEditingComment(null);
-    } catch (err) {
-      console.error('updateAnnotation failed', err);
-    }
-  }, [adapter, editingComment, popover]);
-
-  const submitDelete = useCallback(async () => {
-    if (!popover) return;
-    try {
-      const ok = await adapter.deleteAnnotation(popover.annotation.id);
-      if (!ok) return;
-      onAnnotationsChangeRef.current?.(annotationsRef.current.filter((a) => a.id !== popover.annotation.id));
-      setPopover(null);
-      setEditingComment(null);
-    } catch (err) {
-      console.error('deleteAnnotation failed', err);
-    }
-  }, [adapter, popover]);
+  // Popover Delete handler — symmetric to handleEdit. The popover
+  // calls onClose after this resolves; we clear our `popover` state
+  // there so the surface unmounts cleanly.
+  const handleDelete = useCallback(
+    async (annotationId: string) => {
+      try {
+        const ok = await adapter.deleteAnnotation(annotationId);
+        if (!ok) return;
+        onAnnotationsChangeRef.current?.(
+          annotationsRef.current.filter((a) => a.id !== annotationId),
+        );
+      } catch (err) {
+        console.error('deleteAnnotation failed', err);
+      }
+    },
+    [adapter],
+  );
 
   return (
     <div ref={wrapperRef} className="vellum-text-reader-wrapper">
@@ -504,7 +524,7 @@ function TextReader({
         ref={hostRef}
         className={`vellum-file-reader vellum-file-reader--text${editable ? ' vellum-file-reader--editable' : ''}`}
       />
-      {canAnnotate && selection && !showCommentBox && (
+      {canAnnotate && selection && !composer.open && (
         <div
           className="ann-toolbar"
           style={{ position: 'absolute', top: Math.max(0, selection.top - 36), left: selection.left }}
@@ -514,42 +534,33 @@ function TextReader({
             className="ann-toolbar__btn"
             onClick={(e) => {
               e.stopPropagation();
-              setShowCommentBox(true);
-              setCommentDraft('');
+              composer.start();
             }}
           >
             + Note
           </button>
         </div>
       )}
-      {canAnnotate && selection && showCommentBox && (
+      {canAnnotate && selection && composer.open && (
         <div
           className="ann-toolbar ann-toolbar--comment"
           style={{ position: 'absolute', top: selection.top + 24, left: selection.left }}
         >
           <textarea
-            ref={commentInputRef}
+            ref={composer.inputRef as React.RefObject<HTMLTextAreaElement>}
             className="ann-toolbar__input"
             placeholder="Add a note..."
-            value={commentDraft}
-            onChange={(e) => setCommentDraft(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void submitNew();
-              } else if (e.key === 'Escape') {
-                dismissAll();
-              }
-            }}
+            value={composer.text}
+            onChange={(e) => composer.setText(e.target.value)}
+            onKeyDown={composer.keyDown}
             rows={2}
           />
           <div className="ann-toolbar__actions">
             <button
               type="button"
               className="ann-toolbar__submit"
-              disabled={!commentDraft.trim()}
-              onClick={() => void submitNew()}
+              disabled={!composer.text.trim()}
+              onClick={() => void composer.submit()}
             >
               Save
             </button>
@@ -560,92 +571,16 @@ function TextReader({
         </div>
       )}
       {canAnnotate && popover && (
-        <div
-          className="ann-popover"
-          style={{ position: 'absolute', top: popover.top, left: popover.left }}
-        >
-          <div className="ann-popover__selected">
-            "{popover.annotation.selectedText.length > 60
-              ? `${popover.annotation.selectedText.slice(0, 60)}…`
-              : popover.annotation.selectedText}"
-          </div>
-          {editingComment !== null ? (
-            <div className="ann-popover__edit">
-              <textarea
-                className="ann-popover__input"
-                value={editingComment}
-                onChange={(e) => setEditingComment(e.target.value)}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    void submitEdit();
-                  } else if (e.key === 'Escape') {
-                    setEditingComment(null);
-                  }
-                }}
-                rows={2}
-                autoFocus
-              />
-              <div className="ann-toolbar__actions">
-                <button type="button" className="ann-toolbar__submit" onClick={() => void submitEdit()}>
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="ann-toolbar__cancel"
-                  onClick={() => setEditingComment(null)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="ann-popover__comment">{popover.annotation.comment}</div>
-          )}
-          <div className="ann-popover__actions">
-            {editingComment === null && (
-              <button
-                type="button"
-                className="ann-popover__btn"
-                onClick={() => setEditingComment(popover.annotation.comment)}
-              >
-                Edit
-              </button>
-            )}
-            {editingComment === null &&
-              annotationActions?.map((action) => (
-                <button
-                  key={action.id}
-                  type="button"
-                  className="ann-popover__btn ann-popover__btn--action"
-                  title={action.title ?? action.label}
-                  onClick={() => {
-                    void action.onInvoke(popover.annotation);
-                  }}
-                >
-                  {action.label}
-                </button>
-              ))}
-            <button
-              type="button"
-              className="ann-popover__btn ann-popover__btn--delete"
-              onClick={() => void submitDelete()}
-            >
-              Delete
-            </button>
-          </div>
-          {popover.annotation.createdAt ? (
-            <div className="ann-popover__time">
-              {new Date(popover.annotation.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </div>
-          ) : null}
-        </div>
+        <AnnotationPopover
+          annotation={popover.annotation}
+          top={popover.top}
+          left={popover.left}
+          positionStrategy="absolute"
+          onEdit={(next) => handleEdit(popover.annotation.id, next)}
+          onDelete={() => handleDelete(popover.annotation.id)}
+          actions={annotationActions}
+          onClose={() => setPopover(null)}
+        />
       )}
     </div>
   );
@@ -692,29 +627,59 @@ const MARKDOWN_INITIAL_CONTENT_WIDTH = 720 - 63 * 2;
  * PretextProse — caller passes a 1-indexed source line and the canvas scrolls
  * to the matching block once layout settles.
  */
-function MarkdownReader({ file, jumpToLine }: FileReaderProps) {
+function MarkdownReader({
+  file,
+  jumpToLine,
+  annotations,
+  annotationSlug,
+  onAnnotationsChange,
+}: FileReaderProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // proseRef is what TextAnnotationLayer scopes selection-tracking and highlight
+  // hit-testing to; we mount it on an <article> sibling of the layer so the
+  // ThemePicker / FiberHeader chrome at the top of the wrapper stays out of the
+  // selection range. Same shape as NarrativeView's vellum-prose-wrapper /
+  // vellum-prose pair.
+  const proseRef = useRef<HTMLElement>(null);
   const [contentWidth, setContentWidth] = useState<number>(MARKDOWN_INITIAL_CONTENT_WIDTH);
 
-  // Measure the wrapper's inner width (content box minus any horizontal
-  // padding). Pretext lays out from this width — keeping the observer cheap
-  // matters because every wrapper-resize triggers a full re-layout.
+  // Observe the prose element's content-box inline size — same pattern as
+  // NarrativeView. `.vellum-prose` carries 3.5rem horizontal padding, so
+  // observing the wrapper and subtracting only the wrapper's own padding
+  // double-counts: PretextProse would lay out ~112px wider than the prose
+  // content box, and lines run past the right edge as the canvas divider
+  // narrows the column. `contentBoxSize.inlineSize` already excludes padding,
+  // so PretextProse receives the actual layout width the browser will use to
+  // wrap text.
   useLayoutEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const updateWidth = () => {
-      const cs = window.getComputedStyle(wrapper);
-      const padX = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0');
-      const next = Math.max(120, wrapper.clientWidth - padX);
-      setContentWidth(next);
-    };
-    updateWidth();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => updateWidth());
-    observer.observe(wrapper);
+    const el = proseRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const boxes = entry.contentBoxSize;
+        let inline: number | null = null;
+        if (boxes) {
+          const box = Array.isArray(boxes) ? boxes[0] : boxes;
+          inline = box?.inlineSize ?? null;
+        }
+        if (inline == null) {
+          inline = entry.contentRect?.width ?? null;
+        }
+        if (inline != null && inline > 0) {
+          const next = Math.max(120, inline);
+          setContentWidth((prev) => (Math.abs(prev - next) < 0.5 ? prev : next));
+        }
+      }
+    });
+    observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
+  // Annotation surfacing is gated on the host wiring up `annotationSlug` +
+  // `onAnnotationsChange` — the same contract TextReader uses — so a host
+  // that doesn't route annotations (read-only static viewer, etc.) skips
+  // the layer entirely and pays nothing.
+  const annotationsEnabled = !!annotationSlug && !!onAnnotationsChange;
   const keyedMdast = file.mdast ? assignMdastKeys(file.mdast, `file:${file.path}`) : file.mdast;
   return (
     <ThemeProvider theme={null} setTheme={() => {}} renderers={MARKDOWN_RENDERERS}>
@@ -742,11 +707,25 @@ function MarkdownReader({ file, jumpToLine }: FileReaderProps) {
           {file.frontmatter && hasFiberShape(file.frontmatter) && (
             <FiberHeader frontmatter={file.frontmatter as Record<string, any>} />
           )}
-          <PretextProse
-            mdast={keyedMdast}
-            contentWidth={contentWidth}
-            jumpToLine={jumpToLine}
-          />
+          {/* Wrap PretextProse in an <article> so TextAnnotationLayer's
+              selection scope stays inside the prose body (not the chrome above).
+              Mirrors NarrativeView.vellum-prose ↔ TextAnnotationLayer pairing. */}
+          <article ref={proseRef} className="vellum-prose vellum-prose--pretext">
+            <PretextProse
+              mdast={keyedMdast}
+              contentWidth={contentWidth}
+              jumpToLine={jumpToLine}
+            />
+          </article>
+          {annotationsEnabled && (
+            <TextAnnotationLayer
+              slug={annotationSlug!}
+              annotations={annotations ?? []}
+              proseRef={proseRef}
+              wrapperRef={wrapperRef as React.RefObject<HTMLElement>}
+              onAnnotationsChange={onAnnotationsChange!}
+            />
+          )}
         </div>
       </ArticleProvider>
     </ThemeProvider>

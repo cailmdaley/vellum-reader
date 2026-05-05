@@ -39,7 +39,7 @@ export function FiberPage() {
   const navigate = useNavigate();
   const { mode, setMode } = useMode();
   const { themeId } = useTheme();
-  const { eyebrow, onIndexEscalate } = useCollection();
+  const { eyebrow, onIndexEscalate, onOpenSyntheticNode } = useCollection();
   const adapter = useAdapter();
   const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
   const fileTarget = useFileTarget();
@@ -50,6 +50,26 @@ export function FiberPage() {
   // workspace reverts to fiber mode for the rest of this mount's life.
   const isFileMode = location.pathname === FILE_TARGET_ROUTE && !!fileTarget;
   const slug = isFileMode ? '' : location.pathname.replace(/^\/+|\/+$/g, '');
+
+  // Synthetic-aware navigate. Slugs starting with `__` are host-emitted
+  // gateway nodes for other collections. When the host wired
+  // `onOpenSyntheticNode`, route through it so the host can remount on
+  // the destination collection and the user gets that destination's full
+  // graph + thumb-index. When not wired (vanilla vellum, no synthetic
+  // nodes), fall through to ordinary in-mount navigation. Used by
+  // FloatingIsland, IndexView, ContextCardLayer, and NarrativeView's
+  // wikilink + breadcrumb clicks — every click that picks a node by slug
+  // funnels through here.
+  const handleNavigateToSlug = useCallback(
+    (s: string) => {
+      if (s.startsWith('__') && onOpenSyntheticNode) {
+        onOpenSyntheticNode(s);
+        return;
+      }
+      navigate(`/${s}`);
+    },
+    [navigate, onOpenSyntheticNode],
+  );
   // Embedding hosts (portolan's kanban-in-vellum, Find-in-vellum) override
   // tab bodies via WorkspaceSlotContext. When a slot is set and the user is
   // on that tab, FiberPage renders the slot in place of the built-in view,
@@ -273,7 +293,7 @@ export function FiberPage() {
             {mode === 'workspace' && anatomyNode && !useWorkspaceSlotRender ? (
               <WorkspaceAnatomy
                 node={anatomyNode}
-                onNavigate={(s) => navigate(`/${s}`)}
+                onNavigate={handleNavigateToSlug}
               />
             ) : null}
           </Canvas>
@@ -286,7 +306,7 @@ export function FiberPage() {
         backlinkCount={citingBacklinks.length}
         backlinkNodes={citingBacklinks}
         deltaCount={deltaCount}
-        onNavigate={(s) => navigate(`/${s}`)}
+        onNavigate={handleNavigateToSlug}
         onIndexEscalate={onIndexEscalate}
       />
 
@@ -332,7 +352,7 @@ export function FiberPage() {
       )}
 
       {!isFileMode && mode === 'narrative' && !contentLoading && !slug && (
-        <IndexView nodes={graph.nodes} links={graph.links} onNavigate={(s) => navigate(`/${s}`)} eyebrow={eyebrow} />
+        <IndexView nodes={graph.nodes} links={graph.links} onNavigate={handleNavigateToSlug} eyebrow={eyebrow} />
       )}
 
       {!isFileMode && mode === 'narrative' && !contentLoading && slug && !content?.mdast && (
@@ -395,7 +415,7 @@ export function FiberPage() {
       {/* Pinned cards are a Narrative-only affordance — they're anchored
           to prose line-y coordinates that don't exist in other modes, so
           rendering them on Delta/Workspace looks like ghost UI. */}
-      {!isFileMode && mode === 'narrative' && <ContextCardLayer onNavigate={(s) => navigate(`/${s}`)} />}
+      {!isFileMode && mode === 'narrative' && <ContextCardLayer onNavigate={handleNavigateToSlug} />}
 
       {!isFileMode && mode === 'delta' && (
         <DeltaView

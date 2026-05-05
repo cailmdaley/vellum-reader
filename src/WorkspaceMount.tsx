@@ -54,7 +54,7 @@ export interface WorkspaceMountProps {
   /** Fiber slug to land on. Mutually exclusive with `initialFilePath`. */
   initialSlug?: string;
   /** Optional eyebrow above the IndexView title — typically the host's
-   *  collection or city name. Threaded through ModeProvider via context so
+   *  collection name. Threaded through ModeProvider via context so
    *  FiberPage can hand it to IndexView without a prop chain through every
    *  view. Omit to leave the eyebrow blank. */
   eyebrow?: string;
@@ -67,6 +67,17 @@ export interface WorkspaceMountProps {
    *  current local-only behaviour (`navigate('')`, which the FiberPage
    *  rootSlug-redirect bounces back from when a root fiber exists). */
   onIndexEscalate?: () => void;
+  /** Invoked when the user clicks any node whose slug starts with `__`
+   *  — a host-synthetic collection gateway. Embedding hosts can use this
+   *  to remount vellum on the destination collection so the user gets that
+   *  collection's full graph and populated thumb-index, rather than
+   *  treating the synthetic slug as an ordinary in-collection fiber.
+   *
+   *  When omitted, synthetic-slug clicks fall through to ordinary
+   *  in-mount `navigate`, which is the right thing for vanilla vellum
+   *  (no synthetic nodes) and a degraded-but-functional fallback for
+   *  hosts that haven't wired the prop yet. */
+  onOpenSyntheticNode?: (slug: string) => void;
   /** Absolute file path to open in the workspace's narrative slot, instead
    *  of a fiber slug. When set, FiberPage mounts FileViewerPage and disables
    *  the Workspace/Delta modes. Mutually exclusive with `initialSlug`. */
@@ -136,6 +147,7 @@ export function WorkspaceMount({
   initialSlug = '',
   eyebrow,
   onIndexEscalate,
+  onOpenSyntheticNode,
   initialFilePath,
   originId,
   editable,
@@ -180,7 +192,7 @@ export function WorkspaceMount({
             The provider also writes data-theme onto <html>, which is the
             selector backing :root[data-theme=…] scoped CSS. */}
         <VellumThemeProvider>
-          <CollectionProvider eyebrow={eyebrow} onIndexEscalate={onIndexEscalate}>
+          <CollectionProvider eyebrow={eyebrow} onIndexEscalate={onIndexEscalate} onOpenSyntheticNode={onOpenSyntheticNode}>
             <DecisionFlipProvider>
               <ModeProvider initialMode={initialMode}>
                 <FileTargetProvider target={fileTarget}>

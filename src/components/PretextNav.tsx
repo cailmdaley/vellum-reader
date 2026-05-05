@@ -7,7 +7,7 @@
  * with clickable fragment spans.
  */
 
-import { useMemo, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import {
   materializeRichInlineLineRange,
   prepareRichInline,
@@ -168,6 +168,24 @@ interface PretextNavProps {
 export function PretextNav({ items, width: _width, onNavigate }: PretextNavProps) {
   const pieces = useMemo(() => buildNavPieces(items), [items]);
 
+  // Scroll the current item into the centre of its scrollable parent
+  // whenever the current changes. The scrollable ancestor is the
+  // host's `thumb-index__nav-scroll` wrapper (or any other container
+  // with `overflow-x: auto`), which `scrollIntoView` finds via its
+  // `inline: 'center'` traversal. Without this, clicking a child far
+  // to the right lands the user on a fresh page where the current
+  // item is highlighted in red but sits offscreen — the user has no
+  // visual cue for "where am I in the row," so the highlight is moot.
+  const currentRef = useRef<HTMLSpanElement | null>(null);
+  const currentSlug = useMemo(
+    () => items.find((i) => i.isCurrent)?.slug ?? null,
+    [items],
+  );
+  useEffect(() => {
+    if (!currentSlug || !currentRef.current) return;
+    currentRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [currentSlug]);
+
   const flow = useMemo(
     () =>
       prepareRichInline(
@@ -232,9 +250,15 @@ export function PretextNav({ items, width: _width, onNavigate }: PretextNavProps
                 </span>
               );
             }
+            // Tag the current item's label fragment so the scroll
+            // effect can centre it. We use `--current` className as
+            // the marker (set by buildNavPieces from `isCurrent`)
+            // since the fragments don't carry a flat `isCurrent` flag.
+            const isCurrentLabel = frag.className === 'pretext-nav-frag--current';
             return (
               <span
                 key={fragIdx}
+                ref={isCurrentLabel ? currentRef : undefined}
                 className={frag.className}
                 style={style}
                 role="link"

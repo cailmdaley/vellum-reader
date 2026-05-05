@@ -688,16 +688,16 @@ body {
 }
 .thumb-index__parent:hover { color: #2E2A26; }
 /* "You are here" state — the parent button reads as a positional
-   anchor at the top of the host's ladder (global IndexView). Receded
-   color + non-interactive cursor distinguishes it from "you can go
-   back". The arrow's opacity drops further so the row reads as a
-   marker rather than a back-link. */
+   anchor at the top of the host's ladder (global IndexView, or a
+   collection root with no escalation wired). Highlighted red so the
+   user spots the anchor at a glance: "this is where I am, there's
+   no level above." Cursor stays default since the click is a no-op. */
 .thumb-index__parent--at-index {
-  color: #B5AFA5;
+  color: #B83434;
   cursor: default;
 }
-.thumb-index__parent--at-index:hover { color: #B5AFA5; }
-.thumb-index__parent--at-index .thumb-index__arrow { opacity: 0.25; }
+.thumb-index__parent--at-index:hover { color: #B83434; }
+.thumb-index__parent--at-index .thumb-index__arrow { opacity: 0.7; }
 .thumb-index__arrow {
   margin-right: 3px;
   opacity: 0.5;

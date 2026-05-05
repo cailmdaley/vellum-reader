@@ -118,7 +118,10 @@ export function FileViewerModal({
                 <button
                   key={action.id}
                   type="button"
-                  className="vellum-modal-btn vellum-modal-btn--bulk"
+                  className={
+                    'vellum-modal-btn vellum-modal-btn--bulk' +
+                    (action.destructive ? ' vellum-modal-btn--destructive' : '')
+                  }
                   title={action.title ?? action.label}
                   aria-label={`${action.label}, ${applicable.length} ${
                     applicable.length === 1 ? 'annotation' : 'annotations'
