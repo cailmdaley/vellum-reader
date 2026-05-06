@@ -1,6 +1,6 @@
 /**
- * HistoryCard — narrated activity log for a fiber, rendered as a margin
- * Card in Narrative mode.
+ * HistoryCard — narrated activity log for a fiber, rendered as a flow
+ * card in the right margin column in Narrative mode.
  *
  * Shape: editorial events are the **spine** — authored prose summaries that
  * agents and humans write at session boundaries via `felt history append`.
@@ -13,21 +13,29 @@
  * dangling tail is a structural cue: summarize what you find before adding
  * to it.
  *
+ * **Never-narrated state.** Most fibers in a fresh kanban have only
+ * mechanical activity (saves from edits, the bootstrap `add`) and no
+ * editorial events yet. The card renders for these too: the dangling tail
+ * carries a "⌀ no narration yet · N saves · last edit Xh ago" phrase so
+ * the surface is honest about the gap *and* surfaces the agent-on-dispatch
+ * cue exactly when it's most useful (a fiber that wants narrating).
+ *
+ * **Unavailable state.** The portolan `/fiber-history/<slug>` endpoint
+ * may return `status: 'unavailable'` (felt index busy, felt missing,
+ * etc). The card surfaces that explicitly with a retry-friendly phrase
+ * instead of silently dropping out.
+ *
  * Visual register:
  * - The card wears the same Weathered Substrate chrome as the unified Card
  *   primitive (border, palette, EB Garamond), with a komejirushi (`※`,
  *   U+203B) glyph in the chrome — the Japanese editorial-note marker.
  * - Editorial events render in full Garamond prose with author + relative
- *   timestamp. They're the default (and only) list items.
+ *   timestamp.
  * - Each editorial event may carry a cluster badge below its summary —
  *   dimmer IBM Plex Mono metadata encoding what happened in the gap before
  *   the next (more recent) editorial event.
  * - The dangling tail row uses an amber accent so it reads as a warning
  *   signal without dominating the editorial prose.
- *
- * Bounded height with internal scroll keeps the card from dominating the
- * margin on shuttle-heavy fibers; the masthead `※n` indicator anchor
- * brings it back into view when scrolled past.
  *
  * Lazy-load: the editorial spine caps at INITIAL_VISIBLE (20) items. A
  * "↑ N older" strip reveals more in pages of 20. Mechanical events are
@@ -59,7 +67,11 @@ const EMPTY_REFERENCES = {
   footnotes: {},
 };
 
-// Anchor id for the masthead `※n` indicator's deep link.
+// DOM id used by FiberHeader's ※n indicator to scrollIntoView the card.
+// Not an `<a href="#…">` target — the ※n indicator scrolls
+// programmatically because hash-based anchors break portolan's URL
+// state machine (the hashchange handler can't parse `#history-card` as a
+// valid mode/cityId/fiber and falls back to the map).
 export const HISTORY_CARD_ANCHOR_ID = 'history-card';
 
 // Lazy-load page size — initial render cap and increment on "load older."
@@ -67,6 +79,14 @@ const INITIAL_VISIBLE = 20;
 
 interface HistoryCardProps {
   events: HistoryEvent[];
+  /**
+   * Endpoint status: 'ok' = events list is canonical (may be empty);
+   * 'unavailable' = endpoint failed (felt busy or other), with `reason`
+   * carrying the discriminator. Default 'ok' for legacy callers.
+   */
+  status?: 'ok' | 'unavailable';
+  /** Failure mode when status === 'unavailable'. */
+  reason?: 'busy' | 'error';
   /** Card width in px — driven by `--canvas-width` via the margin column. */
   width: number;
   /** Called when a wikilink inside an editorial summary is clicked. */
@@ -152,22 +172,28 @@ function shortActor(actor: string): string {
   return at > 0 ? actor.slice(0, at) : actor;
 }
 
-export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
+export function HistoryCard({
+  events,
+  status = 'ok',
+  reason,
+  width,
+  onNavigate,
+}: HistoryCardProps) {
   const proseRef = useRef<HTMLOListElement>(null);
 
-  // Stage 7: lazy-load — cap initial render at INITIAL_VISIBLE editorial
-  // events. "Load older" reveals 20 more per click. Reset when events
-  // array changes (slug navigation) so the card always starts fresh.
+  // Lazy-load — cap initial render at INITIAL_VISIBLE editorial events.
+  // "Load older" reveals 20 more per click. Reset when events array
+  // changes (slug navigation) so the card always starts fresh.
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE);
     setFocusedIdx(0);
   }, [events]);
 
-  // Stage 8: roving tabindex — one focusable row is the active tab stop
-  // at a time. Arrow keys shift the active item; focus follows.
-  // The index space covers: dangling tail row (slot 0 when present) +
-  // editorial events (slots 0..n-1 or 1..n when dangling tail is shown).
+  // Roving tabindex — one focusable row is the active tab stop at a
+  // time. Arrow keys shift the active item; focus follows. The index
+  // space covers: dangling tail row (slot 0 when present) + editorial
+  // events (slots 0..n-1 or 1..n when dangling tail is shown).
   const [focusedIdx, setFocusedIdx] = useState(0);
   const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
 
@@ -178,8 +204,10 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
     [events],
   );
 
-  // Cluster computation: per-gap cluster badges + dangling tail.
-  const { clusterMap, danglingTail } = useMemo(
+  // Cluster computation: per-gap cluster badges + dangling tail. The
+  // `neverNarrated` flag drives the dangling-tail phrasing: "no narration
+  // yet" vs "since last narrated."
+  const { clusterMap, danglingTail, neverNarrated } = useMemo(
     () => computeClusterGroups(events),
     [events],
   );
@@ -233,14 +261,55 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
     return () => node.removeEventListener('click', handler);
   }, [onNavigate]);
 
-  if (editorialEvents.length === 0) return null;
+  // Three render branches: unavailable (endpoint failed) → status row,
+  // truly empty (no events at all, e.g. fresh fiber pre-bootstrap) →
+  // null, otherwise → narrated activity log.
+  if (status === 'unavailable') {
+    return (
+      <section
+        id={HISTORY_CARD_ANCHOR_ID}
+        role="region"
+        aria-label="History unavailable"
+        className="card card--history history-card history-card--unavailable"
+        style={{ width: `${width}px` }}
+      >
+        <header className="history-card__chrome">
+          <span className="history-card__glyph" aria-hidden="true">※</span>
+          <h3 className="history-card__title">History</h3>
+        </header>
+        <p className="history-card__status-message">
+          {reason === 'busy'
+            ? 'felt index busy — history unavailable. Retry shortly.'
+            : 'History unavailable.'}
+        </p>
+      </section>
+    );
+  }
+
+  // Truly empty: no events of any kind. felt always emits at least an
+  // `add` event when a fiber enters the index, so this branch only fires
+  // for fibers that haven't been seen by any felt invocation yet (rare).
+  if (events.length === 0) return null;
+
+  // Header count label: editorial count is the salient signal (≈ how
+  // many narrated handoffs); when there are none, the dangling tail's
+  // save count carries the "weight" of the fiber's activity instead.
+  const countLabel = editorialEvents.length > 0
+    ? String(editorialEvents.length)
+    : danglingTail
+      ? `0 / ${danglingTail.count}`
+      : '0';
 
   return (
     <section
       id={HISTORY_CARD_ANCHOR_ID}
       role="region"
-      aria-label={`Editorial history — ${editorialEvents.length} ${editorialEvents.length === 1 ? 'event' : 'events'}`}
-      className="card card--history history-card"
+      aria-label={
+        editorialEvents.length > 0
+          ? `History — ${editorialEvents.length} editorial ${editorialEvents.length === 1 ? 'event' : 'events'}`
+          : `History — never narrated, ${danglingTail?.count ?? 0} ${danglingTail?.count === 1 ? 'save' : 'saves'}`
+      }
+      className={`card card--history history-card${neverNarrated ? ' history-card--never-narrated' : ''}`}
       style={{ width: `${width}px` }}
     >
       <header className="history-card__chrome">
@@ -249,7 +318,7 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
         </span>
         <h3 className="history-card__title">History</h3>
         <span className="history-card__count" aria-hidden="true">
-          {editorialEvents.length}
+          {countLabel}
         </span>
       </header>
 
@@ -282,12 +351,13 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
         }}
       >
         {/* Dangling tail — unsummarized mechanical activity since the last
-            editorial event. Rendered above (before, in newest-first order)
-            the latest editorial event. Strong amber accent signals action:
+            editorial event (or all activity, if no editorial event has
+            ever been recorded). Rendered above the latest editorial event
+            (or alone when never narrated). Amber accent signals action:
             "summarize what you find before adding to it." */}
         {danglingTail && (
           <li
-            className="history-card__event history-card__event--dangling-tail"
+            className={`history-card__event history-card__event--dangling-tail${neverNarrated ? ' history-card__event--never-narrated' : ''}`}
             tabIndex={focusedIdx === 0 ? 0 : -1}
             ref={(el) => {
               rowRefs.current[0] = el;
@@ -295,7 +365,7 @@ export function HistoryCard({ events, width, onNavigate }: HistoryCardProps) {
             onFocus={() => setFocusedIdx(0)}
           >
             <div className="history-card__dangling-tail-body">
-              {danglingPhrase(danglingTail, relativeTime)}
+              {danglingPhrase(danglingTail, relativeTime, neverNarrated)}
             </div>
           </li>
         )}

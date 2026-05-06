@@ -100,12 +100,26 @@ describe('computeClusterGroups', () => {
     expect(danglingTail).toBeNull();
   });
 
-  it('only mechanical events (no editorial): no clusters, no dangling tail', () => {
-    // Mechs before the first editorial are dropped; no editorial exists here.
+  it('only mechanical events (no editorial): all dangling tail, neverNarrated=true', () => {
+    // The "never narrated" case — fiber has been edited but no editorial
+    // event recorded yet. Every mech becomes the dangling tail so the
+    // card can render the "no narration yet" cue.
     const events = [mech('T1', 'external', 80), mech('T2', 'external', 85)];
-    const { clusterMap, danglingTail } = computeClusterGroups(events);
+    const { clusterMap, danglingTail, neverNarrated } = computeClusterGroups(events);
     expect(clusterMap.size).toBe(0);
-    expect(danglingTail).toBeNull();
+    expect(neverNarrated).toBe(true);
+    expect(danglingTail).not.toBeNull();
+    expect(danglingTail!.count).toBe(2);
+    // linesDelta = last sizeLines (85) - baseline (first mech sizeLines, 80) = 5
+    expect(danglingTail!.linesDelta).toBe(5);
+  });
+
+  it('only mechanical events with a single mech: dangling tail with count=1', () => {
+    const events = [mech('T1', 'external', 80)];
+    const { danglingTail, neverNarrated } = computeClusterGroups(events);
+    expect(neverNarrated).toBe(true);
+    expect(danglingTail).not.toBeNull();
+    expect(danglingTail!.count).toBe(1);
   });
 
   it('mechs before first editorial are dropped (historical prelude)', () => {
@@ -265,5 +279,23 @@ describe('danglingPhrase', () => {
       return 'X';
     });
     expect(captured).toEqual(['sentinel-ts']);
+  });
+
+  it('never-narrated mode: "no narration yet" prefix instead of "dangling"', () => {
+    const phrase = danglingPhrase(
+      { count: 4, actorCount: 1, lastOccurredAt: '2026-05-03T10:00:00Z' },
+      fakeRelTime,
+      true,
+    );
+    expect(phrase).toBe('⌀ no narration yet · 4 saves · last edit 2h ago');
+  });
+
+  it('never-narrated singular save', () => {
+    const phrase = danglingPhrase(
+      { count: 1, actorCount: 1, lastOccurredAt: '2026-05-03T10:00:00Z' },
+      fakeRelTime,
+      true,
+    );
+    expect(phrase).toBe('⌀ no narration yet · 1 save · last edit 2h ago');
   });
 });

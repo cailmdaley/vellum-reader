@@ -416,6 +416,17 @@ export interface HistoryEvent {
 
 export interface HistoryResponse {
   events: HistoryEvent[];
+  /**
+   * Endpoint status. `'ok'` (default) means the events list is canonical
+   * — possibly empty if the fiber has no history yet. `'unavailable'`
+   * means the fetch failed (felt index busy, felt missing, etc.); the
+   * client should surface a retry-friendly state instead of pretending
+   * there's no history. Optional for backward compat — adapters that
+   * don't carry status info default to `'ok'`.
+   */
+  status?: 'ok' | 'unavailable';
+  /** When `status === 'unavailable'`, the discriminator. */
+  reason?: 'busy' | 'error';
 }
 
 /**

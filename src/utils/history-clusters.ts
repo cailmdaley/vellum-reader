@@ -84,22 +84,55 @@ export function buildBadge(
  * - Mechanical events before the first editorial event are dropped
  *   (historical prelude, no forward-looking editorial to attach to).
  *
+ * **Never-narrated case**: when there are no editorial events at all,
+ * every mechanical event becomes the dangling tail with `neverNarrated:
+ * true`. This is the typical state for a freshly-created fiber that's
+ * been edited but not yet had an editorial event recorded — exactly
+ * when the "narrate before adding" cue is most useful.
+ *
  * Returns:
  * - `clusterMap`: Map<editorialTs, ClusterBadge>. Badge for event with
  *   key `ts` covers the mechanical events that followed that editorial
  *   event up to (but not including) the next editorial event.
  * - `danglingTail`: the ClusterBadge for mechanical events after the
- *   latest editorial event, or null if none.
+ *   latest editorial event, or for all mechanical events when no
+ *   editorial events exist. Null when there are no mechanicals (or
+ *   none after the last editorial).
+ * - `neverNarrated`: true iff the dangling tail covers a fiber that
+ *   has zero editorial events. Drives the "no narration yet" phrase
+ *   instead of "since last narrated."
  */
 export function computeClusterGroups(events: HistoryEvent[]): {
   clusterMap: Map<string, ClusterBadge>;
   danglingTail: ClusterBadge | null;
+  neverNarrated: boolean;
 } {
   const clusterMap = new Map<string, ClusterBadge>();
-  if (events.length === 0) return { clusterMap, danglingTail: null };
+  if (events.length === 0) {
+    return { clusterMap, danglingTail: null, neverNarrated: false };
+  }
 
   // Walk chronologically so "forward-looking" means strictly later timestamps.
   const sorted = [...events].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+
+  // Detect the never-narrated case up front: no editorial events at all
+  // means every mechanical is part of the (one and only) dangling tail.
+  const hasAnyEditorial = sorted.some((ev) => (ev.kind ?? 'editorial') === 'editorial');
+  if (!hasAnyEditorial) {
+    const mechs = sorted; // all events are mechanical here
+    if (mechs.length === 0) {
+      return { clusterMap, danglingTail: null, neverNarrated: false };
+    }
+    // Use the first mech's sizeLines as the baseline so linesDelta from
+    // creation reads sensibly ("+12 lines since creation"). If the first
+    // mech is an `add` event with sizeLines, that's the natural zero point.
+    const baseline = mechs[0]?.sizeLines;
+    return {
+      clusterMap,
+      danglingTail: buildBadge(mechs, baseline),
+      neverNarrated: true,
+    };
+  }
 
   let currentEditorialTs: string | null = null;
   let pendingMechs: HistoryEvent[] = [];
@@ -135,7 +168,7 @@ export function computeClusterGroups(events: HistoryEvent[]): {
       ? buildBadge(pendingMechs, sizeLinesBeforeCluster)
       : null;
 
-  return { clusterMap, danglingTail };
+  return { clusterMap, danglingTail, neverNarrated: false };
 }
 
 // ── Phrase renderers ─────────────────────────────────────────────────────
@@ -160,17 +193,29 @@ export function clusterPhrase(badge: ClusterBadge): string {
 }
 
 /**
- * Render a dangling tail badge as an action-signal phrase:
- * "⚠ dangling: N saves since last narrated · last edit Xh ago"
+ * Render a dangling tail badge as an action-signal phrase. Two shapes
+ * depending on whether the fiber has ever been narrated:
  *
- * The `relativeTime` function is passed in to keep this module free of
- * DOM/Date side effects (easier to test).
+ * - Has been narrated, but tail diverged from spine:
+ *   "⚠ dangling: N saves since last narrated · last edit Xh ago"
+ * - Never narrated:
+ *   "⌀ no narration yet · N saves · last edit Xh ago"
+ *
+ * Both phrasings carry the same agent-on-dispatch cue ("summarize what
+ * you find before adding to it") but the never-narrated form is honest
+ * about there being no prior chain to build from. The `relativeTime`
+ * function is passed in to keep this module free of DOM/Date side
+ * effects (easier to test).
  */
 export function danglingPhrase(
   tail: ClusterBadge,
   relativeTimeFn: (ts: string) => string,
+  neverNarrated = false,
 ): string {
-  const saves = `${tail.count} ${tail.count === 1 ? 'save' : 'saves'} since last narrated`;
+  const saves = `${tail.count} ${tail.count === 1 ? 'save' : 'saves'}`;
   const recency = ` · last edit ${relativeTimeFn(tail.lastOccurredAt)}`;
-  return `⚠ dangling: ${saves}${recency}`;
+  if (neverNarrated) {
+    return `⌀ no narration yet · ${saves}${recency}`;
+  }
+  return `⚠ dangling: ${saves} since last narrated${recency}`;
 }

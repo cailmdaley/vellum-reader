@@ -13,6 +13,7 @@ export type {
   GraphNode,
   GraphLink,
   HistoryEvent,
+  HistoryResponse,
   LogEvent,
   LogResponse,
   RawFiber,

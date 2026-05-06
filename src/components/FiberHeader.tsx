@@ -187,17 +187,24 @@ export function FiberHeader({ frontmatter, graphNode, historyCount = 0 }: FiberH
       <h1 className="vellum-fiber-header__title">
         {name}
         {historyCount > 0 && (
-          // Anchored to the title so the indicator rides with the
-          // cartouche; the link jumps the reader straight to the History
-          // Card in the canvas margin. `※` is the komejirushi (U+203B) —
-          // the Japanese editorial-note marker. Aria label spells the
-          // gloss out so AT users hear "n editorial events" rather than
-          // a bare glyph.
-          <a
+          // Komejirushi (`※`, U+203B — the Japanese editorial-note
+          // marker) anchors next to the title. Clicking it scrolls the
+          // History Card into view via element.scrollIntoView, NOT a
+          // hash anchor — `<a href="#history-card">` mutates location.hash,
+          // which portolan's hashchange handler interprets as a URL state
+          // change it can't parse, falling back to the map and tearing
+          // down the vellum overlay. A button + programmatic scroll
+          // sidesteps that entirely.
+          <button
+            type="button"
             className="vellum-fiber-header__history-indicator"
-            href={`#${HISTORY_CARD_ANCHOR_ID}`}
             aria-label={`${historyCount} editorial ${historyCount === 1 ? 'event' : 'events'} — jump to history`}
             title={`${historyCount} editorial ${historyCount === 1 ? 'event' : 'events'} on this fiber`}
+            onClick={(e) => {
+              e.preventDefault();
+              const card = document.getElementById(HISTORY_CARD_ANCHOR_ID);
+              card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
           >
             <span className="vellum-fiber-header__history-glyph" aria-hidden="true">
               ※
@@ -205,7 +212,7 @@ export function FiberHeader({ frontmatter, graphNode, historyCount = 0 }: FiberH
             <span className="vellum-fiber-header__history-count" aria-hidden="true">
               {historyCount}
             </span>
-          </a>
+          </button>
         )}
       </h1>
 

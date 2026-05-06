@@ -279,17 +279,25 @@ export function NarrativeView({
   const [editorLoading, setEditorLoading] = useState(false);
   const [contentWidth, setContentWidth] = useState<number>(INITIAL_CONTENT_WIDTH);
 
-  // Editorial history (felt history --editorial). Fetched per-slug so the
-  // History Card and the FiberHeader's ※n indicator both see the same
-  // count without two adapter calls. Empty array when the fiber has no
-  // events recorded — both surfaces silently drop out in that case.
+  // Felt history chain. Fetched per-slug so the HistoryCard and the
+  // FiberHeader's ※n indicator both see the same data. The response
+  // carries a status field — `'unavailable'` means the endpoint failed
+  // (felt index busy, etc); the HistoryCard renders that explicitly
+  // instead of pretending the fiber has no history.
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
+  const [historyStatus, setHistoryStatus] = useState<'ok' | 'unavailable'>('ok');
+  const [historyReason, setHistoryReason] = useState<'busy' | 'error' | undefined>(undefined);
   useEffect(() => {
     let cancelled = false;
     setHistoryEvents([]);
+    setHistoryStatus('ok');
+    setHistoryReason(undefined);
     if (!content.slug) return;
-    adapter.getFiberHistory(content.slug).then((events) => {
-      if (!cancelled) setHistoryEvents(events);
+    adapter.getFiberHistory(content.slug).then((response) => {
+      if (cancelled) return;
+      setHistoryEvents(response.events);
+      setHistoryStatus(response.status ?? 'ok');
+      setHistoryReason(response.reason);
     });
     return () => {
       cancelled = true;
@@ -910,14 +918,17 @@ export function NarrativeView({
           parentSubSlugs={parentSubSlugs}
         />
       )}
-      {/* History Card — editorial event chain for the current fiber. Rendered
-          as a fixed-position margin denizen below the thumb-index, so the
-          trail of agent-written prose summaries reads alongside the fiber
-          masthead. Width tracks the canvas column; height is bounded with
-          internal scroll so shuttle-heavy fibers don't stretch the column. */}
-      {historyEvents.length > 0 && (
+      {/* History Card — narrated activity log for the current fiber.
+          Flows in the canvas-side margin column alongside the breadcrumb
+          and pinned ContextCardLayer cards. Renders unconditionally so
+          loading / unavailable / never-narrated states surface to the
+          reader instead of looking identical to "no history."
+          See vellum-reader/history-card. */}
+      {(historyStatus === 'unavailable' || historyEvents.length > 0) && (
         <HistoryCard
           events={historyEvents}
+          status={historyStatus}
+          reason={historyReason}
           width={historyCardWidth}
           onNavigate={(s) => navigate(`/${s}`)}
         />

@@ -8847,44 +8847,67 @@ a.pretext-prose-frag:hover {
 /* ────────────────────────────────────────────────────────────────────
    History Card — `vellum-reader/history-card`
 
-   Editorial event chain (felt history) for the current fiber. Lives in
-   the canvas-side margin column in Narrative mode, below the thumb-
-   index. Width tracks --canvas-width via the JS-side single-margin-
-   denizen rule (`marginaliaWidth(readCanvasWidth())`); height is
-   bounded with internal scroll so shuttle-heavy fibers don't push the
-   column off the viewport.
+   Editorial event chain (felt history) for the current fiber. Flow card
+   in the canvas-side margin column in Narrative mode, sitting alongside
+   the breadcrumb header and pinned ContextCardLayer cards. Width tracks
+   --canvas-width via the JS-side single-margin-denizen rule
+   (`marginaliaWidth(readCanvasWidth())`).
 
    Wears the unified .card primitive's chrome (border, palette, EB
-   Garamond) so it reads as Card-shaped, with a komejirushi (`※`,
-   U+203B) glyph in the chrome and a tinted background so it
-   distinguishes from sibling decision/insight Cards at a glance.
+   Garamond) with a komejirushi (`※`, U+203B) glyph in the chrome and a
+   subtle gold accent.
+
+   No fixed positioning, no max-height clamp, no viewport hide. The card
+   flows naturally; the column scrolls if the page grows past it. The
+   thumb-index lives in its own slot above and doesn't stack against
+   this card.
    ──────────────────────────────────────────────────────────────────── */
 
 .history-card {
-  /* Fixed positioning so the card stays anchored below the thumb-index
-     as the prose scrolls — the thumb-index is fixed in the same column,
-     and the History Card is its companion. --thumb-index-bottom is
-     published live by FloatingIsland's ResizeObserver. */
-  position: fixed;
-  top: calc(var(--thumb-index-bottom, 3.5rem) + 14px);
-  /* Right-align inside the canvas column with a small inset so the card
-     never butts the viewport edge. The width is set inline by
-     marginaliaWidth() so the rendered geometry matches every other
-     margin denizen (MarginCardPreview, MarginFindingsStepper, the
-     pinned ContextCardLayer cards). */
+  /* Position in the canvas-side margin column, alongside the prose body
+     just below the masthead. Same shape as other margin cards
+     (MarginCardPreview, MarginFindingsStepper, ContextCardLayer pinned
+     cards): absolute within .vellum-prose-wrapper, with width set inline
+     by marginaliaWidth() and a small right inset so the card never butts
+     the viewport edge. Vertical offset clears the floating thumb-index +
+     breadcrumb stack at the top-right. */
+  position: absolute;
+  top: 5rem;
   right: 12px;
-  /* Cap the card's height to whatever's left between the thumb-index
-     and the bottom of the viewport, minus a comfortable bottom inset.
-     Internal scroll takes over once the chain overflows the cap. */
-  max-height: calc(100vh - var(--thumb-index-bottom, 3.5rem) - 28px);
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   /* Subtle tint over the card's normal --prose-bg so the History Card
      reads as a distinct register from sibling decision/insight Cards in
      the margin (which sit on the substrate's plain --prose-bg). */
   background-color: color-mix(in srgb, var(--prose-bg) 92%, var(--counter) 8%);
-  z-index: 10;
+}
+
+/* Cap the editorial spine's height with internal scroll so shuttle-
+   heavy fibers don't dominate the margin column; the chrome stays
+   visible. */
+.history-card__events {
+  max-height: 70vh;
+}
+
+/* Status / unavailable / no-narration states keep the card visible but
+   compact. */
+.history-card__status-message {
+  margin: 0;
+  padding: 12px 14px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.history-card--unavailable .history-card__status-message {
+  color: var(--amber, #b8963e);
+}
+.history-card--never-narrated .history-card__chrome {
+  /* When nothing's been narrated, the gold top-rule shifts to amber to
+     align with the dangling-tail's color register (this card is *all*
+     dangling tail in that case). */
+  border-top-color: var(--amber, #b8963e);
 }
 
 .history-card__chrome {
@@ -9119,14 +9142,9 @@ a.pretext-prose-frag:hover {
   opacity: 0.5;
 }
 
-/* The History Card visually claims the same column as the thumb-index;
-   when the canvas column is too narrow to host a meaningful card body,
-   stop rendering the chrome so the column doesn't crowd the prose. The
-   thumb-index has a `min-width: 180px`; the History Card needs more
-   inline room to render summaries, so we hide it earlier. */
-@media (max-width: 900px) {
-  .history-card { display: none; }
-}
+/* The History Card now flows in the margin column at all widths — the
+   width-based hide retired with the fixed-position layout. Card-shaped,
+   like other cards. */
 
 /* ── Masthead ※n indicator ────────────────────────────────────────────
    Anchors next to the title cartouche; clicking jumps to the History
@@ -9152,6 +9170,15 @@ a.pretext-prose-frag:hover {
   border-radius: 2px;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
   white-space: nowrap;
+  /* button-as-anchor reset — the indicator is now a `<button>` (not an
+     `<a href="#…">`) so URL hash mutation can't break the host's URL
+     state machine. Strip the default browser button chrome. */
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.42em;
+  line-height: 1;
 }
 .vellum-fiber-header__history-indicator:hover,
 .vellum-fiber-header__history-indicator:focus-visible {
