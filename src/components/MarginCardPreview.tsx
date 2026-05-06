@@ -109,7 +109,7 @@ export function MarginCardPreview({
   return (
     <div
       ref={rootRef}
-      className="margin-card-preview"
+      className="margin-card margin-card-preview"
       style={{ top, left, width: previewWidth }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

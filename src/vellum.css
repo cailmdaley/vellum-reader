@@ -2097,6 +2097,26 @@ body {
   font-weight: 400;
 }
 
+/* ── Margin Card base ──
+   Shared chrome for every card living in the canvas-side margin column:
+   the hover-pop preview (`.margin-card-preview`), pinned context cards
+   (`.context-card-float`), and the per-fiber HistoryCard
+   (`.history-card`). Carries the substrate, shadow, border-radius, and
+   overflow rules so all three read as the same kind of object. Each
+   specializes positioning + cursor on top.
+   See vellum-reader/history-card. */
+.margin-card {
+  /* Solid substrate so prose behind doesn't bleed through. The inner
+     Card primitive sets its own prose-bg, but this backstop guards
+     against any child (e.g. closed-fiber opacity) that might otherwise
+     leak the page. */
+  background: var(--prose-bg);
+  border-radius: 3px;
+  box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
 /* ── Margin Card Preview ──
    Unified hover-pop for citations and findings. The preview sits in the
    canvas pane, aligned by prose line but spatially living on the
@@ -2112,16 +2132,7 @@ body {
      lives in the margin as a comfortable card, not an almost-full-
      height panel. Long content scrolls within the card. */
   max-height: 40vh;
-  overflow-y: auto;
-  pointer-events: auto;
   cursor: pointer;
-  border-radius: 3px;
-  /* Solid substrate so prose behind doesn't bleed through. The Card
-     inside sets its own prose-bg, but this backstop guards against any
-     child (e.g. closed-fiber opacity) that might otherwise expose the
-     page. */
-  background: var(--prose-bg);
-  box-shadow: var(--shadow), 0 8px 24px rgba(46, 42, 38, 0.09);
 }
 /* When the preview carries a figure (evidence thumbnail or figure-output),
    give it room. Cutting a figure in half at the 40vh fold forces the
@@ -5667,7 +5678,9 @@ a.pretext-prose-frag:hover {
 }
 
 .context-card-float {
-  pointer-events: auto;
+  /* Inherits .margin-card base (substrate, border-radius, overflow-y,
+     pointer-events). Overrides shadow with the heavier three-layer
+     stack-distinguishing form because pinned cards can overlap. */
   border-radius: 4px;
   /* Two-layer shadow so overlapping pinned cards still have a visible
      seam. The first ring is a tight, darker cast that reads as an
@@ -5677,16 +5690,8 @@ a.pretext-prose-frag:hover {
     0 0 0 1px rgba(30, 28, 25, 0.18),
     0 6px 20px rgba(0, 0, 0, 0.28),
     0 1px 3px rgba(0, 0, 0, 0.18);
-  /* Pinned cards scroll internally when content exceeds their
-     height — they're a permanent version of the hover preview, not
-     a truncating tile. */
-  overflow-y: auto;
   overflow-x: hidden;
   cursor: grab;
-  /* Solid substrate so prose behind the pinned card doesn't show
-     through — the inner Card sets its own background but any child
-     applying opacity (e.g. closed-fiber dim) would otherwise leak. */
-  background: var(--prose-bg);
 }
 .context-card-float:active {
   cursor: grabbing;
@@ -8864,22 +8869,32 @@ a.pretext-prose-frag:hover {
    ──────────────────────────────────────────────────────────────────── */
 
 .history-card {
-  /* Position in the canvas-side margin column, alongside the prose body
-     just below the masthead. Same shape as other margin cards
-     (MarginCardPreview, MarginFindingsStepper, ContextCardLayer pinned
-     cards): absolute within .vellum-prose-wrapper, with width set inline
-     by marginaliaWidth() and a small right inset so the card never butts
-     the viewport edge. Vertical offset clears the floating thumb-index +
-     breadcrumb stack at the top-right. */
-  position: absolute;
-  top: 5rem;
+  /* Inherits .margin-card base (substrate, shadow, border-radius,
+     pointer-events) — same chrome as MarginCardPreview and
+     ContextCardLayer pinned cards. Specialization here is positioning:
+     fixed in the right column at viewport scope, anchored below the
+     thumb-index/breadcrumb. Width is set inline by marginaliaWidth()
+     so it matches the other margin denizens.
+     The earlier thumb-index --variable anchor + 900px hide rule that
+     caused all the layout fragility are both retired; this is just
+     "stick to the right column." */
+  position: fixed;
+  top: 9.5rem;
   right: 12px;
+  /* Bound height to fit between the top offset and the bottom of the
+     viewport with a small inset; internal scroll on `__events` takes
+     over for shuttle-heavy chains. */
+  max-height: calc(100vh - 9.5rem - 1rem);
   z-index: 10;
   display: flex;
   flex-direction: column;
-  /* Subtle tint over the card's normal --prose-bg so the History Card
-     reads as a distinct register from sibling decision/insight Cards in
-     the margin (which sit on the substrate's plain --prose-bg). */
+  /* Override .margin-card's overflow-y: auto — the HistoryCard has a
+     fixed chrome plus an internally-scrollable events list; we don't
+     want the chrome to scroll out of view when the chain is long. */
+  overflow: hidden;
+  /* Subtle tint OVER the .margin-card substrate so the History Card
+     reads as a distinct register from sibling Cards in the margin
+     (which sit on the substrate's plain --prose-bg). */
   background-color: color-mix(in srgb, var(--prose-bg) 92%, var(--counter) 8%);
 }
 

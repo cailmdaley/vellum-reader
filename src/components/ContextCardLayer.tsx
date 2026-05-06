@@ -433,7 +433,7 @@ export function ContextCardLayer({
           <div
             key={card.id}
             id={`ctxcard-${card.id}`}
-            className={`context-card-float context-card-float--${card.mode}`}
+            className={`margin-card context-card-float context-card-float--${card.mode}`}
             style={{
               position: 'fixed',
               left: renderLeft,

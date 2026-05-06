@@ -270,7 +270,7 @@ export function HistoryCard({
         id={HISTORY_CARD_ANCHOR_ID}
         role="region"
         aria-label="History unavailable"
-        className="card card--history history-card history-card--unavailable"
+        className="card card--history margin-card history-card history-card--unavailable"
         style={{ width: `${width}px` }}
       >
         <header className="history-card__chrome">
@@ -309,7 +309,7 @@ export function HistoryCard({
           ? `History — ${editorialEvents.length} editorial ${editorialEvents.length === 1 ? 'event' : 'events'}`
           : `History — never narrated, ${danglingTail?.count ?? 0} ${danglingTail?.count === 1 ? 'save' : 'saves'}`
       }
-      className={`card card--history history-card${neverNarrated ? ' history-card--never-narrated' : ''}`}
+      className={`card card--history margin-card history-card${neverNarrated ? ' history-card--never-narrated' : ''}`}
       style={{ width: `${width}px` }}
     >
       <header className="history-card__chrome">
