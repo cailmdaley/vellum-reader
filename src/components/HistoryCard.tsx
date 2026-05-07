@@ -180,6 +180,7 @@ export function HistoryCard({
   onNavigate,
 }: HistoryCardProps) {
   const proseRef = useRef<HTMLOListElement>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   // Lazy-load — cap initial render at INITIAL_VISIBLE editorial events.
   // "Load older" reveals 20 more per click. Reset when events array
@@ -264,52 +265,62 @@ export function HistoryCard({
   // Three render branches: unavailable (endpoint failed) → status row,
   // truly empty (no events at all, e.g. fresh fiber pre-bootstrap) →
   // null, otherwise → narrated activity log.
+  // Shared collapse toggle — renders as a button wrapping the chrome row
+  // so the entire header is the click target. aria-expanded signals state.
+  const ChromeToggle = ({
+    label, countLabel: cl, extraClass,
+  }: { label: string; countLabel: string; extraClass?: string }) => (
+    <button
+      type="button"
+      className={`history-card__chrome${extraClass ? ` ${extraClass}` : ''}`}
+      onClick={() => setCollapsed((c) => !c)}
+      aria-expanded={!collapsed}
+      aria-label={`${label} — ${collapsed ? 'expand' : 'collapse'}`}
+    >
+      <span className="history-card__glyph" aria-hidden="true">※</span>
+      <span className="history-card__title">History</span>
+      <span className="history-card__count" aria-hidden="true">{cl}</span>
+      <span className="history-card__chevron" aria-hidden="true" />
+    </button>
+  );
+
   if (status === 'unavailable') {
     return (
       <section
         id={HISTORY_CARD_ANCHOR_ID}
         role="region"
         aria-label="History unavailable"
-        className="card card--history margin-card history-card history-card--unavailable"
+        className={`card card--history margin-card history-card history-card--unavailable${collapsed ? ' history-card--collapsed' : ''}`}
         style={{ width: `${width}px` }}
       >
-        <header className="history-card__chrome">
-          <span className="history-card__glyph" aria-hidden="true">※</span>
-          <h3 className="history-card__title">History</h3>
-        </header>
-        <p className="history-card__status-message">
-          {reason === 'busy'
-            ? 'felt index busy — history unavailable. Retry shortly.'
-            : 'History unavailable.'}
-        </p>
+        <ChromeToggle label="History unavailable" countLabel="—" />
+        {!collapsed && (
+          <p className="history-card__status-message">
+            {reason === 'busy'
+              ? 'felt index busy — retry shortly.'
+              : 'History unavailable.'}
+          </p>
+        )}
       </section>
     );
   }
 
-  // Truly empty: no events of any kind. felt always emits at least an
-  // `add` event when a fiber enters the index, so this branch fires only
-  // for fibers that haven't been touched by felt yet (e.g. manually
-  // created files, or a fresh install before the first `felt sync`).
-  // Render a minimal "no history" state rather than null — the card
-  // should be consistently present so the reader knows the surface exists
-  // and what its count of 0 means.
+  // Truly empty: no events of any kind.
   if (events.length === 0) {
     return (
       <section
         id={HISTORY_CARD_ANCHOR_ID}
         role="region"
         aria-label="History — no events"
-        className="card card--history margin-card history-card history-card--empty"
+        className={`card card--history margin-card history-card history-card--empty${collapsed ? ' history-card--collapsed' : ''}`}
         style={{ width: `${width}px` }}
       >
-        <header className="history-card__chrome">
-          <span className="history-card__glyph" aria-hidden="true">※</span>
-          <h3 className="history-card__title">History</h3>
-          <span className="history-card__count" aria-hidden="true">0</span>
-        </header>
-        <p className="history-card__status-message history-card__status-message--empty">
-          ⌀ not yet indexed
-        </p>
+        <ChromeToggle label="History — not yet indexed" countLabel="0" />
+        {!collapsed && (
+          <p className="history-card__status-message history-card__status-message--empty">
+            ⌀ not yet indexed
+          </p>
+        )}
       </section>
     );
   }
@@ -332,20 +343,20 @@ export function HistoryCard({
           ? `History — ${editorialEvents.length} editorial ${editorialEvents.length === 1 ? 'event' : 'events'}`
           : `History — never narrated, ${danglingTail?.count ?? 0} ${danglingTail?.count === 1 ? 'save' : 'saves'}`
       }
-      className={`card card--history margin-card history-card${neverNarrated ? ' history-card--never-narrated' : ''}`}
+      className={`card card--history margin-card history-card${neverNarrated ? ' history-card--never-narrated' : ''}${collapsed ? ' history-card--collapsed' : ''}`}
       style={{ width: `${width}px` }}
     >
-      <header className="history-card__chrome">
-        <span className="history-card__glyph" aria-hidden="true">
-          ※
-        </span>
-        <h3 className="history-card__title">History</h3>
-        <span className="history-card__count" aria-hidden="true">
-          {countLabel}
-        </span>
-      </header>
+      <ChromeToggle
+        label={
+          editorialEvents.length > 0
+            ? `History — ${editorialEvents.length} editorial ${editorialEvents.length === 1 ? 'event' : 'events'}`
+            : `History — never narrated`
+        }
+        countLabel={countLabel}
+        extraClass={neverNarrated ? 'history-card__chrome--never-narrated' : undefined}
+      />
 
-      <ol
+      {!collapsed && <ol
         className="history-card__events"
         ref={proseRef}
         aria-label="History events"
@@ -446,9 +457,9 @@ export function HistoryCard({
             </li>
           );
         })}
-      </ol>
+      </ol>}
 
-      {hasMore && (
+      {!collapsed && hasMore && (
         <div className="history-card__load-more" aria-live="polite">
           <button
             type="button"

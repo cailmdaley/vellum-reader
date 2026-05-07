@@ -8868,33 +8868,29 @@ a.pretext-prose-frag:hover {
    this card.
    ──────────────────────────────────────────────────────────────────── */
 
+/* Ochre accent for the history card — warmer and more earthy than the
+   gold/amber palette used elsewhere. Applied to the top rule, glyph,
+   and chrome hover state. */
+:root { --history-ochre: #c07828; }
+
 .history-card {
   /* Inherits .margin-card base (substrate, shadow, border-radius,
      pointer-events). The card renders as a normal block inside
-     aside.vellum-canvas (which is itself position: fixed and handles
-     viewport scoping + overflow-y: auto). No fixed positioning needed —
-     we're already in the right column. Width is set inline. */
+     aside.vellum-canvas. No fixed positioning needed. */
   display: flex;
   flex-direction: column;
-  /* Push the card below the FloatingIsland/thumb-index, which is
-     position:fixed over the canvas at z-index 500. --thumb-index-bottom
-     is published by FloatingIsland.tsx on :root; fall back to 8rem so the
-     card is safely below the island even before the first measurement. */
+  /* Push below the FloatingIsland/thumb-index (position:fixed, z-index 500).
+     --thumb-index-bottom is published by FloatingIsland.tsx on :root. */
   margin-top: calc(var(--thumb-index-bottom, 8rem) + 1rem);
-  /* .margin-card sets overflow-y: auto; keep it so the card itself
-     is never a scroll container — __events handles that internally. */
   overflow: visible;
-  /* Subtle tint OVER the .margin-card substrate so the History Card
-     reads as a distinct register from sibling Cards in the margin
-     (which sit on the substrate's plain --prose-bg). */
-  background-color: color-mix(in srgb, var(--prose-bg) 92%, var(--counter) 8%);
+  /* No extra tint — the canvas background is sufficient; a second layer
+     of substrate makes the card feel heavy. */
 }
 
-/* Status / unavailable / no-narration states keep the card visible but
-   compact. */
+/* Status / unavailable / no-narration states keep the card visible but compact. */
 .history-card__status-message {
   margin: 0;
-  padding: 12px 14px;
+  padding: 8px 12px 10px;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 0.72rem;
   line-height: 1.5;
@@ -8903,55 +8899,80 @@ a.pretext-prose-frag:hover {
 .history-card--unavailable .history-card__status-message {
   color: var(--amber, #b8963e);
 }
-/* Empty state: fiber exists but felt hasn't indexed it yet. Muted rather
-   than amber — this is informational, not a call to action. */
-.history-card__status-message--empty {
-  opacity: 0.6;
+.history-card__status-message--empty { opacity: 0.6; }
+
+/* Chrome — the toggle button that wraps the entire header row. */
+.history-card__chrome {
+  /* Reset button defaults */
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 12px 7px;
+  border-top: 1px solid var(--history-ochre);
+  border-bottom: 1px solid transparent; /* revealed when expanded */
+  transition: border-bottom-color 0.1s;
 }
-.history-card--never-narrated .history-card__chrome {
-  /* When nothing's been narrated, the gold top-rule shifts to amber to
-     align with the dangling-tail's color register (this card is *all*
-     dangling tail in that case). */
+.history-card__chrome:hover { background: rgba(192, 120, 40, 0.04); }
+.history-card__chrome:focus-visible {
+  outline: 2px solid var(--history-ochre);
+  outline-offset: -2px;
+}
+/* Show bottom border only when expanded so collapsed state looks clean. */
+.history-card:not(.history-card--collapsed) .history-card__chrome {
+  border-bottom-color: var(--border-faint, rgba(30, 28, 25, 0.15));
+}
+/* Never-narrated: shift top rule to amber (same register as dangling tail). */
+.history-card--never-narrated .history-card__chrome,
+.history-card__chrome--never-narrated {
   border-top-color: var(--amber, #b8963e);
 }
 
-.history-card__chrome {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 10px 14px 8px;
-  border-bottom: 1px solid var(--border-faint, rgba(30, 28, 25, 0.18));
-  /* The thin gold rule above the chrome ties the card to the
-     marginalia/anchor register (rubricated red is reserved for in-prose
-     citation glyphs; the editorial register reads as gold-rubricated). */
-  border-top: 2px solid var(--gold, #b8860b);
-}
-
 .history-card__glyph {
-  /* Komejirushi — the editorial-note marker. Sized down a touch so it
-     reads as a register-mark next to the heading rather than competing
-     with it. */
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 0.95rem;
-  color: var(--gold, #b8860b);
+  font-size: 0.85rem;
+  color: var(--history-ochre);
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .history-card__title {
-  margin: 0;
+  /* Inline span now, not a heading — the button IS the heading affordance
+     via aria-expanded. No font-weight change; let it read quietly. */
   font-family: 'EB Garamond', Georgia, serif;
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 400;
   letter-spacing: 0.02em;
-  color: var(--text);
+  color: var(--text-muted);
   flex: 1 1 auto;
 }
 
 .history-card__count {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   letter-spacing: 0.04em;
   color: var(--text-muted);
+  opacity: 0.8;
+}
+
+/* Chevron — CSS triangle that rotates on collapse. */
+.history-card__chevron {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--history-ochre);
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+  align-self: center;
+}
+.history-card--collapsed .history-card__chevron {
+  transform: rotate(-90deg);
 }
 
 .history-card__events {
