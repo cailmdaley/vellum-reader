@@ -287,17 +287,23 @@ export function NarrativeView({
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [historyStatus, setHistoryStatus] = useState<'ok' | 'unavailable'>('ok');
   const [historyReason, setHistoryReason] = useState<'busy' | 'error' | undefined>(undefined);
+  // Track whether the history fetch for the current slug has resolved, so the
+  // HistoryCard renders unconditionally after load (including the empty-state
+  // for fibers with 0 events) rather than being gated on events.length > 0.
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setHistoryEvents([]);
     setHistoryStatus('ok');
     setHistoryReason(undefined);
+    setHistoryLoaded(false);
     if (!content.slug) return;
     adapter.getFiberHistory(content.slug).then((response) => {
       if (cancelled) return;
       setHistoryEvents(response.events);
       setHistoryStatus(response.status ?? 'ok');
       setHistoryReason(response.reason);
+      setHistoryLoaded(true);
     });
     return () => {
       cancelled = true;
@@ -924,7 +930,7 @@ export function NarrativeView({
           loading / unavailable / never-narrated states surface to the
           reader instead of looking identical to "no history."
           See vellum-reader/history-card. */}
-      {(historyStatus === 'unavailable' || historyEvents.length > 0) && (
+      {(historyLoaded || historyStatus === 'unavailable') && (
         <HistoryCard
           events={historyEvents}
           status={historyStatus}

@@ -287,9 +287,32 @@ export function HistoryCard({
   }
 
   // Truly empty: no events of any kind. felt always emits at least an
-  // `add` event when a fiber enters the index, so this branch only fires
-  // for fibers that haven't been seen by any felt invocation yet (rare).
-  if (events.length === 0) return null;
+  // `add` event when a fiber enters the index, so this branch fires only
+  // for fibers that haven't been touched by felt yet (e.g. manually
+  // created files, or a fresh install before the first `felt sync`).
+  // Render a minimal "no history" state rather than null — the card
+  // should be consistently present so the reader knows the surface exists
+  // and what its count of 0 means.
+  if (events.length === 0) {
+    return (
+      <section
+        id={HISTORY_CARD_ANCHOR_ID}
+        role="region"
+        aria-label="History — no events"
+        className="card card--history margin-card history-card history-card--empty"
+        style={{ width: `${width}px` }}
+      >
+        <header className="history-card__chrome">
+          <span className="history-card__glyph" aria-hidden="true">※</span>
+          <h3 className="history-card__title">History</h3>
+          <span className="history-card__count" aria-hidden="true">0</span>
+        </header>
+        <p className="history-card__status-message history-card__status-message--empty">
+          ⌀ not yet indexed
+        </p>
+      </section>
+    );
+  }
 
   // Header count label: editorial count is the salient signal (≈ how
   // many narrated handoffs); when there are none, the dangling tail's

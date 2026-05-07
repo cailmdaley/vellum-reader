@@ -8918,6 +8918,11 @@ a.pretext-prose-frag:hover {
 .history-card--unavailable .history-card__status-message {
   color: var(--amber, #b8963e);
 }
+/* Empty state: fiber exists but felt hasn't indexed it yet. Muted rather
+   than amber — this is informational, not a call to action. */
+.history-card__status-message--empty {
+  opacity: 0.6;
+}
 .history-card--never-narrated .history-card__chrome {
   /* When nothing's been narrated, the gold top-rule shifts to amber to
      align with the dangling-tail's color register (this card is *all*
