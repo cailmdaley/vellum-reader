@@ -8881,25 +8881,13 @@ a.pretext-prose-frag:hover {
      is published by FloatingIsland.tsx on :root; fall back to 8rem so the
      card is safely below the island even before the first measurement. */
   margin-top: calc(var(--thumb-index-bottom, 8rem) + 1rem);
-  /* Cap total card height at ~1/3 viewport; chrome stays pinned at the
-     top and __events scrolls internally. */
-  max-height: 33vh;
-  /* Override .margin-card's overflow-y: auto — the card manages its
-     own internal scroll via __events so the chrome never scrolls away. */
-  overflow: hidden;
+  /* .margin-card sets overflow-y: auto; keep it so the card itself
+     is never a scroll container — __events handles that internally. */
+  overflow: visible;
   /* Subtle tint OVER the .margin-card substrate so the History Card
      reads as a distinct register from sibling Cards in the margin
      (which sit on the substrate's plain --prose-bg). */
   background-color: color-mix(in srgb, var(--prose-bg) 92%, var(--counter) 8%);
-}
-
-/* Internal scroll on the events list — chrome stays visible when the
-   chain is long. flex: 1 + min-height: 0 lets flexbox compress __events
-   to fit within the parent's max-height rather than overflowing it. */
-.history-card__events {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 /* Status / unavailable / no-narration states keep the card visible but
@@ -8970,6 +8958,10 @@ a.pretext-prose-frag:hover {
   list-style: none;
   margin: 0;
   padding: 0;
+  /* Cap at ~1/3 viewport minus the chrome header (~2.5rem). This gives
+     __events a definite max-height to overflow against, making scroll
+     reliable regardless of the parent's flex layout. */
+  max-height: calc(33vh - 2.5rem);
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border-faint, rgba(30, 28, 25, 0.18)) transparent;
