@@ -31,16 +31,13 @@ import { GhostToc } from './GhostToc';
 import { LeftRailToc } from './LeftRailToc';
 import { BacklinkNodes } from './BacklinkNodes';
 import { FiberEditor } from './FiberEditor';
-import { HistoryCard } from './HistoryCard';
 import type { LightboxImage } from './Lightbox';
 import type {
   Annotation,
   FiberContent,
   GraphNode,
   GraphLink,
-  HistoryEvent,
 } from '~/utils/content-types';
-import { marginaliaWidth, readCanvasWidth } from '~/utils/canvas-geometry';
 import { useAdapter } from '~/contexts/AdapterContext';
 import { useAnnotationActions } from '~/contexts/AnnotationActionsContext';
 import { useTheme } from '~/contexts/ThemeContext';
@@ -66,6 +63,10 @@ interface NarrativeViewProps {
   breadcrumb?: Array<{ label: string; slug: string }>;
   changedIds?: Set<string>;
   onEditingChange?: (editing: boolean) => void;
+  /** Editorial event count from the fiber's history chain — pre-computed by
+   *  FiberPage (which owns the history fetch) so the FiberHeader ※n indicator
+   *  stays live without NarrativeView duplicating the fetch. */
+  historyCount?: number;
 }
 
 function nodeText(node: any): string {
@@ -231,6 +232,7 @@ export function NarrativeView({
   breadcrumb: _breadcrumb,
   changedIds,
   onEditingChange,
+  historyCount = 0,
 }: NarrativeViewProps) {
   const proseRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -279,57 +281,6 @@ export function NarrativeView({
   const [editorLoading, setEditorLoading] = useState(false);
   const [contentWidth, setContentWidth] = useState<number>(INITIAL_CONTENT_WIDTH);
 
-  // Felt history chain. Fetched per-slug so the HistoryCard and the
-  // FiberHeader's ※n indicator both see the same data. The response
-  // carries a status field — `'unavailable'` means the endpoint failed
-  // (felt index busy, etc); the HistoryCard renders that explicitly
-  // instead of pretending the fiber has no history.
-  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
-  const [historyStatus, setHistoryStatus] = useState<'ok' | 'unavailable'>('ok');
-  const [historyReason, setHistoryReason] = useState<'busy' | 'error' | undefined>(undefined);
-  // Track whether the history fetch for the current slug has resolved, so the
-  // HistoryCard renders unconditionally after load (including the empty-state
-  // for fibers with 0 events) rather than being gated on events.length > 0.
-  const [historyLoaded, setHistoryLoaded] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    setHistoryEvents([]);
-    setHistoryStatus('ok');
-    setHistoryReason(undefined);
-    setHistoryLoaded(false);
-    if (!content.slug) return;
-    adapter.getFiberHistory(content.slug).then((response) => {
-      if (cancelled) return;
-      setHistoryEvents(response.events);
-      setHistoryStatus(response.status ?? 'ok');
-      setHistoryReason(response.reason);
-      setHistoryLoaded(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [adapter, content.slug]);
-
-  // History Card width tracks the canvas column — same single-margin-denizen
-  // rule that drives MarginCardPreview, MarginFindingsStepper, and the
-  // ContextCardLayer's pinned cards. Drag the divider, the Card reflows.
-  const [historyCardWidth, setHistoryCardWidth] = useState<number>(() =>
-    marginaliaWidth(readCanvasWidth()),
-  );
-  useEffect(() => {
-    const update = () => setHistoryCardWidth(marginaliaWidth(readCanvasWidth()));
-    update();
-    window.addEventListener('resize', update);
-    const observer = new MutationObserver(update);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['style'],
-    });
-    return () => {
-      window.removeEventListener('resize', update);
-      observer.disconnect();
-    };
-  }, []);
 
   const currentNode = graphNodes.find((n) => n.slug === content.slug);
 
@@ -835,7 +786,7 @@ export function NarrativeView({
               frontmatter={content.frontmatter ?? {}}
               graphNode={currentNode}
               lede={lede}
-              historyCount={historyEvents.filter((e) => (e.kind ?? 'editorial') === 'editorial').length}
+              historyCount={historyCount}
             />
             <AuthoringLintStrip messages={content.messages} />
           </>
@@ -922,21 +873,6 @@ export function NarrativeView({
           childSubKeys={childSubKeys}
           parentSubKeys={parentSubKeys}
           parentSubSlugs={parentSubSlugs}
-        />
-      )}
-      {/* History Card — narrated activity log for the current fiber.
-          Flows in the canvas-side margin column alongside the breadcrumb
-          and pinned ContextCardLayer cards. Renders unconditionally so
-          loading / unavailable / never-narrated states surface to the
-          reader instead of looking identical to "no history."
-          See vellum-reader/history-card. */}
-      {(historyLoaded || historyStatus === 'unavailable') && (
-        <HistoryCard
-          events={historyEvents}
-          status={historyStatus}
-          reason={historyReason}
-          width={historyCardWidth}
-          onNavigate={(s) => navigate(`/${s}`)}
         />
       )}
       {showLeftRailToc && <LeftRailToc proseRef={proseRef} node={currentNode} />}

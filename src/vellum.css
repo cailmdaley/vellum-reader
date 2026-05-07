@@ -8870,22 +8870,11 @@ a.pretext-prose-frag:hover {
 
 .history-card {
   /* Inherits .margin-card base (substrate, shadow, border-radius,
-     pointer-events) — same chrome as MarginCardPreview and
-     ContextCardLayer pinned cards. Specialization here is positioning:
-     fixed in the right column at viewport scope, anchored below the
-     thumb-index/breadcrumb. Width is set inline by marginaliaWidth()
-     so it matches the other margin denizens.
-     The earlier thumb-index --variable anchor + 900px hide rule that
-     caused all the layout fragility are both retired; this is just
-     "stick to the right column." */
-  position: fixed;
-  top: 9.5rem;
-  right: 12px;
-  /* Bound height to fit between the top offset and the bottom of the
-     viewport with a small inset; internal scroll on `__events` takes
-     over for shuttle-heavy chains. */
-  max-height: calc(100vh - 9.5rem - 1rem);
-  z-index: 10;
+     pointer-events). The card renders as a normal block inside
+     aside.vellum-canvas (which is itself position: fixed and handles
+     viewport scoping + overflow-y: auto). No fixed positioning needed —
+     we're already in the right column. Width is set inline. The canvas
+     scrolls when the chain is long. */
   display: flex;
   flex-direction: column;
   /* Override .margin-card's overflow-y: auto — the HistoryCard has a

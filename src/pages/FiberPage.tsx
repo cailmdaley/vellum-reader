@@ -12,13 +12,15 @@ import { WorkspaceView } from '~/components/WorkspaceView';
 import { Canvas } from '~/components/Canvas';
 import { CanvasDivider } from '~/components/CanvasDivider';
 import { WorkspaceAnatomy } from '~/components/WorkspaceAnatomy';
+import { HistoryCard } from '~/components/HistoryCard';
+import { readCanvasWidth } from '~/utils/canvas-geometry';
 import { useMode, type Mode } from '~/contexts/ModeContext';
 import { useTheme } from '~/contexts/ThemeContext';
 import { useDelta } from '~/utils/use-delta';
 import { FILE_TARGET_ROUTE, useFileTarget, type FileTarget } from '~/contexts/FileTargetContext';
 import { useWorkspaceSlot } from '~/contexts/WorkspaceSlotContext';
 import { FileViewerPage, isAstraPath, type SaveState } from './FileViewerPage';
-import type { Annotation, AnnotationBulkAction, AstraGraph, FiberContent } from '~/utils/content-types';
+import type { Annotation, AnnotationBulkAction, AstraGraph, FiberContent, HistoryEvent } from '~/utils/content-types';
 
 const MODE_KEYS: Record<string, Mode> = {
   '1': 'narrative',
@@ -108,6 +110,60 @@ export function FiberPage() {
   useEffect(() => {
     if (isFileMode && mode !== 'narrative') setMode('narrative');
   }, [isFileMode, mode, setMode]);
+  // ── History data — fetched here, shared between the HistoryCard in the
+  // Canvas and the ※n count in NarrativeView's FiberHeader. Lifted out of
+  // NarrativeView so the card renders inside aside.vellum-canvas (z-index
+  // 400) rather than fighting it as a fixed overlay behind it.
+  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
+  const [historyStatus, setHistoryStatus] = useState<'ok' | 'unavailable'>('ok');
+  const [historyReason, setHistoryReason] = useState<'busy' | 'error' | undefined>(undefined);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setHistoryEvents([]);
+    setHistoryStatus('ok');
+    setHistoryReason(undefined);
+    setHistoryLoaded(false);
+    if (!slug) return;
+    adapter.getFiberHistory(slug).then((response) => {
+      if (cancelled) return;
+      setHistoryEvents(response.events);
+      setHistoryStatus(response.status ?? 'ok');
+      setHistoryReason(response.reason);
+      setHistoryLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [adapter, slug]);
+  const historyEditorialCount = historyEvents.filter(
+    (e) => (e.kind ?? 'editorial') === 'editorial',
+  ).length;
+
+  // Canvas width for HistoryCard — rendered inside aside.vellum-canvas
+  // which has 16px padding on each side, so subtract 32px (+ 4px slack
+  // to match WorkspaceAnatomy). Tracks --canvas-width live so the card
+  // reflows when the user drags the divider.
+  const [historyCardWidth, setHistoryCardWidth] = useState<number>(() => {
+    const cw = readCanvasWidth();
+    return cw > 0 ? Math.max(180, cw - 36) : 340;
+  });
+  useEffect(() => {
+    const update = () => {
+      const cw = readCanvasWidth();
+      setHistoryCardWidth(cw > 0 ? Math.max(180, cw - 36) : 340);
+    };
+    update();
+    window.addEventListener('resize', update);
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+    return () => {
+      window.removeEventListener('resize', update);
+      observer.disconnect();
+    };
+  }, []);
+
   const [content, setContent] = useState<FiberContent | null>(null);
   const [graph, setGraph] = useState<AstraGraph>({ nodes: [], links: [] });
   const [graphLoading, setGraphLoading] = useState(true);
@@ -295,6 +351,14 @@ export function FiberPage() {
                 node={anatomyNode}
                 onNavigate={handleNavigateToSlug}
               />
+            ) : mode === 'narrative' && (historyLoaded || historyStatus === 'unavailable') ? (
+              <HistoryCard
+                events={historyEvents}
+                status={historyStatus}
+                reason={historyReason}
+                width={historyCardWidth}
+                onNavigate={handleNavigateToSlug}
+              />
             ) : null}
           </Canvas>
         </>
@@ -348,6 +412,7 @@ export function FiberPage() {
           breadcrumb={breadcrumb}
           changedIds={changedIds}
           onEditingChange={setIsEditing}
+          historyCount={historyEditorialCount}
         />
       )}
 
