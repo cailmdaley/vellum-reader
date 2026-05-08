@@ -87,8 +87,12 @@ export interface FileReaderProps {
   onSave?: () => void;
   /** 1-indexed line to select and scroll into view on mount (text/markdown only). */
   jumpToLine?: number;
+  /** 1-indexed PDF page to scroll into view on mount. */
+  jumpToPage?: number;
   /** Reports the first visible 1-indexed source line in CodeMirror text views. */
   onVisibleLineChange?: (line: number) => void;
+  /** Reports the most visible 1-indexed PDF page. */
+  onVisiblePageChange?: (page: number) => void;
   /** File-anchored annotations to highlight in the text view. */
   annotations?: Annotation[];
   /**
@@ -793,10 +797,12 @@ export interface PdfReaderHandle {
 }
 
 export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function PdfReader(
-  { file },
+  { file, jumpToPage, onVisiblePageChange },
   handleRef,
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const onVisiblePageChangeRef = useRef(onVisiblePageChange);
+  onVisiblePageChangeRef.current = onVisiblePageChange;
   // Holds the per-page wrapper divs in 1..N order. Wrappers are
   // pre-created up-front (with the correct viewport-derived height) so
   // the document occupies its final scroll height before any page has
@@ -851,6 +857,7 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
     pageElsRef.current = [];
     let cancelled = false;
     let loadingTask: { destroy: () => void } | null = null;
+    let pageObserver: IntersectionObserver | null = null;
 
     (async () => {
       const pdfjs = await loadPdfJs();
@@ -903,13 +910,37 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
         return { page, canvas, viewport, rendered: false };
       });
       if (cancelled) return;
+      if (typeof IntersectionObserver !== 'undefined' && onVisiblePageChangeRef.current) {
+        const visiblePages = new Map<number, IntersectionObserverEntry>();
+        pageObserver = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              const page = Number((entry.target as HTMLElement).dataset.page);
+              if (!Number.isFinite(page)) continue;
+              if (entry.isIntersecting && entry.intersectionRatio > 0) {
+                visiblePages.set(page, entry);
+              } else {
+                visiblePages.delete(page);
+              }
+            }
+            const best = Array.from(visiblePages.entries())
+              .sort(([, a], [, b]) =>
+                b.intersectionRatio - a.intersectionRatio ||
+                Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top),
+              )[0];
+            if (best) onVisiblePageChangeRef.current?.(best[0]);
+          },
+          { threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] },
+        );
+        for (const el of pageElsRef.current) pageObserver.observe(el);
+      }
 
       // Wrappers exist now. If a scroll was queued before the user even
       // got here, replay it — the wrapper for the target is in the DOM
       // (canvas blank), so the scroll lands on the right Y immediately.
       // The replay also re-asserts requestedPageRef so phase 2 picks up
       // the priority below.
-      const queued = pendingPageRef.current;
+      const queued = jumpToPage ?? pendingPageRef.current;
       if (queued != null && queued >= 1 && queued <= jobs.length) {
         pendingPageRef.current = null;
         scrollToPage(queued);
@@ -975,12 +1006,13 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
       try {
         loadingTask?.destroy();
       } catch {}
+      pageObserver?.disconnect();
       container.innerHTML = '';
       pageElsRef.current = [];
       pendingPageRef.current = null;
       requestedPageRef.current = null;
     };
-  }, [file.url, scrollToPage]);
+  }, [file.url, jumpToPage, scrollToPage]);
 
   if (!file.url) {
     return (
@@ -1000,7 +1032,7 @@ export function FileReader(props: FileReaderProps) {
     case 'html':
       return <HtmlReader file={file} />;
     case 'pdf':
-      return <PdfReader file={file} />;
+      return <PdfReader file={file} jumpToPage={props.jumpToPage} onVisiblePageChange={props.onVisiblePageChange} />;
     case 'markdown':
       // Editable mode always uses the source-view text reader so the user can
       // actually type. Read-mode renders through the canvas (PretextProse via

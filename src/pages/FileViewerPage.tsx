@@ -150,6 +150,10 @@ function visibleLineStorageKey(path: string, originId?: string): string {
   return `vellum:file-visible-line:${originId ?? 'local'}:${path}`;
 }
 
+function visiblePageStorageKey(path: string, originId?: string): string {
+  return `vellum:file-visible-page:${originId ?? 'local'}:${path}`;
+}
+
 function loadVisibleLine(path: string, originId?: string): number | undefined {
   if (typeof window === 'undefined') return undefined;
   try {
@@ -161,10 +165,30 @@ function loadVisibleLine(path: string, originId?: string): number | undefined {
   }
 }
 
+function loadVisiblePage(path: string, originId?: string): number | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(visiblePageStorageKey(path, originId));
+    const page = raw ? Number(raw) : NaN;
+    return Number.isFinite(page) && page > 0 ? page : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function saveVisibleLine(path: string, originId: string | undefined, line: number): void {
   if (typeof window === 'undefined' || !Number.isFinite(line) || line < 1) return;
   try {
     window.sessionStorage.setItem(visibleLineStorageKey(path, originId), String(Math.floor(line)));
+  } catch {
+    // Best-effort scroll restoration; private windows may deny storage.
+  }
+}
+
+function saveVisiblePage(path: string, originId: string | undefined, page: number): void {
+  if (typeof window === 'undefined' || !Number.isFinite(page) || page < 1) return;
+  try {
+    window.sessionStorage.setItem(visiblePageStorageKey(path, originId), String(Math.floor(page)));
   } catch {
     // Best-effort scroll restoration; private windows may deny storage.
   }
@@ -204,6 +228,8 @@ function NonAstraFileViewerPage({
   const savedToastRef = useRef<number | null>(null);
   const visibleLineRef = useRef<number | undefined>(jumpToLine ?? loadVisibleLine(path, originId));
   const [mountJumpLine, setMountJumpLine] = useState<number | undefined>(visibleLineRef.current);
+  const visiblePageRef = useRef<number | undefined>(jumpToLine ?? loadVisiblePage(path, originId));
+  const [mountJumpPage, setMountJumpPage] = useState<number | undefined>(visiblePageRef.current);
   // `editable` is local state initialized from the prop so the user can flip
   // into source view via the Edit button without the host re-mounting the
   // page. Re-syncs when the prop changes — a fresh open of the modal with a
@@ -217,16 +243,27 @@ function NonAstraFileViewerPage({
   useEffect(() => {
     visibleLineRef.current = jumpToLine ?? loadVisibleLine(path, originId);
     setMountJumpLine(visibleLineRef.current);
+    visiblePageRef.current = jumpToLine ?? loadVisiblePage(path, originId);
+    setMountJumpPage(visiblePageRef.current);
   }, [path, originId, jumpToLine]);
 
   useEffect(() => {
     setMountJumpLine(visibleLineRef.current);
+    setMountJumpPage(visiblePageRef.current);
   }, [cacheBust]);
 
   const handleVisibleLineChange = useCallback(
     (line: number) => {
       visibleLineRef.current = line;
       saveVisibleLine(path, originId, line);
+    },
+    [path, originId],
+  );
+
+  const handleVisiblePageChange = useCallback(
+    (page: number) => {
+      visiblePageRef.current = page;
+      saveVisiblePage(path, originId, page);
     },
     [path, originId],
   );
@@ -412,7 +449,9 @@ function NonAstraFileViewerPage({
         file={state.file}
         editable={editable}
         jumpToLine={mountJumpLine}
+        jumpToPage={mountJumpPage}
         onVisibleLineChange={handleVisibleLineChange}
+        onVisiblePageChange={handleVisiblePageChange}
         annotations={annotations}
         annotationSlug={path}
         annotationOriginId={originId}
