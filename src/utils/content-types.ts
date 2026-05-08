@@ -12,34 +12,32 @@
  *     compacted, decisions flattened. This is what every component in
  *     vellum imports day-to-day.
  *
- *   - `ASTRA*` (re-exported below from `lightcone-ui-core`): the canonical
- *     spec types, mirroring astra-spec / extern/ASTRA Pydantic models.
- *     Reach for these when working with raw frontmatter or anything
- *     upstream of mystra's graph projection.
+ *   - `ASTRA*` (structural aliases below): the canonical spec-shaped
+ *     records, mirroring astra-spec / extern/ASTRA Pydantic models. Reach
+ *     for these when working with raw frontmatter or anything upstream of
+ *     mystra's graph projection.
  */
 
-// Canonical ASTRA spec bindings, surfaced through vellum so consumers
-// don't need a second package import. See
-// lightcone-ui/packages/core/PUBLIC_API.md for the full surface.
-export type {
-  ASTRAAnalysis,
-  ASTRADecision,
-  ASTRAOption,
-  ASTRAEvidence,
-  ASTRAInput,
-  ASTRAOutput,
-  ASTRAInsight,
-  ASTRARecipe,
-  ASTRANarrative,
-  ASTRANarrativeSection,
-  ASTRAUniverse,
-  ASTRAUniverseNode,
-  ASTRASuccessCriterion,
-  TextQuoteSelector,
-  FigureSelector,
-  TableSelector,
-  FragmentSelector,
-} from 'lightcone-ui-core';
+// Vellum intentionally keeps these structural: the canonical ASTRA type
+// package boundary has moved a few times, while the reader mostly needs to
+// carry raw frontmatter-shaped records through without owning validation.
+export type ASTRAAnalysis = Record<string, any>;
+export type ASTRADecision = Record<string, any>;
+export type ASTRAOption = Record<string, any>;
+export type ASTRAEvidence = Record<string, any>;
+export type ASTRAInput = Record<string, any>;
+export type ASTRAOutput = Record<string, any>;
+export type ASTRAInsight = Record<string, any>;
+export type ASTRARecipe = Record<string, any>;
+export type ASTRANarrative = Record<string, any>;
+export type ASTRANarrativeSection = string | Record<string, any>;
+export type ASTRAUniverse = Record<string, any>;
+export type ASTRAUniverseNode = Record<string, any>;
+export type ASTRASuccessCriterion = Record<string, any>;
+export type TextQuoteSelector = Record<string, any>;
+export type FigureSelector = Record<string, any>;
+export type TableSelector = Record<string, any>;
+export type FragmentSelector = Record<string, any>;
 
 export interface FiberContent {
   slug: string;

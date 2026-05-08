@@ -70,19 +70,47 @@
  */
 
 import { useCallback, useState } from 'react';
-import type {
-  Bundle,
-  Decision,
-  DecisionOption,
-  Finding,
-  FindingEvidence,
-  Input,
-  Output,
-  PaperMetadata,
-} from 'lightcone-ui-core';
+import type { Bundle } from 'lightcone-ui-core';
 import { useDecisionFlip } from '../../contexts/DecisionFlipContext';
 import { AstraProse, scrollToAstraAnchor } from './AstraProse';
 import { PaperModal } from './PaperModal';
+
+type BundleDict = Record<string, any>;
+interface DecisionOption extends BundleDict {
+  id: string;
+  label?: string;
+  description?: string;
+  insights: string[];
+}
+interface Decision extends BundleDict {
+  label?: string;
+  selected?: string;
+  options: DecisionOption[];
+  tags: string[];
+  rationale?: string;
+}
+interface FindingEvidence extends BundleDict {
+  id: string;
+}
+interface Finding extends BundleDict {
+  id: string;
+  claim: string;
+  notes?: string;
+  tags: string[];
+  evidence: FindingEvidence[];
+}
+interface Input extends BundleDict {
+  type?: string;
+  source?: string;
+  description?: string;
+}
+interface Output extends BundleDict {
+  type?: string;
+  from?: string;
+  description?: string;
+  resolved_path?: string;
+}
+type PaperMetadata = BundleDict;
 
 /**
  * Handler the citation row calls when the reader clicks a paper. Opens
@@ -230,7 +258,7 @@ export function AstraPaperView({
               >
                 {findingsNarrative && <AstraProse text={findingsNarrative} />}
                 <FindingsList
-                  findings={bundle.findings}
+                  findings={bundle.findings as Finding[]}
                   insights={bundle.insights}
                   papers={bundle.papers}
                   outputs={bundle.outputs}
@@ -1349,7 +1377,7 @@ function SubAnalysesList({
               >
                 {findingsNarrative && <AstraProse text={findingsNarrative} />}
                 <FindingsList
-                  findings={findings}
+                  findings={findings as Finding[]}
                   insights={bundle.insights}
                   papers={papers}
                   outputs={bundle.outputs}

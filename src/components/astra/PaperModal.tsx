@@ -41,9 +41,12 @@
 
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import type { Bundle, Insight, PaperMetadata } from 'lightcone-ui-core';
+import type { Bundle } from 'lightcone-ui-core';
 import { PdfReader, type PdfReaderHandle } from '../FileReader';
 import { scrollToAstraAnchor } from './AstraProse';
+
+type Insight = Record<string, any>;
+type PaperMetadata = Record<string, any>;
 
 /**
  * Inert every body sibling of `keep` while the modal is open, so screen
@@ -312,7 +315,7 @@ export function PaperModal({
             ) : (
               <ul className="astra-paper-modal__insights">
                 {insights.map(({ id, insight }) => {
-                  const decisions = decisionsByInsight[id] ?? [];
+                  const decisions = (decisionsByInsight[id] ?? []) as string[];
                   return (
                     <li
                       key={id}

@@ -320,6 +320,7 @@ function TextReader({
       bracketMatching(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       annotationField,
+      EditorView.lineWrapping,
       EditorView.theme({
         '&': { height: '100%', fontSize: '14px' },
         '.cm-content': { fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, monospace)' },
@@ -342,7 +343,6 @@ function TextReader({
       extensions.push(
         vim(),
         history(),
-        EditorView.lineWrapping,
         EditorState.allowMultipleSelections.of(true),
         keymap.of([
           ...defaultKeymap,
