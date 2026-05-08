@@ -230,15 +230,20 @@ function NonAstraFileViewerPage({
   const [mountJumpLine, setMountJumpLine] = useState<number | undefined>(visibleLineRef.current);
   const visiblePageRef = useRef<number | undefined>(jumpToLine ?? loadVisiblePage(path, originId));
   const [mountJumpPage, setMountJumpPage] = useState<number | undefined>(visiblePageRef.current);
-  // `editable` is local state initialized from the prop so the user can flip
-  // into source view via the Edit button without the host re-mounting the
-  // page. Re-syncs when the prop changes — a fresh open of the modal with a
-  // different `editable` (e.g. a worker prompt that wants the editor up
-  // front) takes precedence over the user's previous toggle.
-  const [editable, setEditable] = useState<boolean>(!!editableProp);
+  // `editable` is local state so the user can flip to source mode without
+  // remounting the modal page. When the host passes no explicit override,
+  // non-markdown text defaults editable; parsed markdown defaults read/Pretext.
+  // An explicit host value (or the toolbar Edit/Done button) takes
+  // precedence after each file load.
+  const [editable, setEditable] = useState<boolean>(false);
   useEffect(() => {
-    setEditable(!!editableProp);
-  }, [editableProp, path]);
+    if (state.status !== 'ready') return;
+    if (editableProp === undefined) {
+      setEditable(state.file.kind === 'text' || (state.file.kind === 'markdown' && !state.file.mdast));
+      return;
+    }
+    setEditable(editableProp);
+  }, [editableProp, state]);
 
   useEffect(() => {
     visibleLineRef.current = jumpToLine ?? loadVisibleLine(path, originId);
