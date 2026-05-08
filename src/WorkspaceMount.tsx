@@ -96,8 +96,9 @@ export interface WorkspaceMountProps {
   /** When set, replaces `<WorkspaceView>` for the Workspace tab. The host
    *  owns the rendered surface; vellum keeps the tab chrome (FloatingIsland)
    *  and the rest of the page layout. WorkspaceAnatomy in the Canvas is
-   *  also suppressed, and `--canvas-width` is dropped to 0 so the slot
-   *  fills the page. Used by portolan to embed the kanban grid in vellum.
+   *  also suppressed, while the adjustable thumb-index reservation stays
+   *  available to hosted surfaces. Used by portolan to embed the kanban
+   *  grid in vellum.
    *  Mounted lazily — only when the user is on the Workspace tab. */
   workspaceSlot?: ReactNode;
   /** Wide-layout label for the Workspace tab in FloatingIsland. Defaults to

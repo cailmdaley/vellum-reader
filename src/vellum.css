@@ -167,19 +167,23 @@ body {
 }
 
 /* Workspace-slot mode: an embedding host (portolan's kanban-in-vellum) has
-   replaced the Workspace tab body. Mirrors --delta in dropping the canvas
-   reservation so the slot fills the viewport — the slot's own grid (e.g.
-   the kanban's three columns) needs the width, and WorkspaceAnatomy in the
-   Canvas is suppressed by FiberPage when the slot is active. The page
-   padding is also tightened on the bottom: the slot owns its own scroll
-   container and we don't want the standalone-page bottom whitespace. */
+   replaced the Workspace tab body. The page shell drops its normal right
+   margin so the slot can fill the viewport, but keeps the divider active:
+   hosted surfaces still reserve the thumb-index footprint with
+   --canvas-width, and that reservation should be adjustable just like the
+   narrative canvas rail. WorkspaceAnatomy in the Canvas is suppressed by
+   FiberPage when the slot is active. The page padding is also tightened on
+   the bottom because the slot owns its own scroll container. */
 .vellum-page--workspace-slot {
   margin-right: 0;
   padding-bottom: 0;
 }
-.vellum-page--workspace-slot .vellum-canvas,
-.vellum-page--workspace-slot .vellum-canvas-divider {
+.vellum-page--workspace-slot .vellum-canvas {
   display: none;
+}
+.vellum-page--workspace-slot .vellum-canvas-divider {
+  bottom: auto;
+  height: var(--thumb-index-bottom, 9rem);
 }
 
 .vellum-page--right-rail-collapsed {

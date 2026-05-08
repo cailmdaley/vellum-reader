@@ -76,9 +76,9 @@ export function FiberPage() {
   // tab bodies via WorkspaceSlotContext. When a slot is set and the user is
   // on that tab, FiberPage renders the slot in place of the built-in view,
   // suppresses `<WorkspaceAnatomy>` in the Canvas, and adds
-  // `vellum-page--workspace-slot` so CSS can drop --canvas-width to 0
-  // (mirroring the delta-mode treatment) — same chrome treatment for both
-  // workspace and find slots.
+  // `vellum-page--workspace-slot` so CSS can hide the canvas body while
+  // leaving the adjustable thumb-index reservation in place — same chrome
+  // treatment for both workspace and find slots.
   const useWorkspaceSlotRender = !isFileMode && mode === 'workspace' && workspaceSlot.slot !== null;
   const useFindSlotRender = !isFileMode && mode === 'find' && workspaceSlot.findSlot !== null;
   const useTabSlotRender = useWorkspaceSlotRender || useFindSlotRender;
@@ -476,8 +476,7 @@ export function FiberPage() {
       {/* Find tab. Default empty state when no slot provided (vellum
           standalone has no Find content of its own — it ships the tab so
           embedding hosts can fill it). When the host provides a findSlot,
-          render that. Same chrome treatment as workspaceSlot
-          (--canvas-width=0 via vellum-page--workspace-slot). */}
+          render that. Same hosted chrome treatment as workspaceSlot. */}
       {!isFileMode && mode === 'find' && useFindSlotRender && workspaceSlot.findSlot}
       {!isFileMode && mode === 'find' && !useFindSlotRender && (
         <div className="vellum-loading" role="status" aria-live="polite">
