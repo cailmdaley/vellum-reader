@@ -33,6 +33,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MyST } from 'myst-to-react';
+import katex from 'katex';
 import { FindingsStepper } from './FindingsStepper';
 import {
   layoutWithLines,
@@ -78,6 +79,41 @@ const BLOCKQUOTE_INDENT = 24;
 
 // Block spacing — keyed to feel like the mystra column rhythm.
 const BODY_BLOCK_GAP = 20;
+
+function renderKatex(value: string, displayMode: boolean): string | null {
+  try {
+    return katex.renderToString(value, {
+      displayMode,
+      throwOnError: false,
+      output: 'html',
+    });
+  } catch {
+    return null;
+  }
+}
+
+function mathDisplayMode(type: string | undefined): boolean {
+  return type === 'math';
+}
+
+function withKatexHtml(node: any): any {
+  if (!node || typeof node !== 'object') return node;
+  const type = typeof node.type === 'string' ? node.type : undefined;
+  const isMath = type === 'math' || type === 'inlineMath';
+  let next = node;
+  if (isMath && typeof node.value === 'string' && typeof node.html !== 'string') {
+    const html = renderKatex(node.value, mathDisplayMode(type));
+    if (html) next = { ...node, html };
+  }
+  if (Array.isArray(next.children)) {
+    const previousChildren: any[] = next.children;
+    const children = previousChildren.map(withKatexHtml);
+    if (children.some((child: any, i: number) => child !== previousChildren[i])) {
+      next = { ...next, children };
+    }
+  }
+  return next;
+}
 const HEADING_TOP_GAP = { 1: 0, 2: 36, 3: 28, 4: 24 } as const;
 const HEADING_BOTTOM_GAP = { 1: 12, 2: 10, 3: 8, 4: 6 } as const;
 const CODE_BLOCK_GAP = 22;
@@ -161,6 +197,8 @@ type InlinePiece = {
   className: string;
   href: string | null;
   title: string | null;
+  html: string | null;
+  extraWidth: number;
 };
 
 type Variant = 'body' | HeadingDepth;
@@ -255,6 +293,7 @@ function collectInlinePieces(
       prev.className === className &&
       prev.href === marks.href &&
       prev.title === marks.title &&
+      prev.html === null &&
       prev.breakMode === 'normal'
     ) {
       prev.text += text;
@@ -267,6 +306,26 @@ function collectInlinePieces(
       className,
       href: marks.href,
       title: marks.title,
+      html: null,
+      extraWidth: 0,
+    });
+  }
+
+  function pushMath(value: string, marks: MarkState): void {
+    const html = renderKatex(value, false);
+    if (!html) {
+      pushText(value, marks);
+      return;
+    }
+    out.push({
+      text: value || ' ',
+      font: inlineFont(variant, marks),
+      breakMode: 'never',
+      className: `${inlineClassName(variant, marks)} is-math`,
+      href: marks.href,
+      title: marks.title,
+      html,
+      extraWidth: 0,
     });
   }
 
@@ -291,6 +350,9 @@ function collectInlinePieces(
           break;
         case 'inlineCode':
           pushText(node.value ?? '', { ...marks, code: true });
+          break;
+        case 'inlineMath':
+          pushMath(node.value ?? '', marks);
           break;
         case 'link':
           walk(node.children, { ...marks, href: node.url ?? null });
@@ -511,7 +573,7 @@ function buildInlineBlock(
       text: p.text,
       font: p.font,
       break: p.breakMode,
-      extraWidth: 0,
+      extraWidth: p.extraWidth,
     })),
   );
 
@@ -651,7 +713,7 @@ function buildTableBlock(node: any, ctx: ParseCtx): TableBlock | null {
         text: p.text,
         font: p.font,
         break: p.breakMode,
-        extraWidth: 0,
+        extraWidth: p.extraWidth,
       })),
     );
     // Natural width = max line width when no wrapping is forced. 1e6 is well
@@ -882,6 +944,10 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
         out.push(attachSource(buildCodeBlock(node.value ?? '', ctx), readSource(node)));
         continue;
       }
+      case 'math': {
+        out.push(attachSource(buildCompatIslandBlock(node, ctx), readSource(node)));
+        continue;
+      }
       case 'thematicBreak':
         out.push(attachSource(buildRuleBlock(ctx), readSource(node)));
         continue;
@@ -896,7 +962,8 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
       case 'strong':
       case 'emphasis':
       case 'link':
-      case 'inlineCode': {
+      case 'inlineCode':
+      case 'inlineMath': {
         // Naked inline at block position — wrap in a body paragraph.
         const block = buildInlineBlock([node], 'body', ctx);
         if (block) out.push(attachSource(block, readSource(node)));
@@ -954,6 +1021,7 @@ type InlineLineLayout = {
     className: string;
     href: string | null;
     title: string | null;
+    html: string | null;
     /**
      * True iff this fragment's source piece (`block.pieces[itemIndex]`)
      * was already laid out on a previous line. Used by the renderer to
@@ -1030,6 +1098,7 @@ type TableCellLineFragment = {
   className: string;
   href: string | null;
   title: string | null;
+  html: string | null;
   /** See `InlineLineLayout.fragments[].isPieceContinuation`. Same role
    * here for cells whose links wrap to a second visual line. */
   isPieceContinuation: boolean;
@@ -1153,6 +1222,7 @@ function layoutBlocks(
               className: piece?.className ?? 'pretext-prose-frag',
               href: piece?.href ?? null,
               title: piece?.title ?? null,
+              html: piece?.html ?? null,
               isPieceContinuation,
               pieceText: piece?.href ? (piece?.text ?? null) : null,
             };
@@ -1389,6 +1459,7 @@ function layoutTableBlock(block: TableBlock, contentWidth: number): TableLayout 
             className: piece?.className ?? 'pretext-prose-frag',
             href: piece?.href ?? null,
             title: piece?.title ?? null,
+            html: piece?.html ?? null,
             isPieceContinuation,
             pieceText: piece?.href ? (piece?.text ?? null) : null,
           };
@@ -1755,7 +1826,17 @@ function renderLine(
               // the line widths pretext computed.
               font: frag.font,
             };
-            if (frag.href) {
+            if (frag.html) {
+              pieces.push(
+                <span
+                  key={fragIdx}
+                  className={frag.className}
+                  style={fragStyle}
+                  aria-label={frag.text}
+                  dangerouslySetInnerHTML={{ __html: frag.html }}
+                />
+              );
+            } else if (frag.href) {
               // Stamp the line's authoritative y-coordinate + line-height
               // onto every anchor. MarginCitations prefers these over
               // getBoundingClientRect so the citation glyphs align to
@@ -1920,7 +2001,7 @@ function renderLine(
             {item.node?.type === 'astraFindingsStepper' ? (
               <FindingsStepper />
             ) : (
-              <MyST ast={item.node} />
+              <MyST ast={withKatexHtml(item.node)} />
             )}
           </div>
         </div>
@@ -2030,7 +2111,17 @@ function renderTable(item: TableLayout, idx: number): ReactNode {
                     whiteSpace: 'pre',
                     font: cellFont,
                   };
-                  if (frag.href) {
+                  if (frag.html) {
+                    pieces.push(
+                      <span
+                        key={fragIdx}
+                        className={frag.className}
+                        style={fragStyle}
+                        aria-label={frag.text}
+                        dangerouslySetInnerHTML={{ __html: frag.html }}
+                      />
+                    );
+                  } else if (frag.href) {
                     // See main-column wikilink a11y guards above — same
                     // role here for table-cell links that wrap to a
                     // second visual line.

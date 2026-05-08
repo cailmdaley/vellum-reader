@@ -1,3 +1,5 @@
+@import 'katex/dist/katex.min.css';
+
 /**
  * Vellum — First Light (Marginal Observation)
  *
@@ -5564,6 +5566,12 @@ h3.pretext-prose-line--h3::before {
   padding: 0.1em 0.32em;
   border-radius: 2px;
   color: #4A453F;
+}
+.pretext-prose-frag.is-math {
+  white-space: nowrap;
+}
+.pretext-prose-frag.is-math .katex {
+  font-size: 1em;
 }
 .pretext-prose-frag.is-strike {
   text-decoration: line-through;

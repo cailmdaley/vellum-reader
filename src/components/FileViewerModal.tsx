@@ -6,9 +6,10 @@
  * lifted to this modal via callbacks, so there is only one bar.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { FileViewerPage, type SaveState } from '../pages/FileViewerPage';
-import type { Annotation, AnnotationAction, AnnotationBulkAction } from '../utils/content-types';
+import { useEffect } from 'react';
+import { FileViewerPage } from '../pages/FileViewerPage';
+import type { AnnotationAction, AnnotationBulkAction } from '../utils/content-types';
+import { FileViewerChrome, useFileViewerChromeState } from './FileViewerChrome';
 
 export interface FileViewerModalProps {
   path: string;
@@ -26,13 +27,6 @@ export interface FileViewerModalProps {
   onClose: () => void;
 }
 
-function saveStatusText(s: SaveState): string {
-  if (s === 'saving') return 'Saving…';
-  if (s === 'saved') return 'Saved';
-  if (typeof s === 'object') return `Error: ${s.error}`;
-  return '';
-}
-
 export function FileViewerModal({
   path,
   originId,
@@ -42,26 +36,21 @@ export function FileViewerModal({
   headerAnnotationActions,
   onClose,
 }: FileViewerModalProps) {
-  const [cacheBustKey, setCacheBustKey] = useState(0);
-  const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
-  const [dirty, setDirty] = useState(false);
-  const [saveState, setSaveState] = useState<SaveState>('idle');
-  const [save, setSave] = useState<(() => Promise<void>) | null>(null);
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const annotationsRef = useRef<Annotation[]>([]);
-  annotationsRef.current = annotations;
-
-  const handleRefresh = useCallback(() => {
-    setCacheBustKey((n) => n + 1);
-  }, []);
-
-  const refreshAnnotations = useCallback(() => {
-    setAnnotationRefreshKey((n) => n + 1);
-  }, []);
-
-  const handleSaveReady = useCallback((fn: (() => Promise<void>) | null) => {
-    setSave(() => fn);
-  }, []);
+  const {
+    cacheBustKey,
+    annotationRefreshKey,
+    dirty,
+    saveState,
+    save,
+    annotations,
+    annotationsRef,
+    setDirty,
+    setSaveState,
+    handleSaveReady,
+    setAnnotations,
+    handleRefresh,
+    refreshAnnotations,
+  } = useFileViewerChromeState();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -78,9 +67,6 @@ export function FileViewerModal({
     return () => document.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
-  const canSave = !!save && dirty && saveState !== 'saving';
-  const statusText = saveStatusText(saveState);
-
   return (
     <div
       className="vellum-modal-scrim"
@@ -95,86 +81,22 @@ export function FileViewerModal({
         aria-modal="true"
         aria-labelledby="vellum-file-modal-path"
       >
-        <header className="vellum-modal-header">
-          <span className="vellum-modal-path" id="vellum-file-modal-path" title={path}>
-            {path}
-            {dirty && <span className="vellum-file-viewer-page__dirty" aria-hidden="true"> •</span>}
-          </span>
-          {statusText && (
-            <span className="vellum-file-viewer-page__status">{statusText}</span>
-          )}
-          <div className="vellum-modal-actions">
-            {annotations.length > 0 && headerAnnotationActions?.map((action) => {
-              // `applicableTo` prefilters: the button renders only when at
-              // least one annotation matches, and `onInvoke` receives just
-              // the matching subset. Without filtering, hosts (e.g.
-              // portolan's "Clear sent") would receive every annotation
-              // and act on annotations the user did not target.
-              const applicable = action.applicableTo
-                ? annotations.filter(action.applicableTo)
-                : annotations;
-              if (applicable.length === 0) return null;
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  className={
-                    'vellum-modal-btn vellum-modal-btn--bulk' +
-                    (action.destructive ? ' vellum-modal-btn--destructive' : '')
-                  }
-                  title={action.title ?? action.label}
-                  aria-label={`${action.label}, ${applicable.length} ${
-                    applicable.length === 1 ? 'annotation' : 'annotations'
-                  }`}
-                  onClick={(e) => {
-                    const matched = action.applicableTo
-                      ? annotationsRef.current.filter(action.applicableTo)
-                      : annotationsRef.current;
-                    // Pass `refreshAnnotations` (annotation-only refetch)
-                    // not `handleRefresh` (full file reload) so a bulk
-                    // mutation can re-read annotations without losing
-                    // editor state — cursor, scroll, search, vim mode.
-                    void action.onInvoke(matched, {
-                      anchor: e.currentTarget as HTMLElement,
-                      refreshAnnotations,
-                    });
-                  }}
-                >
-                  {action.label}
-                  <span className="vellum-modal-btn__count" aria-hidden="true">{applicable.length}</span>
-                </button>
-              );
-            })}
-            {save && (
-              <button
-                type="button"
-                className="vellum-file-viewer-page__save"
-                onClick={() => { void save(); }}
-                disabled={!canSave}
-              >
-                Save
-              </button>
-            )}
-            <button
-              type="button"
-              className="vellum-modal-btn"
-              onClick={handleRefresh}
-              title="Refresh"
-              aria-label="Refresh"
-            >
-              ↻
-            </button>
-            <button
-              type="button"
-              className="vellum-modal-btn vellum-modal-close"
-              onClick={onClose}
-              title="Close (Esc)"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-        </header>
+        <FileViewerChrome
+          path={path}
+          pathId="vellum-file-modal-path"
+          dirty={dirty}
+          saveState={saveState}
+          save={save}
+          annotations={annotations}
+          annotationsRef={annotationsRef}
+          headerAnnotationActions={headerAnnotationActions}
+          refreshAnnotations={refreshAnnotations}
+          onRefresh={handleRefresh}
+          onClose={onClose}
+          toolbarClassName="vellum-modal-header"
+          pathClassName="vellum-modal-path"
+          actionsClassName="vellum-modal-actions"
+        />
         <div className="vellum-modal-body">
           <FileViewerPage
             key={cacheBustKey}

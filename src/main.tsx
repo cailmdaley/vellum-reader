@@ -10,7 +10,6 @@ import type {
   AnnotationBulkAction,
   AnnotationSingleAction,
 } from './utils/content-types';
-import 'katex/dist/katex.min.css';
 import './vellum.css';
 
 const adapter = createLightconeAdapter();

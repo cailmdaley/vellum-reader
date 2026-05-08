@@ -11,6 +11,7 @@ import { NarrativeView } from '~/components/NarrativeView';
 import { WorkspaceView } from '~/components/WorkspaceView';
 import { Canvas } from '~/components/Canvas';
 import { CanvasDivider } from '~/components/CanvasDivider';
+import { FileViewerChrome, useFileViewerChromeState } from '~/components/FileViewerChrome';
 import { WorkspaceAnatomy } from '~/components/WorkspaceAnatomy';
 import { HistoryCard } from '~/components/HistoryCard';
 import { readCanvasWidth } from '~/utils/canvas-geometry';
@@ -20,7 +21,7 @@ import { useDelta } from '~/utils/use-delta';
 import { FILE_TARGET_ROUTE, useFileTarget, type FileTarget } from '~/contexts/FileTargetContext';
 import { useWorkspaceSlot } from '~/contexts/WorkspaceSlotContext';
 import { FileViewerPage, isAstraPath, type SaveState } from './FileViewerPage';
-import type { Annotation, AnnotationBulkAction, AstraGraph, FiberContent, HistoryEvent } from '~/utils/content-types';
+import type { Annotation, AstraGraph, FiberContent, HistoryEvent } from '~/utils/content-types';
 
 const MODE_KEYS: Record<string, Mode> = {
   '1': 'narrative',
@@ -28,13 +29,6 @@ const MODE_KEYS: Record<string, Mode> = {
   '3': 'find',
   '4': 'delta',
 };
-
-function saveStatusText(s: SaveState): string {
-  if (s === 'saving') return 'Saving…';
-  if (s === 'saved') return 'Saved';
-  if (typeof s === 'object') return `Error: ${s.error}`;
-  return '';
-}
 
 export function FiberPage() {
   const location = useLocation();
@@ -98,25 +92,7 @@ export function FiberPage() {
   }, [rightRailCollapsed]);
   const showRightRail = themeId !== 'lightcone-linear' && !rightRailCollapsed;
 
-  // File-mode toolbar state — same lift pattern FileViewerModal uses, just
-  // surfaced inside the workspace shell instead of a free-standing modal.
-  const [fileCacheBustKey, setFileCacheBustKey] = useState(0);
-  const [fileAnnotationRefreshKey, setFileAnnotationRefreshKey] = useState(0);
-  const [fileDirty, setFileDirty] = useState(false);
-  const [fileSaveState, setFileSaveState] = useState<SaveState>('idle');
-  const [fileSave, setFileSave] = useState<(() => Promise<void>) | null>(null);
-  const [fileAnnotations, setFileAnnotations] = useState<Annotation[]>([]);
-  const fileAnnotationsRef = useRef<Annotation[]>([]);
-  fileAnnotationsRef.current = fileAnnotations;
-  const handleFileRefresh = useCallback(() => {
-    setFileCacheBustKey((n) => n + 1);
-  }, []);
-  const refreshFileAnnotations = useCallback(() => {
-    setFileAnnotationRefreshKey((n) => n + 1);
-  }, []);
-  const handleFileSaveReady = useCallback((fn: (() => Promise<void>) | null) => {
-    setFileSave(() => fn);
-  }, []);
+  const fileChrome = useFileViewerChromeState();
 
   // Force narrative mode while a file is loaded — Workspace and Delta are
   // fiber-collection concepts. The mode buttons are also disabled in
@@ -438,19 +414,19 @@ export function FiberPage() {
       {isFileMode && fileTarget && (
         <FileModeView
           target={fileTarget}
-          cacheBustKey={fileCacheBustKey}
-          annotationRefreshKey={fileAnnotationRefreshKey}
-          dirty={fileDirty}
-          saveState={fileSaveState}
-          save={fileSave}
-          annotations={fileAnnotations}
-          annotationsRef={fileAnnotationsRef}
-          onDirtyChange={setFileDirty}
-          onSaveStateChange={setFileSaveState}
-          onSaveReady={handleFileSaveReady}
-          onAnnotationsChange={setFileAnnotations}
-          onRefresh={handleFileRefresh}
-          refreshAnnotations={refreshFileAnnotations}
+          cacheBustKey={fileChrome.cacheBustKey}
+          annotationRefreshKey={fileChrome.annotationRefreshKey}
+          dirty={fileChrome.dirty}
+          saveState={fileChrome.saveState}
+          save={fileChrome.save}
+          annotations={fileChrome.annotations}
+          annotationsRef={fileChrome.annotationsRef}
+          onDirtyChange={fileChrome.setDirty}
+          onSaveStateChange={fileChrome.setSaveState}
+          onSaveReady={fileChrome.handleSaveReady}
+          onAnnotationsChange={fileChrome.setAnnotations}
+          onRefresh={fileChrome.handleRefresh}
+          refreshAnnotations={fileChrome.refreshAnnotations}
         />
       )}
 
@@ -594,8 +570,6 @@ function FileModeView({
   onRefresh,
   refreshAnnotations,
 }: FileModeViewProps) {
-  const canSave = !!save && dirty && saveState !== 'saving';
-  const statusText = saveStatusText(saveState);
   // Astra-only chrome: the source toggle. The picker (paper-view / linear /
   // personal) lives inline as content inside AstraFilePanel — content, not
   // chrome — but the source toggle structurally owns the body (replaces the
@@ -617,48 +591,21 @@ function FileModeView({
   const [astraSourceSupported, setAstraSourceSupported] = useState(false);
   return (
     <div className="vellum-file-mode">
-      <header className="vellum-file-mode__toolbar">
-        <span className="vellum-file-mode__path" title={target.path}>
-          {target.path}
-          {dirty && <span className="vellum-file-viewer-page__dirty" aria-hidden="true"> •</span>}
-        </span>
-        {statusText && (
-          <span className="vellum-file-viewer-page__status">{statusText}</span>
-        )}
-        <div className="vellum-file-mode__actions">
-          {annotations.length > 0 && target.headerAnnotationActions?.map((action: AnnotationBulkAction) => {
-            const applicable = action.applicableTo
-              ? annotations.filter(action.applicableTo)
-              : annotations;
-            if (applicable.length === 0) return null;
-            return (
-              <button
-                key={action.id}
-                type="button"
-                className={
-                  'vellum-modal-btn vellum-modal-btn--bulk' +
-                  (action.destructive ? ' vellum-modal-btn--destructive' : '')
-                }
-                title={action.title ?? action.label}
-                aria-label={`${action.label}, ${applicable.length} ${
-                  applicable.length === 1 ? 'annotation' : 'annotations'
-                }`}
-                onClick={(e) => {
-                  const matched = action.applicableTo
-                    ? annotationsRef.current.filter(action.applicableTo)
-                    : annotationsRef.current;
-                  void action.onInvoke(matched, {
-                    anchor: e.currentTarget as HTMLElement,
-                    refreshAnnotations,
-                  });
-                }}
-              >
-                {action.label}
-                <span className="vellum-modal-btn__count" aria-hidden="true">{applicable.length}</span>
-              </button>
-            );
-          })}
-          {isAstra && astraSourceSupported && (
+      <FileViewerChrome
+        path={target.path}
+        dirty={dirty}
+        saveState={saveState}
+        save={save}
+        annotations={annotations}
+        annotationsRef={annotationsRef}
+        headerAnnotationActions={target.headerAnnotationActions}
+        refreshAnnotations={refreshAnnotations}
+        onRefresh={onRefresh}
+        toolbarClassName="vellum-file-mode__toolbar"
+        pathClassName="vellum-file-mode__path"
+        actionsClassName="vellum-file-mode__actions"
+        extraActions={
+          isAstra && astraSourceSupported ? (
             <button
               type="button"
               className={`vellum-modal-btn vellum-file-viewer-page__source-toggle${
@@ -673,28 +620,9 @@ function FileModeView({
             >
               source
             </button>
-          )}
-          {save && (
-            <button
-              type="button"
-              className="vellum-file-viewer-page__save"
-              onClick={() => { void save(); }}
-              disabled={!canSave}
-            >
-              Save
-            </button>
-          )}
-          <button
-            type="button"
-            className="vellum-modal-btn"
-            onClick={onRefresh}
-            title="Refresh"
-            aria-label="Refresh"
-          >
-            ↻
-          </button>
-        </div>
-      </header>
+          ) : null
+        }
+      />
       <div className="vellum-file-mode__body">
         <FileViewerPage
           key={cacheBustKey}
