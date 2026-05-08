@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAdapter } from '~/contexts/AdapterContext';
 import { ContextCardLayer } from '~/components/ContextCardLayer';
@@ -89,9 +89,6 @@ export function FiberPage() {
       return false;
     }
   });
-  const toggleRightRail = useCallback(() => {
-    setRightRailCollapsed((collapsed) => !collapsed);
-  }, []);
   useEffect(() => {
     try {
       window.localStorage.setItem('vellum:right-rail-collapsed', rightRailCollapsed ? '1' : '0');
@@ -190,6 +187,24 @@ export function FiberPage() {
   const [graphVersion, setGraphVersion] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [pendingContentReload, setPendingContentReload] = useState(false);
+  const restoreScrollTopRef = useRef<number | null>(null);
+
+  const captureScrollForRefresh = useCallback(() => {
+    const scroller = document.scrollingElement ?? document.documentElement;
+    restoreScrollTopRef.current = scroller.scrollTop;
+  }, []);
+
+  const refreshCurrentFiber = useCallback(() => {
+    setGraphVersion((version) => version + 1);
+
+    if (isEditing) {
+      setPendingContentReload(true);
+      return;
+    }
+
+    captureScrollForRefresh();
+    setContentVersion((version) => version + 1);
+  }, [captureScrollForRefresh, isEditing]);
 
   const reloadCurrentFiber = useCallback((event: ReloadEvent) => {
     setGraphVersion((version) => version + 1);
@@ -200,8 +215,9 @@ export function FiberPage() {
       return;
     }
 
+    captureScrollForRefresh();
     setContentVersion((version) => version + 1);
-  }, [isEditing, slug]);
+  }, [captureScrollForRefresh, isEditing, slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,6 +233,16 @@ export function FiberPage() {
       cancelled = true;
     };
   }, [adapter, slug, contentVersion]);
+
+  useLayoutEffect(() => {
+    if (contentLoading || restoreScrollTopRef.current == null) return;
+    const top = restoreScrollTopRef.current;
+    restoreScrollTopRef.current = null;
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top, left: window.scrollX });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [contentLoading, content?.slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -332,6 +358,8 @@ export function FiberPage() {
     () => graph.nodes.find((n) => n.slug === (anatomySlug ?? slug)),
     [graph.nodes, anatomySlug, slug],
   );
+  const currentContent = content?.slug === slug ? content : null;
+  const showFiberRefresh = !isFileMode && mode === 'narrative' && !!slug;
 
   const citingBacklinks = useMemo(() => {
     if (!currentNode || !graph.links) return [];
@@ -390,6 +418,7 @@ export function FiberPage() {
           backlinkNodes={citingBacklinks}
           deltaCount={deltaCount}
           onNavigate={handleNavigateToSlug}
+          onRefresh={showFiberRefresh ? refreshCurrentFiber : undefined}
           onIndexEscalate={onIndexEscalate}
           onCollapseRightRail={() => setRightRailCollapsed(true)}
         />
@@ -422,12 +451,10 @@ export function FiberPage() {
           onAnnotationsChange={setFileAnnotations}
           onRefresh={handleFileRefresh}
           refreshAnnotations={refreshFileAnnotations}
-          rightRailCollapsed={rightRailCollapsed}
-          onToggleRightRail={themeId !== 'lightcone-linear' ? toggleRightRail : undefined}
         />
       )}
 
-      {!isFileMode && mode === 'narrative' && contentLoading && (
+      {!isFileMode && mode === 'narrative' && contentLoading && !currentContent && (
         // role="status" + aria-live="polite" so AT users hear the
         // transition without it interrupting their current focus. Without
         // a role the loading text gets absorbed into the outer wrapper's
@@ -438,9 +465,9 @@ export function FiberPage() {
         </div>
       )}
 
-      {!isFileMode && mode === 'narrative' && !contentLoading && content?.mdast && (
+      {!isFileMode && mode === 'narrative' && currentContent?.mdast && (
         <NarrativeView
-          content={content}
+          content={currentContent}
           graphNodes={graph.nodes}
           graphLinks={graph.links}
           breadcrumb={breadcrumb}
@@ -454,7 +481,7 @@ export function FiberPage() {
         <IndexView nodes={graph.nodes} links={graph.links} onNavigate={handleNavigateToSlug} eyebrow={eyebrow} />
       )}
 
-      {!isFileMode && mode === 'narrative' && !contentLoading && slug && !content?.mdast && (
+      {!isFileMode && mode === 'narrative' && !contentLoading && slug && !currentContent?.mdast && (
         // role="alert" so AT announces the miss instead of leaving the
         // user on a near-empty page with no signal — without it the only
         // a11y-tree node carrying the error text was the outer page
@@ -549,8 +576,6 @@ interface FileModeViewProps {
   onAnnotationsChange: (annotations: Annotation[]) => void;
   onRefresh: () => void;
   refreshAnnotations: () => void;
-  rightRailCollapsed: boolean;
-  onToggleRightRail?: () => void;
 }
 
 function FileModeView({
@@ -568,8 +593,6 @@ function FileModeView({
   onAnnotationsChange,
   onRefresh,
   refreshAnnotations,
-  rightRailCollapsed,
-  onToggleRightRail,
 }: FileModeViewProps) {
   const canSave = !!save && dirty && saveState !== 'saving';
   const statusText = saveStatusText(saveState);
@@ -659,17 +682,6 @@ function FileModeView({
               disabled={!canSave}
             >
               Save
-            </button>
-          )}
-          {onToggleRightRail && (
-            <button
-              type="button"
-              className="vellum-modal-btn vellum-file-mode__rail-toggle"
-              onClick={onToggleRightRail}
-              title={rightRailCollapsed ? 'Show side column' : 'Hide side column'}
-              aria-label={rightRailCollapsed ? 'Show side column' : 'Hide side column'}
-            >
-              <span aria-hidden="true">{rightRailCollapsed ? '‹' : '›'}</span>
             </button>
           )}
           <button

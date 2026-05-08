@@ -115,6 +115,9 @@ interface FloatingIslandProps {
   backlinkNodes: GraphNode[];
   deltaCount?: number;
   onNavigate: (slug: string) => void;
+  /** Optional current-surface refresh. FiberPage wires this for fiber views;
+   *  file-mode keeps its path-specific refresh in the file toolbar. */
+  onRefresh?: () => void;
   /** Optional host hook fired when the user clicks the `← index` button on
    *  a root fiber (no parent in the local graph). Embedding hosts that
    *  layer a higher-level synthetic collection on top of vellum — e.g.
@@ -134,6 +137,7 @@ export function FloatingIsland({
   backlinkNodes,
   deltaCount = 0,
   onNavigate,
+  onRefresh,
   onIndexEscalate,
   onCollapseRightRail,
 }: FloatingIslandProps) {
@@ -400,6 +404,17 @@ export function FloatingIsland({
             );
           })}
         </nav>
+        {onRefresh && (
+          <button
+            type="button"
+            className="thumb-index__refresh-btn"
+            onClick={onRefresh}
+            title="Refresh"
+            aria-label="Refresh"
+          >
+            <span aria-hidden="true">↻</span>
+          </button>
+        )}
         {onCollapseRightRail && (
           <button
             type="button"

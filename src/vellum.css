@@ -656,6 +656,7 @@ body {
   background: rgba(154, 123, 53, 0.06);
 }
 
+.thumb-index__refresh-btn,
 .thumb-index__collapse-btn {
   display: inline-flex;
   align-items: center;
@@ -673,6 +674,7 @@ body {
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
+.thumb-index__refresh-btn:hover,
 .thumb-index__collapse-btn:hover {
   color: var(--gold);
   border-color: var(--gold);
