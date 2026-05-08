@@ -29,6 +29,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ClipboardEvent,
   type ReactNode,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +49,7 @@ import {
   walkRichInlineLineRanges,
   type PreparedRichInline,
 } from '@chenglou/pretext/rich-inline';
+import { normalizePretextCopiedText, plainTextToClipboardHtml } from '../utils/clipboard';
 
 // ───────────────────── Typography ─────────────────────
 // Named families only — `system-ui` diverges between canvas measureText and
@@ -1660,6 +1662,28 @@ export function PretextProse({
     [linkPrefix, navigate],
   );
 
+  const handleCopy = useCallback((e: ClipboardEvent<HTMLDivElement>) => {
+    const selection = e.currentTarget.ownerDocument.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const container = e.currentTarget;
+    let intersectsContainer = false;
+    for (let i = 0; i < selection.rangeCount; i++) {
+      if (selection.getRangeAt(i).intersectsNode(container)) {
+        intersectsContainer = true;
+        break;
+      }
+    }
+    if (!intersectsContainer) return;
+
+    const text = normalizePretextCopiedText(selection.toString());
+    if (!text) return;
+
+    e.clipboardData.setData('text/plain', text);
+    e.clipboardData.setData('text/html', plainTextToClipboardHtml(text));
+    e.preventDefault();
+  }, []);
+
   if (!layout) {
     return <div className="pretext-prose pretext-prose--loading" style={{ minHeight: 40 }} />;
   }
@@ -1670,6 +1694,7 @@ export function PretextProse({
       className="pretext-prose"
       style={{ position: 'relative', width: contentWidth, height: layout.totalHeight }}
       onClick={handleClick}
+      onCopy={handleCopy}
     >
       {layout.items.map((item, idx) => renderLine(item, idx))}
     </div>
