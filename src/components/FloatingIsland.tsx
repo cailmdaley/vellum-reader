@@ -123,6 +123,7 @@ interface FloatingIslandProps {
    *  local rootSlug redirect. Omit to keep the historical local-only
    *  `navigate('')` behaviour. */
   onIndexEscalate?: () => void;
+  onCollapseRightRail?: () => void;
 }
 
 export function FloatingIsland({
@@ -134,6 +135,7 @@ export function FloatingIsland({
   deltaCount = 0,
   onNavigate,
   onIndexEscalate,
+  onCollapseRightRail,
 }: FloatingIslandProps) {
   const { mode, setMode } = useMode();
   const adapter = useAdapter();
@@ -398,6 +400,17 @@ export function FloatingIsland({
             );
           })}
         </nav>
+        {onCollapseRightRail && (
+          <button
+            type="button"
+            className="thumb-index__collapse-btn"
+            onClick={onCollapseRightRail}
+            title="Hide side column"
+            aria-label="Hide side column"
+          >
+            <span aria-hidden="true">›</span>
+          </button>
+        )}
         <div className="thumb-index__search-wrap" ref={searchRef}>
           {searchExpanded ? (
             <input

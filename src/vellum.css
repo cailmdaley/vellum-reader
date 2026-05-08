@@ -182,6 +182,35 @@ body {
   display: none;
 }
 
+.vellum-page--right-rail-collapsed {
+  margin-right: 0;
+}
+.vellum-page--right-rail-collapsed .vellum-prose--pretext {
+  padding-top: 3.5rem;
+}
+
+.vellum-right-rail-restore {
+  position: fixed;
+  top: 14px;
+  right: 0;
+  z-index: 520;
+  width: 24px;
+  height: 34px;
+  border: 1px solid var(--border-faint);
+  border-right: 0;
+  border-radius: 4px 0 0 4px;
+  background: var(--page-bg);
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.vellum-right-rail-restore:hover {
+  color: var(--gold);
+  background: rgba(154, 123, 53, 0.06);
+}
+
 /* ── Canvas: shared right-side panel (vellum-reader/workspace) ── */
 .vellum-canvas {
   position: fixed;
@@ -618,6 +647,29 @@ body {
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 .thumb-index__search-btn:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: rgba(154, 123, 53, 0.06);
+}
+
+.thumb-index__collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--prose-bg);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.thumb-index__collapse-btn:hover {
   color: var(--gold);
   border-color: var(--gold);
   background: rgba(154, 123, 53, 0.06);

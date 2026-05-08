@@ -146,6 +146,30 @@ function rungToLayout(rung: AstraLadderRung): AstraLayout {
  */
 const PAPER_VIEW_MIN_WIDTH = 280;
 
+function visibleLineStorageKey(path: string, originId?: string): string {
+  return `vellum:file-visible-line:${originId ?? 'local'}:${path}`;
+}
+
+function loadVisibleLine(path: string, originId?: string): number | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(visibleLineStorageKey(path, originId));
+    const line = raw ? Number(raw) : NaN;
+    return Number.isFinite(line) && line > 0 ? line : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveVisibleLine(path: string, originId: string | undefined, line: number): void {
+  if (typeof window === 'undefined' || !Number.isFinite(line) || line < 1) return;
+  try {
+    window.sessionStorage.setItem(visibleLineStorageKey(path, originId), String(Math.floor(line)));
+  } catch {
+    // Best-effort scroll restoration; private windows may deny storage.
+  }
+}
+
 export function FileViewerPage(props: FileViewerPageProps) {
   // Astra paths split off into the ladder dispatch. The picker, source toggle,
   // bundle fetch, and rung-keyed render all live in `<AstraFilePanel>` so the
@@ -178,6 +202,8 @@ function NonAstraFileViewerPage({
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const draftRef = useRef<string>('');
   const savedToastRef = useRef<number | null>(null);
+  const visibleLineRef = useRef<number | undefined>(jumpToLine ?? loadVisibleLine(path, originId));
+  const [mountJumpLine, setMountJumpLine] = useState<number | undefined>(visibleLineRef.current);
   // `editable` is local state initialized from the prop so the user can flip
   // into source view via the Edit button without the host re-mounting the
   // page. Re-syncs when the prop changes — a fresh open of the modal with a
@@ -187,6 +213,23 @@ function NonAstraFileViewerPage({
   useEffect(() => {
     setEditable(!!editableProp);
   }, [editableProp, path]);
+
+  useEffect(() => {
+    visibleLineRef.current = jumpToLine ?? loadVisibleLine(path, originId);
+    setMountJumpLine(visibleLineRef.current);
+  }, [path, originId, jumpToLine]);
+
+  useEffect(() => {
+    setMountJumpLine(visibleLineRef.current);
+  }, [cacheBust]);
+
+  const handleVisibleLineChange = useCallback(
+    (line: number) => {
+      visibleLineRef.current = line;
+      saveVisibleLine(path, originId, line);
+    },
+    [path, originId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -368,7 +411,8 @@ function NonAstraFileViewerPage({
       <FileReader
         file={state.file}
         editable={editable}
-        jumpToLine={jumpToLine}
+        jumpToLine={mountJumpLine}
+        onVisibleLineChange={handleVisibleLineChange}
         annotations={annotations}
         annotationSlug={path}
         annotationOriginId={originId}
@@ -862,4 +906,3 @@ function AstraSourceView({
     </pre>
   );
 }
-

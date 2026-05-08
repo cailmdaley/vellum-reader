@@ -82,6 +82,24 @@ export function FiberPage() {
   const useWorkspaceSlotRender = !isFileMode && mode === 'workspace' && workspaceSlot.slot !== null;
   const useFindSlotRender = !isFileMode && mode === 'find' && workspaceSlot.findSlot !== null;
   const useTabSlotRender = useWorkspaceSlotRender || useFindSlotRender;
+  const [rightRailCollapsed, setRightRailCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem('vellum:right-rail-collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleRightRail = useCallback(() => {
+    setRightRailCollapsed((collapsed) => !collapsed);
+  }, []);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('vellum:right-rail-collapsed', rightRailCollapsed ? '1' : '0');
+    } catch {
+      // Best-effort UI preference only.
+    }
+  }, [rightRailCollapsed]);
+  const showRightRail = themeId !== 'lightcone-linear' && !rightRailCollapsed;
 
   // File-mode toolbar state — same lift pattern FileViewerModal uses, just
   // surfaced inside the workspace shell instead of a free-standing modal.
@@ -326,7 +344,7 @@ export function FiberPage() {
 
   return (
     <div
-      className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}${useTabSlotRender ? ' vellum-page--workspace-slot' : ''}`}
+      className={`vellum-page${mode === 'delta' ? ' vellum-page--delta' : ''}${useTabSlotRender ? ' vellum-page--workspace-slot' : ''}${rightRailCollapsed ? ' vellum-page--right-rail-collapsed' : ''}`}
       role="region"
       aria-label={currentNode ? `Vellum — ${currentNode.label}` : 'Vellum'}
     >
@@ -337,7 +355,7 @@ export function FiberPage() {
           mount the components at all. Keeping them mounted was reserving
           ~420px of viewport via --canvas-width and leaving the prose
           stranded in the left half. */}
-      {themeId !== 'lightcone-linear' && (
+      {showRightRail && (
         <>
           <CanvasDivider />
           {/* The right side of every tab. The draggable divider and this aside
@@ -363,16 +381,30 @@ export function FiberPage() {
           </Canvas>
         </>
       )}
-      <FloatingIsland
-        currentNode={currentNode}
-        graphNodes={graph.nodes}
-        graphLinks={graph.links}
-        backlinkCount={citingBacklinks.length}
-        backlinkNodes={citingBacklinks}
-        deltaCount={deltaCount}
-        onNavigate={handleNavigateToSlug}
-        onIndexEscalate={onIndexEscalate}
-      />
+      {showRightRail && (
+        <FloatingIsland
+          currentNode={currentNode}
+          graphNodes={graph.nodes}
+          graphLinks={graph.links}
+          backlinkCount={citingBacklinks.length}
+          backlinkNodes={citingBacklinks}
+          deltaCount={deltaCount}
+          onNavigate={handleNavigateToSlug}
+          onIndexEscalate={onIndexEscalate}
+          onCollapseRightRail={() => setRightRailCollapsed(true)}
+        />
+      )}
+      {rightRailCollapsed && themeId !== 'lightcone-linear' && (
+        <button
+          type="button"
+          className="vellum-right-rail-restore"
+          onClick={() => setRightRailCollapsed(false)}
+          title="Show side column"
+          aria-label="Show side column"
+        >
+          <span aria-hidden="true">‹</span>
+        </button>
+      )}
 
       {isFileMode && fileTarget && (
         <FileModeView
@@ -390,6 +422,8 @@ export function FiberPage() {
           onAnnotationsChange={setFileAnnotations}
           onRefresh={handleFileRefresh}
           refreshAnnotations={refreshFileAnnotations}
+          rightRailCollapsed={rightRailCollapsed}
+          onToggleRightRail={themeId !== 'lightcone-linear' ? toggleRightRail : undefined}
         />
       )}
 
@@ -516,6 +550,8 @@ interface FileModeViewProps {
   onAnnotationsChange: (annotations: Annotation[]) => void;
   onRefresh: () => void;
   refreshAnnotations: () => void;
+  rightRailCollapsed: boolean;
+  onToggleRightRail?: () => void;
 }
 
 function FileModeView({
@@ -533,6 +569,8 @@ function FileModeView({
   onAnnotationsChange,
   onRefresh,
   refreshAnnotations,
+  rightRailCollapsed,
+  onToggleRightRail,
 }: FileModeViewProps) {
   const canSave = !!save && dirty && saveState !== 'saving';
   const statusText = saveStatusText(saveState);
@@ -622,6 +660,17 @@ function FileModeView({
               disabled={!canSave}
             >
               Save
+            </button>
+          )}
+          {onToggleRightRail && (
+            <button
+              type="button"
+              className="vellum-modal-btn vellum-file-mode__rail-toggle"
+              onClick={onToggleRightRail}
+              title={rightRailCollapsed ? 'Show side column' : 'Hide side column'}
+              aria-label={rightRailCollapsed ? 'Show side column' : 'Hide side column'}
+            >
+              <span aria-hidden="true">{rightRailCollapsed ? '‹' : '›'}</span>
             </button>
           )}
           <button

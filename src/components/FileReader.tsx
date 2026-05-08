@@ -87,6 +87,8 @@ export interface FileReaderProps {
   onSave?: () => void;
   /** 1-indexed line to select and scroll into view on mount (text/markdown only). */
   jumpToLine?: number;
+  /** Reports the first visible 1-indexed source line in CodeMirror text views. */
+  onVisibleLineChange?: (line: number) => void;
   /** File-anchored annotations to highlight in the text view. */
   annotations?: Annotation[];
   /**
@@ -217,6 +219,7 @@ function TextReader({
   onDocChange,
   onSave,
   jumpToLine,
+  onVisibleLineChange,
   annotations,
   annotationSlug,
   annotationOriginId,
@@ -228,8 +231,10 @@ function TextReader({
   const viewRef = useRef<EditorView | null>(null);
   const onDocChangeRef = useRef(onDocChange);
   const onSaveRef = useRef(onSave);
+  const onVisibleLineChangeRef = useRef(onVisibleLineChange);
   onDocChangeRef.current = onDocChange;
   onSaveRef.current = onSave;
+  onVisibleLineChangeRef.current = onVisibleLineChange;
 
   const adapter = useAdapter();
   const canAnnotate = !!(annotationSlug && onAnnotationsChange);
@@ -337,6 +342,11 @@ function TextReader({
           borderBottom: '1px dotted rgba(154, 123, 53, 0.3)',
         },
       }),
+      EditorView.updateListener.of((update) => {
+        if (!update.viewportChanged && !update.docChanged) return;
+        const line = update.state.doc.lineAt(update.view.viewport.from).number;
+        onVisibleLineChangeRef.current?.(line);
+      }),
     ];
 
     if (editable) {
@@ -400,6 +410,7 @@ function TextReader({
     const state = EditorState.create({ doc: file.content, extensions });
     const view = new EditorView({ state, parent: hostRef.current });
     viewRef.current = view;
+    onVisibleLineChangeRef.current?.(view.state.doc.lineAt(view.viewport.from).number);
     // Seed annotation decorations once the view is mounted (and the doc has a
     // final length to clamp to).
     if (annotations && annotations.length) {
