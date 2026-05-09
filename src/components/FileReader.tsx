@@ -655,8 +655,13 @@ function MarkdownReader({
   // ThemePicker / FiberHeader chrome at the top of the wrapper stays out of the
   // selection range. Same shape as NarrativeView's vellum-prose-wrapper /
   // vellum-prose pair.
-  const proseRef = useRef<HTMLElement>(null);
+  const proseRef = useRef<HTMLElement | null>(null);
+  const [proseEl, setProseEl] = useState<HTMLElement | null>(null);
   const [contentWidth, setContentWidth] = useState<number>(MARKDOWN_INITIAL_CONTENT_WIDTH);
+  const bindProseRef = useCallback((el: HTMLElement | null) => {
+    proseRef.current = el;
+    setProseEl(el);
+  }, []);
 
   // Observe the prose element's content-box inline size — same pattern as
   // NarrativeView. `.vellum-prose` carries 3.5rem horizontal padding, so
@@ -667,8 +672,7 @@ function MarkdownReader({
   // so PretextProse receives the actual layout width the browser will use to
   // wrap text.
   useLayoutEffect(() => {
-    const el = proseRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
+    if (!proseEl || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const boxes = entry.contentBoxSize;
@@ -686,9 +690,9 @@ function MarkdownReader({
         }
       }
     });
-    observer.observe(el);
+    observer.observe(proseEl);
     return () => observer.disconnect();
-  }, []);
+  }, [proseEl]);
 
   // Annotation surfacing is gated on the host wiring up `annotationSlug` +
   // `onAnnotationsChange` — the same contract TextReader uses — so a host
@@ -725,14 +729,14 @@ function MarkdownReader({
           {/* Wrap PretextProse in an <article> so TextAnnotationLayer's
               selection scope stays inside the prose body (not the chrome above).
               Mirrors NarrativeView.vellum-prose ↔ TextAnnotationLayer pairing. */}
-          <article ref={proseRef} className="vellum-prose vellum-prose--pretext">
+          <article ref={bindProseRef} className="vellum-prose vellum-prose--pretext">
             <PretextProse
               mdast={keyedMdast}
               contentWidth={contentWidth}
               jumpToLine={jumpToLine}
             />
           </article>
-          {annotationsEnabled && (
+          {annotationsEnabled && proseEl && (
             <TextAnnotationLayer
               slug={annotationSlug!}
               annotations={annotations ?? []}
@@ -1041,7 +1045,7 @@ export function FileReader(props: FileReaderProps) {
       // jumpToLine is forwarded so a deep link can land the canvas reader on
       // the source paragraph without flipping to the editor.
       if (!editable && file.mdast) {
-        return <MarkdownReader file={file} jumpToLine={props.jumpToLine} />;
+        return <MarkdownReader {...props} />;
       }
       return <TextReader {...props} />;
     case 'text':
