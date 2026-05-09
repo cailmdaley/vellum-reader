@@ -5569,9 +5569,27 @@ h3.pretext-prose-line--h3::before {
 }
 .pretext-prose-frag.is-math {
   white-space: nowrap;
+  color: var(--text);
+  vertical-align: baseline;
 }
 .pretext-prose-frag.is-math .katex {
   font-size: 1em;
+  color: inherit;
+  visibility: visible;
+}
+.pretext-prose-frag.is-math .katex-html {
+  visibility: visible;
+}
+.pretext-prose-math {
+  color: var(--text);
+  text-align: center;
+  overflow: visible;
+}
+.pretext-prose-math .katex-display {
+  margin: 0;
+}
+.pretext-prose-math .katex {
+  color: inherit;
 }
 .pretext-prose-frag.is-strike {
   text-decoration: line-through;

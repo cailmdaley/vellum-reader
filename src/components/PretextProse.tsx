@@ -87,7 +87,7 @@ function renderKatex(value: string, displayMode: boolean): string | null {
     return katex.renderToString(value, {
       displayMode,
       throwOnError: false,
-      output: 'html',
+      output: 'htmlAndMathml',
     });
   } catch {
     return null;
@@ -462,6 +462,17 @@ type RuleBlock = {
   source?: SourceRange;
 };
 
+type MathBlock = {
+  kind: 'math';
+  html: string;
+  text: string;
+  marginTop: number;
+  marginBottom: number;
+  contentLeft: number;
+  blockquoteRailLefts: number[];
+  source?: SourceRange;
+};
+
 type IslandBlock = {
   kind: 'island';
   label: string;
@@ -518,6 +529,7 @@ type Block =
   | InlineBlock
   | CodeBlock
   | RuleBlock
+  | MathBlock
   | IslandBlock
   | CompatIslandBlock
   | TableBlock;
@@ -620,6 +632,20 @@ function buildRuleBlock(ctx: ParseCtx): RuleBlock {
     kind: 'rule',
     marginTop: RULE_GAP,
     marginBottom: RULE_GAP,
+    contentLeft: contentLeftFor(ctx),
+    blockquoteRailLefts: quoteRails(ctx),
+  };
+}
+
+function buildMathBlock(value: string, ctx: ParseCtx): MathBlock | InlineBlock | null {
+  const html = renderKatex(value, true);
+  if (!html) return buildInlineBlock([{ type: 'text', value }], 'body', ctx);
+  return {
+    kind: 'math',
+    html,
+    text: value,
+    marginTop: BODY_BLOCK_GAP,
+    marginBottom: BODY_BLOCK_GAP,
     contentLeft: contentLeftFor(ctx),
     blockquoteRailLefts: quoteRails(ctx),
   };
@@ -947,7 +973,8 @@ function parseBlocks(nodes: any[] | undefined, ctx: ParseCtx): Block[] {
         continue;
       }
       case 'math': {
-        out.push(attachSource(buildCompatIslandBlock(node, ctx), readSource(node)));
+        const block = buildMathBlock(node.value ?? '', ctx);
+        if (block) out.push(attachSource(block, readSource(node)));
         continue;
       }
       case 'thematicBreak':
@@ -1070,6 +1097,18 @@ type RuleLayout = {
   source?: SourceRange;
 };
 
+type MathLayout = {
+  kind: 'math';
+  html: string;
+  text: string;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  blockquoteRailLefts: number[];
+  source?: SourceRange;
+};
+
 type IslandLayout = {
   kind: 'island';
   label: string;
@@ -1156,6 +1195,7 @@ type LineLayout =
   | InlineLineLayout
   | CodeLineLayout
   | RuleLayout
+  | MathLayout
   | IslandLayout
   | CompatIslandLayout
   | TableLayout;
@@ -1296,6 +1336,22 @@ function layoutBlocks(
           source: block.source,
         });
         y += RULE_HEIGHT;
+        break;
+      }
+      case 'math': {
+        const height = 52;
+        items.push({
+          kind: 'math',
+          html: block.html,
+          text: block.text,
+          top: y,
+          left: block.contentLeft,
+          width: Math.max(1, contentWidth - block.contentLeft),
+          height,
+          blockquoteRailLefts: block.blockquoteRailLefts,
+          source: block.source,
+        });
+        y += height;
         break;
       }
       case 'island': {
@@ -1973,6 +2029,26 @@ function renderLine(
             width: item.width,
             height: 1,
           }}
+        />
+      );
+    }
+    case 'math': {
+      return (
+        <div
+          key={idx}
+          className="pretext-prose-math"
+          data-pretext-line-top={item.top}
+          data-pretext-line-height={item.height}
+          {...sourceDataAttrs(item)}
+          style={{
+            position: 'absolute',
+            top: item.top,
+            left: item.left,
+            width: item.width,
+            minHeight: item.height,
+          }}
+          aria-label={item.text}
+          dangerouslySetInnerHTML={{ __html: item.html }}
         />
       );
     }
