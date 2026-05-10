@@ -35,6 +35,8 @@ export interface FileViewerPageProps {
   editable?: boolean;
   /** 1-indexed line to select and scroll into view once the file loads. */
   jumpToLine?: number;
+  /** Navigate to another project file without leaving file mode. */
+  onNavigateToFile?: (path: string, opts?: { jumpToLine?: number }) => void;
   /**
    * Host-defined actions on each annotation (e.g. "send to worker", "save as
    * fiber"). Rendered inside the annotation click-popover. Optional; omit on
@@ -211,6 +213,7 @@ function NonAstraFileViewerPage({
   cacheBust,
   editable: editableProp,
   jumpToLine,
+  onNavigateToFile,
   annotationActions,
   hideToolbar,
   onDirtyChange,
@@ -459,6 +462,7 @@ function NonAstraFileViewerPage({
         editable={editable}
         jumpToLine={mountJumpLine}
         jumpToPage={mountJumpPage}
+        onNavigateToFile={onNavigateToFile}
         onVisibleLineChange={handleVisibleLineChange}
         onVisiblePageChange={handleVisiblePageChange}
         annotations={annotations}

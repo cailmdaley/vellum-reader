@@ -32,6 +32,8 @@ export interface FileTarget {
   originId?: string;
   editable?: boolean;
   jumpToLine?: number;
+  /** Navigate from one opened file to another without leaving file mode. */
+  onNavigateToFile?: (path: string, opts?: { jumpToLine?: number }) => void;
   /** Per-annotation actions forwarded to FileViewerPage. */
   annotationActions?: AnnotationAction[];
   /** Bulk actions rendered in the file-mode toolbar when ≥1 annotation is

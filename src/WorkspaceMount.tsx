@@ -21,7 +21,7 @@
 //   <AdapterProvider adapter={portolanAdapter}>
 //     <WorkspaceMount initialFilePath="/abs/path/file.md" originId="local" editable />
 //   </AdapterProvider>
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { ThemeProvider, mergeRenderers } from '@myst-theme/providers';
 import { DEFAULT_RENDERERS } from 'myst-to-react';
@@ -89,10 +89,14 @@ export interface WorkspaceMountProps {
   editable?: boolean;
   /** 1-indexed line to jump to when the file opens. */
   jumpToLine?: number;
+  /** Fires when file-mode content follows a link to another project file. */
+  onFilePathChange?: (path: string, opts?: { jumpToLine?: number }) => void;
   /** Per-annotation actions forwarded to FileViewerPage. */
   annotationActions?: AnnotationAction[];
   /** Bulk actions rendered in the file-mode toolbar when ≥1 annotation is present. */
   headerAnnotationActions?: AnnotationBulkAction[];
+  /** Optional path-aware bulk action factory for file-mode internal navigation. */
+  headerAnnotationActionsForFile?: (path: string) => AnnotationBulkAction[] | undefined;
   /** When set, replaces `<WorkspaceView>` for the Workspace tab. The host
    *  owns the rendered surface; vellum keeps the tab chrome (FloatingIsland)
    *  and the rest of the page layout. WorkspaceAnatomy in the Canvas is
@@ -153,8 +157,10 @@ export function WorkspaceMount({
   originId,
   editable,
   jumpToLine,
+  onFilePathChange,
   annotationActions,
   headerAnnotationActions,
+  headerAnnotationActionsForFile,
   workspaceSlot,
   workspaceLabel,
   workspaceLetter,
@@ -166,16 +172,46 @@ export function WorkspaceMount({
 }: WorkspaceMountProps) {
   // File mode wins if both are passed — prevents an ambiguous mount where
   // the URL says "fiber" but the FileTarget context says "file."
-  const fileTarget: FileTarget | null = initialFilePath
-    ? {
-        path: initialFilePath,
-        originId,
-        editable,
-        jumpToLine,
-        annotationActions,
-        headerAnnotationActions,
-      }
-    : null;
+  const initialFileTarget = useMemo<FileTarget | null>(
+    () =>
+      initialFilePath
+        ? {
+            path: initialFilePath,
+            originId,
+            editable,
+            jumpToLine,
+            annotationActions,
+            headerAnnotationActions,
+          }
+        : null,
+    [initialFilePath, originId, editable, jumpToLine, annotationActions, headerAnnotationActions],
+  );
+  const [fileTarget, setFileTarget] = useState<FileTarget | null>(initialFileTarget);
+  useEffect(() => {
+    setFileTarget(initialFileTarget);
+  }, [initialFileTarget]);
+  const handleNavigateToFile = useCallback(
+    (path: string, opts?: { jumpToLine?: number }) => {
+      setFileTarget((prev) => {
+        const next: FileTarget = {
+          ...(prev ?? initialFileTarget ?? {}),
+          path,
+          originId: prev?.originId ?? originId,
+          editable: prev?.editable ?? editable,
+          jumpToLine: opts?.jumpToLine,
+          annotationActions: prev?.annotationActions ?? annotationActions,
+          headerAnnotationActions: headerAnnotationActionsForFile?.(path) ?? prev?.headerAnnotationActions ?? headerAnnotationActions,
+        };
+        return next;
+      });
+      onFilePathChange?.(path, opts);
+    },
+    [annotationActions, editable, headerAnnotationActions, headerAnnotationActionsForFile, initialFileTarget, onFilePathChange, originId],
+  );
+  const providedFileTarget = useMemo<FileTarget | null>(
+    () => (fileTarget ? { ...fileTarget, onNavigateToFile: handleNavigateToFile } : null),
+    [fileTarget, handleNavigateToFile],
+  );
   const initialPath = fileTarget
     ? FILE_TARGET_ROUTE
     : initialSlug
@@ -196,7 +232,7 @@ export function WorkspaceMount({
           <CollectionProvider eyebrow={eyebrow} onIndexEscalate={onIndexEscalate} onOpenSyntheticNode={onOpenSyntheticNode}>
             <DecisionFlipProvider>
               <ModeProvider initialMode={initialMode}>
-                <FileTargetProvider target={fileTarget}>
+                <FileTargetProvider target={providedFileTarget}>
                   <WorkspaceSlotProvider
                     value={{
                       slot: workspaceSlot ?? null,

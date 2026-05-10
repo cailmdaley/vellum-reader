@@ -631,6 +631,7 @@ function FileModeView({
           cacheBust={cacheBustKey > 0}
           editable={target.editable}
           jumpToLine={target.jumpToLine}
+          onNavigateToFile={target.onNavigateToFile}
           annotationActions={target.annotationActions}
           hideToolbar
           astraRenderMode={isAstra ? astraRenderMode : undefined}

@@ -33,6 +33,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { EditorSelection, EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
@@ -87,6 +88,8 @@ export interface FileReaderProps {
   onSave?: () => void;
   /** 1-indexed line to select and scroll into view on mount (text/markdown only). */
   jumpToLine?: number;
+  /** Navigate to another project file without leaving file mode. */
+  onNavigateToFile?: (path: string, opts?: { jumpToLine?: number }) => void;
   /** 1-indexed PDF page to scroll into view on mount. */
   jumpToPage?: number;
   /** Reports the first visible 1-indexed source line in CodeMirror text views. */
@@ -113,6 +116,60 @@ export interface FileReaderProps {
    * annotations to a worker session or materialize them as felt fibers.
    */
   annotationActions?: AnnotationAction[];
+}
+
+const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
+
+function decodeHrefPath(path: string): string {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
+function normalizeSlashPath(path: string): string {
+  const absolute = path.startsWith('/');
+  const parts: string[] = [];
+  for (const part of path.split('/')) {
+    if (!part || part === '.') continue;
+    if (part === '..') {
+      if (parts.length > 0 && parts[parts.length - 1] !== '..') {
+        parts.pop();
+      } else if (!absolute) {
+        parts.push(part);
+      }
+      continue;
+    }
+    parts.push(part);
+  }
+  return `${absolute ? '/' : ''}${parts.join('/')}`;
+}
+
+function parseJumpLine(hash: string): number | undefined {
+  const match = hash.match(/^#L(\d+)(?:\b|$|-)/i);
+  if (!match) return undefined;
+  const line = Number(match[1]);
+  return Number.isFinite(line) && line > 0 ? line : undefined;
+}
+
+export function resolveRelativeFileHref(baseFilePath: string, href: string): { path: string; jumpToLine?: number } | null {
+  if (!href || href.startsWith('#') || href.startsWith('/') || href.startsWith('//')) return null;
+  if (URL_SCHEME_RE.test(href)) return null;
+  const hashIndex = href.indexOf('#');
+  const queryIndex = href.indexOf('?');
+  const pathEnd = Math.min(
+    ...[hashIndex, queryIndex].filter((idx) => idx >= 0),
+    href.length,
+  );
+  const hrefPath = href.slice(0, pathEnd);
+  if (!hrefPath) return null;
+  const hash = hashIndex >= 0 ? href.slice(hashIndex) : '';
+  const baseDir = baseFilePath.includes('/') ? baseFilePath.slice(0, baseFilePath.lastIndexOf('/')) : '';
+  return {
+    path: normalizeSlashPath(`${baseDir}/${decodeHrefPath(hrefPath)}`),
+    jumpToLine: parseJumpLine(hash),
+  };
 }
 
 function languageExtension(lang: string): Extension | null {
@@ -645,6 +702,7 @@ const MARKDOWN_INITIAL_CONTENT_WIDTH = 720 - 63 * 2;
 function MarkdownReader({
   file,
   jumpToLine,
+  onNavigateToFile,
   annotations,
   annotationSlug,
   onAnnotationsChange,
@@ -700,6 +758,21 @@ function MarkdownReader({
   // the layer entirely and pays nothing.
   const annotationsEnabled = !!annotationSlug && !!onAnnotationsChange;
   const keyedMdast = file.mdast ? assignMdastKeys(file.mdast, `file:${file.path}`) : file.mdast;
+  const handleProseClick = useCallback(
+    (e: ReactMouseEvent<HTMLElement>) => {
+      if (!onNavigateToFile || e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href]');
+      const href = anchor?.getAttribute('href') ?? '';
+      const target = anchor?.getAttribute('target');
+      if (!href || target === '_blank') return;
+      const resolved = resolveRelativeFileHref(file.path, href);
+      if (!resolved) return;
+      e.preventDefault();
+      onNavigateToFile(resolved.path, { jumpToLine: resolved.jumpToLine });
+    },
+    [file.path, onNavigateToFile],
+  );
   return (
     <ThemeProvider theme={null} setTheme={() => {}} renderers={MARKDOWN_RENDERERS}>
       <ArticleProvider
@@ -729,7 +802,7 @@ function MarkdownReader({
           {/* Wrap PretextProse in an <article> so TextAnnotationLayer's
               selection scope stays inside the prose body (not the chrome above).
               Mirrors NarrativeView.vellum-prose ↔ TextAnnotationLayer pairing. */}
-          <article ref={bindProseRef} className="vellum-prose vellum-prose--pretext">
+          <article ref={bindProseRef} className="vellum-prose vellum-prose--pretext" onClick={handleProseClick}>
             <PretextProse
               mdast={keyedMdast}
               contentWidth={contentWidth}
