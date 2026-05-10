@@ -302,13 +302,17 @@ function NonAstraFileViewerPage({
 
   // Fetch file-anchored annotations alongside the file content. Adapters that
   // don't file-anchor (lightcone) return [] and this becomes a no-op.
+  // Keep both CodeMirror-style char-offset annotations and Pretext markdown
+  // annotations. Markdown margin notes are anchored by selectedText plus
+  // context, not from/to offsets; filtering them here makes them vanish after
+  // a refresh even though the store still has them.
   useEffect(() => {
     let cancelled = false;
     adapter
       .getAnnotations(path, { kind: 'text' })
       .then((rows) => {
         if (cancelled) return;
-        setAnnotations(rows.filter((a) => typeof a.from === 'number' && typeof a.to === 'number'));
+        setAnnotations(rows);
       })
       .catch(() => {
         if (cancelled) return;

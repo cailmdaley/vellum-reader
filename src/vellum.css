@@ -6408,6 +6408,14 @@ a.pretext-prose-frag:hover {
   min-height: 0;
 }
 
+/* Parsed markdown files host PretextProse plus TextAnnotationLayer directly.
+ * Anchor the absolute margin notes to this reader so wrapper-relative Pretext
+ * line positions land beside the highlighted text after save/refresh. */
+.vellum-file-reader--markdown-canvas {
+  position: relative;
+  overflow: visible;
+}
+
 /* Wrapper hosts the CodeMirror editor plus absolute-positioned
  * annotation toolbars/popovers. position:relative anchors the overlays. */
 .vellum-text-reader-wrapper {
