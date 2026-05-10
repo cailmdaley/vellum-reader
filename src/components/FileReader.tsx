@@ -172,6 +172,18 @@ export function resolveRelativeFileHref(baseFilePath: string, href: string): { p
   };
 }
 
+export function buildFileModeHref(currentHref: string, path: string): string {
+  const url = new URL(currentHref);
+  url.pathname = '/';
+  url.search = '';
+  const params = new URLSearchParams(url.hash.replace(/^#/, ''));
+  params.set('mode', 'narrative');
+  params.delete('fiber');
+  params.set('file', path);
+  url.hash = params.toString();
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 function languageExtension(lang: string): Extension | null {
   switch (lang) {
     case 'javascript':
@@ -763,7 +775,7 @@ function MarkdownReader({
       if (!onNavigateToFile || e.defaultPrevented) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const anchor = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href]');
-      const href = anchor?.getAttribute('href') ?? '';
+      const href = anchor?.dataset['originalHref'] ?? anchor?.getAttribute('href') ?? '';
       const target = anchor?.getAttribute('target');
       if (!href || target === '_blank') return;
       const resolved = resolveRelativeFileHref(file.path, href);
@@ -772,6 +784,14 @@ function MarkdownReader({
       onNavigateToFile(resolved.path, { jumpToLine: resolved.jumpToLine });
     },
     [file.path, onNavigateToFile],
+  );
+  const resolveRenderedHref = useCallback(
+    (href: string) => {
+      const resolved = resolveRelativeFileHref(file.path, href);
+      if (!resolved) return href;
+      return buildFileModeHref(window.location.href, resolved.path);
+    },
+    [file.path],
   );
   return (
     <ThemeProvider theme={null} setTheme={() => {}} renderers={MARKDOWN_RENDERERS}>
@@ -806,6 +826,7 @@ function MarkdownReader({
             <PretextProse
               mdast={keyedMdast}
               contentWidth={contentWidth}
+              resolveHref={resolveRenderedHref}
               jumpToLine={jumpToLine}
             />
           </article>

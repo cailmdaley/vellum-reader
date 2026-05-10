@@ -1583,6 +1583,8 @@ interface PretextProseProps {
    * mode instead of bouncing back to the mystra default route.
    */
   linkPrefix?: string;
+  /** Optional host-aware href rewrite for rendered links. */
+  resolveHref?: (href: string) => string;
   /**
    * 1-indexed source-line to scroll to once layout settles. Resolved against
    * the source-line position map (`data-source-line-start` / `-end`); the
@@ -1601,6 +1603,7 @@ export function PretextProse({
   mdast,
   contentWidth,
   linkPrefix,
+  resolveHref,
   jumpToLine,
 }: PretextProseProps) {
   const navigate = useNavigate();
@@ -1752,7 +1755,7 @@ export function PretextProse({
       onClick={handleClick}
       onCopy={handleCopy}
     >
-      {layout.items.map((item, idx) => renderLine(item, idx))}
+      {layout.items.map((item, idx) => renderLine(item, idx, resolveHref))}
     </div>
   );
 }
@@ -1775,6 +1778,7 @@ function sourceDataAttrs(item: { source?: SourceRange }): Record<string, number>
 function renderLine(
   item: LineLayout,
   idx: number,
+  resolveHref?: (href: string) => string,
 ) {
   switch (item.kind) {
     case 'inline': {
@@ -1918,6 +1922,7 @@ function renderLine(
                 />
               );
             } else if (frag.href) {
+              const href = resolveHref?.(frag.href) ?? frag.href;
               // Stamp the line's authoritative y-coordinate + line-height
               // onto every anchor. MarginCitations prefers these over
               // getBoundingClientRect so the citation glyphs align to
@@ -1943,12 +1948,13 @@ function renderLine(
               pieces.push(
                 <a
                   key={fragIdx}
-                  href={frag.href}
+                  href={href}
                   className={frag.className}
                   style={fragStyle}
                   title={frag.title ?? undefined}
                   data-pretext-line-top={item.top}
                   data-pretext-line-height={item.lineHeight}
+                  data-original-href={href === frag.href ? undefined : frag.href}
                   {...linkA11yProps}
                 >
                   {frag.text}
@@ -2073,7 +2079,7 @@ function renderLine(
       );
     }
     case 'table': {
-      return renderTable(item, idx);
+      return renderTable(item, idx, resolveHref);
     }
     case 'compatIsland': {
       // A compat island reserves pretext's layout height (`item.height` came
@@ -2113,7 +2119,11 @@ function renderLine(
 
 // ───────────────────── Table renderer ─────────────────────
 
-function renderTable(item: TableLayout, idx: number): ReactNode {
+function renderTable(
+  item: TableLayout,
+  idx: number,
+  resolveHref?: (href: string) => string,
+): ReactNode {
   return (
     <div
       key={idx}
@@ -2223,6 +2233,7 @@ function renderTable(item: TableLayout, idx: number): ReactNode {
                       />
                     );
                   } else if (frag.href) {
+                    const href = resolveHref?.(frag.href) ?? frag.href;
                     // See main-column wikilink a11y guards above — same
                     // role here for table-cell links that wrap to a
                     // second visual line.
@@ -2234,10 +2245,11 @@ function renderTable(item: TableLayout, idx: number): ReactNode {
                     pieces.push(
                       <a
                         key={fragIdx}
-                        href={frag.href}
+                        href={href}
                         className={frag.className}
                         style={fragStyle}
                         title={frag.title ?? undefined}
+                        data-original-href={href === frag.href ? undefined : frag.href}
                         {...linkA11yProps}
                       >
                         {frag.text}

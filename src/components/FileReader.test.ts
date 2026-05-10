@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveRelativeFileHref } from './FileReader';
+import { buildFileModeHref, resolveRelativeFileHref } from './FileReader';
 
 describe('resolveRelativeFileHref', () => {
   const base = '/Users/cd280747/project/skills/lc-from-paper/SKILL.md';
@@ -22,5 +22,23 @@ describe('resolveRelativeFileHref', () => {
     expect(resolveRelativeFileHref(base, 'https://example.com')).toBeNull();
     expect(resolveRelativeFileHref(base, '/fiber/slug')).toBeNull();
     expect(resolveRelativeFileHref(base, '#section')).toBeNull();
+  });
+});
+
+describe('buildFileModeHref', () => {
+  it('canonicalizes file-mode links back to the hash router root', () => {
+    expect(buildFileModeHref(
+      'http://localhost:5173/references/paper-reproduction.md#city=lightcone&mode=narrative&file=%2Fold%2FSKILL.md',
+      '/Users/cd280747/project/skills/narrative/references/paper-reproduction.md',
+    )).toBe(
+      '/#city=lightcone&mode=narrative&file=%2FUsers%2Fcd280747%2Fproject%2Fskills%2Fnarrative%2Freferences%2Fpaper-reproduction.md',
+    );
+  });
+
+  it('replaces a fiber route with file mode when building a file link', () => {
+    expect(buildFileModeHref(
+      'http://localhost:5173/#city=lightcone&mode=narrative&fiber=some%2Ffiber',
+      '/tmp/notes.md',
+    )).toBe('/#city=lightcone&mode=narrative&file=%2Ftmp%2Fnotes.md');
   });
 });
