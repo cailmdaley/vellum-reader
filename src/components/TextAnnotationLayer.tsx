@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Annotation } from '~/utils/content-types';
 import { useAdapter } from '~/contexts/AdapterContext';
@@ -190,6 +190,44 @@ interface AnnotationMark {
   markEls: HTMLElement[];
 }
 
+export function focusAnnotationDraftInput(input: Pick<HTMLElement, 'focus'>) {
+  input.focus({ preventScroll: true });
+}
+
+export function annotationRailLeft(args: {
+  wrapperLeft: number;
+  wrapperWidth: number;
+  viewportWidth: number;
+  canvasWidth: number;
+}) {
+  return annotationRailGeometry(args).left;
+}
+
+export function annotationRailGeometry(args: {
+  wrapperLeft: number;
+  wrapperWidth: number;
+  viewportWidth: number;
+  canvasWidth: number;
+}) {
+  const { wrapperLeft, wrapperWidth, viewportWidth, canvasWidth } = args;
+  const gap = 12;
+  const desiredWidth = 336;
+  if (canvasWidth > 0) {
+    return {
+      left: Math.max(0, viewportWidth - canvasWidth - wrapperLeft + gap),
+      width: Math.max(120, canvasWidth - 24),
+    };
+  }
+  const available = viewportWidth - wrapperLeft - wrapperWidth - gap - 12;
+  const width = Math.max(120, Math.min(desiredWidth, available));
+  return {
+    left: available >= 120
+      ? wrapperWidth + gap
+      : Math.max(0, viewportWidth - wrapperLeft - width - 12),
+    width,
+  };
+}
+
 export function TextAnnotationLayer({
   slug,
   annotations,
@@ -213,6 +251,7 @@ export function TextAnnotationLayer({
     contextAfter: string;
   } | null>(null);
   const [marks, setMarks] = useState<AnnotationMark[]>([]);
+  const [railGeometry, setRailGeometry] = useState({ left: 0, width: 336 });
   const [activePopover, setActivePopover] = useState<{
     annotation: Annotation;
     rect: DOMRect;
@@ -268,6 +307,42 @@ export function TextAnnotationLayer({
   // `range.surroundContents()` placed earlier — highlights and their margin
   // notes vanish until the next re-render is triggered some other way.
   const [reanchorTick, setReanchorTick] = useState(0);
+
+  const measureRailLeft = useCallback(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || typeof window === 'undefined') return;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const rawCanvasWidth = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'),
+    );
+    const canvasWidth = Number.isFinite(rawCanvasWidth) && rawCanvasWidth > 0 ? rawCanvasWidth : 0;
+    const next = annotationRailGeometry({
+      wrapperLeft: wrapperRect.left,
+      wrapperWidth: wrapperRect.width,
+      viewportWidth: window.innerWidth,
+      canvasWidth,
+    });
+    setRailGeometry((prev) => (
+      Math.abs(prev.left - next.left) < 0.5 && Math.abs(prev.width - next.width) < 0.5
+        ? prev
+        : next
+    ));
+  }, [wrapperRef]);
+
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    measureRailLeft();
+    if (!wrapper) return;
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => measureRailLeft())
+      : null;
+    observer?.observe(wrapper);
+    window.addEventListener('resize', measureRailLeft);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measureRailLeft);
+    };
+  }, [measureRailLeft, wrapperRef]);
 
   useEffect(() => {
     const prose = proseRef.current;
@@ -508,7 +583,7 @@ export function TextAnnotationLayer({
 
   useEffect(() => {
     if (composer.open && draftInputRef.current) {
-      draftInputRef.current.focus();
+      focusAnnotationDraftInput(draftInputRef.current);
       // Place caret at the end so subsequent typing appends rather than
       // pre-pending (matters when the placeholder is replaced by typing).
       const range = document.createRange();
@@ -628,7 +703,7 @@ export function TextAnnotationLayer({
         // contentEditable + caret-end positioning + draftTop.
         <div
           className="ann-margin-note ann-margin-note--draft"
-          style={{ top: draftTop }}
+          style={{ top: draftTop, left: railGeometry.left, width: railGeometry.width }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="ann-margin-note__compose">
@@ -696,7 +771,7 @@ export function TextAnnotationLayer({
           <div
             key={mark.annotation.id}
             className="ann-margin-note"
-            style={{ top: mark.displayTop }}
+            style={{ top: mark.displayTop, left: railGeometry.left, width: railGeometry.width }}
             onClick={() => handleDotClick(mark.annotation, mark)}
             onMouseEnter={() => setActive(true)}
             onMouseLeave={() => setActive(false)}
