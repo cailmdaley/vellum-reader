@@ -3305,6 +3305,23 @@ body {
   background: rgba(154, 123, 53, 0.45);
   border-bottom-color: var(--gold);
 }
+.ann-highlight--delete {
+  background: rgba(154, 66, 53, 0.16);
+  border-bottom-color: rgba(154, 66, 53, 0.72);
+  text-decoration: line-through;
+  text-decoration-color: rgba(124, 38, 28, 0.72);
+  text-decoration-thickness: 1px;
+}
+.ann-highlight--delete:hover,
+.ann-highlight--delete.ann-highlight--active {
+  background: rgba(154, 66, 53, 0.28);
+  border-bottom-color: rgba(124, 38, 28, 0.9);
+}
+.ann-margin-note--delete .ann-margin-note__body {
+  color: rgba(124, 38, 28, 0.92);
+  text-decoration: line-through;
+  text-decoration-color: rgba(124, 38, 28, 0.55);
+}
 
 /* ── Selection Toolbar ── */
 .ann-toolbar {

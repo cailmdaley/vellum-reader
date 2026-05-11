@@ -243,17 +243,11 @@ function buildAnnotationDecorations(docLength: number, annotations: Annotation[]
     const from = Math.max(0, Math.min(docLength, a.from ?? 0));
     const to = Math.max(from, Math.min(docLength, a.to ?? from));
     if (from === to) continue;
-    // Sent annotations get a modifier class so hosts can mute them — the
-    // annotation is still there, but the visual "pending work" weight is
-    // reduced. Title still shows the comment so hover inspection works.
-    const cls = a.sentAt
-      ? 'vellum-annotation-mark vellum-annotation-mark--sent'
-      : 'vellum-annotation-mark';
     builder.add(
       from,
       to,
       Decoration.mark({
-        class: cls,
+        class: annotationDecorationClass(a),
         attributes: { title: a.comment, 'data-annotation-id': a.id },
       }),
     );
@@ -284,6 +278,13 @@ interface PopoverInfo {
   annotation: Annotation;
   top: number;
   left: number;
+}
+
+function annotationDecorationClass(annotation: Annotation): string {
+  const classes = ['vellum-annotation-mark'];
+  if (annotation.intent === 'delete') classes.push('vellum-annotation-mark--delete');
+  if (annotation.sentAt) classes.push('vellum-annotation-mark--sent');
+  return classes.join(' ');
 }
 
 function TextReader({
@@ -340,6 +341,7 @@ function TextReader({
         const created = await adapter.createAnnotation({
           slug: annotationSlug,
           kind: 'text',
+          intent: 'note',
           filePath: annotationSlug,
           originId: annotationOriginId,
           selectedText: selection.text,
@@ -363,6 +365,41 @@ function TextReader({
       }
     },
   });
+
+  const saveDeletionMark = useCallback(async () => {
+    if (!selection || !annotationSlug) return;
+    const view = viewRef.current;
+    const doc = view?.state.doc;
+    const line = doc ? doc.lineAt(selection.from).number : 1;
+    const endLine = doc ? doc.lineAt(selection.to).number : line;
+    const content = doc?.toString() ?? '';
+    const contextBefore = content.slice(Math.max(0, selection.from - 30), selection.from);
+    const contextAfter = content.slice(selection.to, Math.min(content.length, selection.to + 30));
+    try {
+      const created = await adapter.createAnnotation({
+        slug: annotationSlug,
+        kind: 'text',
+        intent: 'delete',
+        filePath: annotationSlug,
+        originId: annotationOriginId,
+        selectedText: selection.text,
+        originalText: selection.text,
+        contextBefore,
+        contextAfter,
+        comment: 'delete',
+        from: selection.from,
+        to: selection.to,
+        line,
+        endLine,
+      });
+      if (!created) return;
+      onAnnotationsChangeRef.current?.([...annotationsRef.current, created]);
+      setSelection(null);
+      view?.dispatch({ selection: EditorSelection.cursor(selection.to) });
+    } catch (err) {
+      console.error('createAnnotation failed', err);
+    }
+  }, [adapter, annotationOriginId, annotationSlug, selection]);
 
   // `dismissAll` is the catch-all the legacy code used to wipe every
   // composer/popover surface back to baseline. The composer hook owns
@@ -407,6 +444,13 @@ function TextReader({
           backgroundColor: 'rgba(154, 123, 53, 0.18)',
           borderBottom: '1px dashed rgba(154, 123, 53, 0.6)',
           cursor: 'help',
+        },
+        '.vellum-annotation-mark--delete': {
+          backgroundColor: 'rgba(154, 66, 53, 0.14)',
+          borderBottom: '1px solid rgba(154, 66, 53, 0.65)',
+          textDecoration: 'line-through',
+          textDecorationColor: 'rgba(124, 38, 28, 0.75)',
+          textDecorationThickness: '1px',
         },
         // Sent annotations de-emphasized: same hue, much softer. The
         // comment is still hoverable via title; just stops pulling the eye.
@@ -610,7 +654,7 @@ function TextReader({
       />
       {canAnnotate && selection && !composer.open && (
         <div
-          className="ann-toolbar"
+          className="ann-toolbar ann-toolbar--actions"
           style={{ position: 'absolute', top: Math.max(0, selection.top - 36), left: selection.left }}
         >
           <button
@@ -622,6 +666,17 @@ function TextReader({
             }}
           >
             + Note
+          </button>
+          <button
+            type="button"
+            className="ann-toolbar__btn"
+            title="Mark selection as a suggested deletion"
+            onClick={(e) => {
+              e.stopPropagation();
+              void saveDeletionMark();
+            }}
+          >
+            Strike
           </button>
         </div>
       )}

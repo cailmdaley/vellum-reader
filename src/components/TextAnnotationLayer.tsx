@@ -26,6 +26,18 @@ function normalizeWhitespace(s: string): string {
   return s.replace(/\s+/g, ' ').trim();
 }
 
+function annotationDisplayLabel(annotation: Annotation): string {
+  return annotation.intent === 'delete' && annotation.comment.trim().toLowerCase() === 'delete'
+    ? 'delete'
+    : annotation.comment;
+}
+
+function annotationHighlightClass(annotation: Annotation): string {
+  return annotation.intent === 'delete'
+    ? 'ann-highlight ann-highlight--delete'
+    : 'ann-highlight';
+}
+
 /**
  * Build the {selectedText, contextBefore, contextAfter} triple that anchors a
  * fresh annotation. `proseEl` is the prose root the layer is mounted over —
@@ -269,6 +281,7 @@ export function TextAnnotationLayer({
       if (!selectionContext) return null;
       const ann = await adapter.createAnnotation({
         slug,
+        intent: 'note',
         selectedText: selectionContext.selectedText,
         contextBefore: selectionContext.contextBefore,
         contextAfter: selectionContext.contextAfter,
@@ -283,6 +296,24 @@ export function TextAnnotationLayer({
       return ann;
     },
   });
+
+  const saveDeletionMark = useCallback(async () => {
+    if (!selectionContext) return;
+    const ann = await adapter.createAnnotation({
+      slug,
+      intent: 'delete',
+      selectedText: selectionContext.selectedText,
+      contextBefore: selectionContext.contextBefore,
+      contextAfter: selectionContext.contextAfter,
+      comment: 'delete',
+    });
+    if (!ann) return;
+    onAnnotationsChange([...annotations, ann]);
+    setSelectionRect(null);
+    setSelectionContext(null);
+    setDraftTop(null);
+    window.getSelection()?.removeAllRanges();
+  }, [adapter, annotations, onAnnotationsChange, selectionContext, slug]);
 
   // ContentEditable div for the in-margin draft. Using a div (not textarea)
   // so it inherits .ann-margin-note__body styling verbatim — italic
@@ -453,15 +484,15 @@ export function TextAnnotationLayer({
       // gives AT a meaningful label to announce instead of a fragment like
       // "arkdown files. One fiber is one directory and one".
       const annLabel = ann.comment?.trim()
-        ? `Annotation: ${ann.comment.trim()}`
-        : 'Annotation';
+        ? `${ann.intent === 'delete' ? 'Deletion' : 'Annotation'}: ${ann.comment.trim()}`
+        : ann.intent === 'delete' ? 'Deletion' : 'Annotation';
 
       try {
         const rects = Array.from(range.getClientRects());
         if (rects.length === 0) continue;
 
         const mark = document.createElement('mark');
-        mark.className = 'ann-highlight';
+        mark.className = annotationHighlightClass(ann);
         mark.dataset.annotationId = ann.id;
         mark.setAttribute('aria-label', annLabel);
 
@@ -504,7 +535,7 @@ export function TextAnnotationLayer({
             subRange.setStart(node, start);
             subRange.setEnd(node, end);
             const nextMark = document.createElement('mark');
-            nextMark.className = 'ann-highlight';
+            nextMark.className = annotationHighlightClass(ann);
             nextMark.dataset.annotationId = ann.id;
             nextMark.setAttribute('aria-label', annLabel);
             try {
@@ -667,6 +698,16 @@ export function TextAnnotationLayer({
           >
             + Note
           </button>
+          <button
+            className="ann-toolbar__btn"
+            title="Mark selection as a suggested deletion"
+            onClick={(e) => {
+              e.stopPropagation();
+              void saveDeletionMark();
+            }}
+          >
+            Strike
+          </button>
           {/*
             Host-supplied single-selection actions render to the right of
             "+ Note" so the canonical commenting affordance keeps its
@@ -770,7 +811,7 @@ export function TextAnnotationLayer({
         return (
           <div
             key={mark.annotation.id}
-            className="ann-margin-note"
+            className={`ann-margin-note${mark.annotation.intent === 'delete' ? ' ann-margin-note--delete' : ''}`}
             style={{ top: mark.displayTop, left: railGeometry.left, width: railGeometry.width }}
             onClick={() => handleDotClick(mark.annotation, mark)}
             onMouseEnter={() => setActive(true)}
@@ -778,9 +819,9 @@ export function TextAnnotationLayer({
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleDotClick(mark.annotation, mark)}
-            title={mark.annotation.comment}
+            title={annotationDisplayLabel(mark.annotation)}
           >
-            <span className="ann-margin-note__body">{mark.annotation.comment}</span>
+            <span className="ann-margin-note__body">{annotationDisplayLabel(mark.annotation)}</span>
           </div>
         );
       })}

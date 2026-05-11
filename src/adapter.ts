@@ -72,6 +72,7 @@ export interface GetAstraBundleOptions {
 export interface CreateAnnotationInput {
   slug: string;
   kind?: 'text' | 'image';
+  intent?: 'note' | 'delete';
   selectedText?: string;
   contextBefore?: string;
   contextAfter?: string;

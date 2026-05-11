@@ -321,6 +321,8 @@ export interface Annotation {
   slug: string;
   /** 'text' (paragraph-anchored) or 'image' (lightbox marker). Defaults to 'text'. */
   kind: 'text' | 'image';
+  /** Visual/editorial intent for text annotations. Omitted legacy rows behave as notes. */
+  intent?: 'note' | 'delete';
   selectedText: string;
   contextBefore: string;
   contextAfter: string;
