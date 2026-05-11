@@ -12,6 +12,7 @@ interface TextAnnotationLayerProps {
   proseRef: React.RefObject<HTMLElement>;
   wrapperRef: React.RefObject<HTMLElement>;
   onAnnotationsChange: (annotations: Annotation[]) => void;
+  onVisibleAnnotationsChange?: (annotations: Annotation[]) => void;
 }
 
 /**
@@ -246,6 +247,7 @@ export function TextAnnotationLayer({
   proseRef,
   wrapperRef,
   onAnnotationsChange,
+  onVisibleAnnotationsChange,
 }: TextAnnotationLayerProps) {
   const adapter = useAdapter();
   const navigate = useNavigate();
@@ -557,6 +559,7 @@ export function TextAnnotationLayer({
     }
 
     setMarks(newMarks);
+    onVisibleAnnotationsChange?.(newMarks.map((mark) => mark.annotation));
 
     function handleHighlightClick(e: MouseEvent) {
       const target = e.target as HTMLElement;
@@ -575,6 +578,7 @@ export function TextAnnotationLayer({
 
     return () => {
       prose.removeEventListener('click', handleHighlightClick, true);
+      onVisibleAnnotationsChange?.([]);
       for (const el of allMarkEls) {
         const parent = el.parentNode;
         if (!parent) continue;
@@ -589,7 +593,7 @@ export function TextAnnotationLayer({
     // it. The cleanup above unwraps any stale marks before the new pass
     // wraps fresh ones — see the ResizeObserver effect above for the
     // tick source.
-  }, [annotations, proseRef, wrapperRef, reanchorTick]);
+  }, [annotations, proseRef, wrapperRef, reanchorTick, onVisibleAnnotationsChange]);
 
   const handleUpdate = useCallback(async (id: string, comment: string) => {
     const ann = await adapter.updateAnnotation(id, comment);

@@ -227,6 +227,7 @@ function NonAstraFileViewerPage({
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [visibleAnnotations, setVisibleAnnotations] = useState<Annotation[] | null>(null);
   const draftRef = useRef<string>('');
   const savedToastRef = useRef<number | null>(null);
   const visibleLineRef = useRef<number | undefined>(jumpToLine ?? loadVisibleLine(path, originId));
@@ -282,6 +283,7 @@ function NonAstraFileViewerPage({
     setDirty(false);
     setSaveState('idle');
     setAnnotations([]);
+    setVisibleAnnotations(null);
     adapter
       .getFile(path, { originId, cacheBust })
       .then((file) => {
@@ -311,6 +313,7 @@ function NonAstraFileViewerPage({
   // a refresh even though the store still has them.
   useEffect(() => {
     let cancelled = false;
+    setVisibleAnnotations(null);
     adapter
       .getAnnotations(path, { kind: 'text' })
       .then((rows) => {
@@ -356,9 +359,13 @@ function NonAstraFileViewerPage({
     onSaveStateChange?.(saveState);
   }, [saveState, onSaveStateChange]);
 
+  const usesAnchoredAnnotationSurface =
+    state.status === 'ready' && (state.file.kind === 'text' || state.file.kind === 'markdown');
   useEffect(() => {
-    onAnnotationsChange?.(annotations);
-  }, [annotations, onAnnotationsChange]);
+    onAnnotationsChange?.(
+      usesAnchoredAnnotationSurface ? (visibleAnnotations ?? []) : annotations,
+    );
+  }, [annotations, visibleAnnotations, usesAnchoredAnnotationSurface, onAnnotationsChange]);
 
   useEffect(() => {
     if (!onSaveReady) return;
@@ -466,6 +473,7 @@ function NonAstraFileViewerPage({
         onVisibleLineChange={handleVisibleLineChange}
         onVisiblePageChange={handleVisiblePageChange}
         annotations={annotations}
+        onVisibleAnnotationsChange={setVisibleAnnotations}
         annotationSlug={path}
         annotationOriginId={originId}
         annotationActions={annotationActions}
@@ -548,6 +556,7 @@ function AstraFilePanel({
   // selectedText + surrounding context inside `<TextAnnotationLayer>`, so we
   // keep every row the adapter returns.
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [visibleAnnotations, setVisibleAnnotations] = useState<Annotation[] | null>(null);
   // proseRef points at the rendered `<article>` (for text-walking inside
   // annotation matching); wrapperRef points at a sized div that wraps both
   // the article AND the `<TextAnnotationLayer>`'s margin notes, so the notes'
@@ -572,6 +581,7 @@ function AstraFilePanel({
   // adapter just hands back a `{ kind: 'html', url }` descriptor.
   useEffect(() => {
     let cancelled = false;
+    setVisibleAnnotations(null);
     adapter
       .getFile(path, { originId, cacheBust: refetchTrigger })
       .then((file) => {
@@ -709,8 +719,8 @@ function AstraFilePanel({
   // Notify chrome-level hosts whenever the local list changes so they can
   // surface bulk-action affordances (e.g. "send N annotations to worker").
   useEffect(() => {
-    onAnnotationsChange?.(annotations);
-  }, [annotations, onAnnotationsChange]);
+    onAnnotationsChange?.(renderMode === 'rendered' ? (visibleAnnotations ?? []) : []);
+  }, [renderMode, visibleAnnotations, onAnnotationsChange]);
 
   // Source-mode YAML body. Lazy-loaded the first time the user flips into
   // source mode, then cached. The adapter exposes the raw-text route via
@@ -892,6 +902,7 @@ function AstraFilePanel({
                 proseRef={proseRef}
                 wrapperRef={wrapperRef as React.RefObject<HTMLElement>}
                 onAnnotationsChange={setAnnotations}
+                onVisibleAnnotationsChange={setVisibleAnnotations}
               />
             </div>
           ) : (

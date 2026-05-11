@@ -253,6 +253,7 @@ export function NarrativeView({
   // (scroll-spy + nested appendix children), so when it's on we retire ghost.
   const showGhostToc = !showLeftRailToc;
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [visibleAnnotations, setVisibleAnnotations] = useState<Annotation[] | null>(null);
   // Bumped by NarrativeAnnotationActionsBar after a bulk action mutates
   // the annotation set, so the fetch effect re-reads from the adapter
   // without forcing a full route remount.
@@ -354,9 +355,11 @@ export function NarrativeView({
     // passage elsewhere" action if needed.
     if (!content.slug) {
       setAnnotations([]);
+      setVisibleAnnotations(null);
       return;
     }
     setAnnotations([]);
+    setVisibleAnnotations(null);
     let cancelled = false;
     adapter.getAnnotations(content.slug).then((anns) => {
       if (!cancelled) setAnnotations(anns);
@@ -777,7 +780,7 @@ export function NarrativeView({
               <ThemePicker />
               <NarrativeAnnotationActionsBar
                 currentSlug={content.slug}
-                annotations={annotations}
+                annotations={visibleAnnotations ?? []}
                 bulkActions={annotationBulkActions}
                 onRefreshAnnotations={refreshAnnotations}
               />
@@ -889,6 +892,7 @@ export function NarrativeView({
         proseRef={proseRef}
         wrapperRef={wrapperRef}
         onAnnotationsChange={setAnnotations}
+        onVisibleAnnotationsChange={setVisibleAnnotations}
       />
       {lightboxIndex >= 0 && lightboxImages.length > 0 && (
         <Lightbox

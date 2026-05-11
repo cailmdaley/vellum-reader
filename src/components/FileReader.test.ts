@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFileModeHref, resolveRelativeFileHref } from './FileReader';
+import { buildFileModeHref, resolveRelativeFileHref, visibleCodeAnnotations } from './FileReader';
 
 describe('resolveRelativeFileHref', () => {
   const base = '/Users/cd280747/project/skills/lc-from-paper/SKILL.md';
@@ -40,5 +40,30 @@ describe('buildFileModeHref', () => {
       'http://localhost:5173/#city=lightcone&mode=narrative&fiber=some%2Ffiber',
       '/tmp/notes.md',
     )).toBe('/#city=lightcone&mode=narrative&file=%2Ftmp%2Fnotes.md');
+  });
+});
+
+describe('visibleCodeAnnotations', () => {
+  it('keeps only annotations with a non-empty range inside the document', () => {
+    const ann = (id: string, range?: { from: number; to: number }) => ({
+      id,
+      slug: 'x',
+      kind: 'text' as const,
+      selectedText: '',
+      contextBefore: '',
+      contextAfter: '',
+      comment: id,
+      createdAt: 1,
+      ...range,
+    });
+    const visible = visibleCodeAnnotations(10, [
+      ann('ok', { from: 2, to: 5 }),
+      ann('clamped', { from: 8, to: 99 }),
+      ann('empty', { from: 4, to: 4 }),
+      ann('missing'),
+      ann('past-end', { from: 12, to: 20 }),
+    ]);
+
+    expect(visible.map((ann) => ann.id)).toEqual(['ok', 'clamped']);
   });
 });

@@ -98,6 +98,8 @@ export interface FileReaderProps {
   onVisiblePageChange?: (page: number) => void;
   /** File-anchored annotations to highlight in the text view. */
   annotations?: Annotation[];
+  /** Reports annotations that are currently anchored in the rendered surface. */
+  onVisibleAnnotationsChange?: (next: Annotation[]) => void;
   /**
    * Annotation anchor key (portolan: file path). When provided alongside
    * `onAnnotationsChange`, the text reader enables selection → comment UI
@@ -255,6 +257,15 @@ function buildAnnotationDecorations(docLength: number, annotations: Annotation[]
   return builder.finish();
 }
 
+export function visibleCodeAnnotations(docLength: number, annotations: Annotation[] = []): Annotation[] {
+  return annotations.filter((a) => {
+    if (typeof a.from !== 'number' || typeof a.to !== 'number') return false;
+    const from = Math.max(0, Math.min(docLength, a.from));
+    const to = Math.max(from, Math.min(docLength, a.to));
+    return to > from;
+  });
+}
+
 let vimSaveRegistered = false;
 function registerVimSave() {
   if (vimSaveRegistered) return;
@@ -295,6 +306,7 @@ function TextReader({
   jumpToLine,
   onVisibleLineChange,
   annotations,
+  onVisibleAnnotationsChange,
   annotationSlug,
   annotationOriginId,
   onAnnotationsChange,
@@ -319,6 +331,11 @@ function TextReader({
 
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [popover, setPopover] = useState<PopoverInfo | null>(null);
+
+  useEffect(() => {
+    onVisibleAnnotationsChange?.(visibleCodeAnnotations(file.content.length, annotations ?? []));
+    return () => onVisibleAnnotationsChange?.([]);
+  }, [annotations, file.content.length, onVisibleAnnotationsChange]);
 
   // Substrate-agnostic composer state — text, open/dismiss, keyboard
   // handling. The hook fires our `onSubmit`, which enriches the create
@@ -771,6 +788,7 @@ function MarkdownReader({
   jumpToLine,
   onNavigateToFile,
   annotations,
+  onVisibleAnnotationsChange,
   annotationSlug,
   onAnnotationsChange,
 }: FileReaderProps) {
@@ -892,6 +910,7 @@ function MarkdownReader({
               proseRef={proseRef}
               wrapperRef={wrapperRef as React.RefObject<HTMLElement>}
               onAnnotationsChange={onAnnotationsChange!}
+              onVisibleAnnotationsChange={onVisibleAnnotationsChange}
             />
           )}
         </div>
