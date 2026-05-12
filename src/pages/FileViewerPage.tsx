@@ -109,6 +109,16 @@ export function isAstraPath(path: string): boolean {
   return /(?:^|\/)astra\.ya?ml$/i.test(path) || /\.astra\.ya?ml$/i.test(path);
 }
 
+export function chromeAnnotationsForFileViewer(
+  fileKind: FileContent['kind'] | null,
+  annotations: Annotation[],
+  visibleAnnotations: Annotation[] | null,
+): Annotation[] {
+  if (fileKind == null) return [];
+  if (fileKind === 'text' || fileKind === 'markdown') return visibleAnnotations ?? [];
+  return annotations;
+}
+
 const ASTRA_LADDER_STORAGE_KEY = 'vellum.astra.ladder';
 const ASTRA_LADDER_DEFAULT: AstraLadderRung = 'linear';
 
@@ -359,13 +369,10 @@ function NonAstraFileViewerPage({
     onSaveStateChange?.(saveState);
   }, [saveState, onSaveStateChange]);
 
-  const usesAnchoredAnnotationSurface =
-    state.status === 'ready' && (state.file.kind === 'text' || state.file.kind === 'markdown');
+  const fileKind = state.status === 'ready' ? state.file.kind : null;
   useEffect(() => {
-    onAnnotationsChange?.(
-      usesAnchoredAnnotationSurface ? (visibleAnnotations ?? []) : annotations,
-    );
-  }, [annotations, visibleAnnotations, usesAnchoredAnnotationSurface, onAnnotationsChange]);
+    onAnnotationsChange?.(chromeAnnotationsForFileViewer(fileKind, annotations, visibleAnnotations));
+  }, [annotations, fileKind, visibleAnnotations, onAnnotationsChange]);
 
   useEffect(() => {
     if (!onSaveReady) return;
@@ -701,6 +708,7 @@ function AstraFilePanel({
   // without a re-fetch.
   useEffect(() => {
     let cancelled = false;
+    setVisibleAnnotations(null);
     adapter
       .getAnnotations(path, { kind: 'text' })
       .then((rows) => {
