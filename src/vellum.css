@@ -273,7 +273,12 @@ body {
   cursor: ew-resize;
   touch-action: none;
   user-select: none;
-  z-index: 450;
+  /* Above the FloatingIsland / thumb-index (z-index: 500) so the
+     fleuron painted on the divider sits in front of the persistent
+     right-column chrome rather than under it. The rail itself only
+     occupies the 10px-wide hit area on the boundary, so raising it
+     above the right column doesn't capture clicks inside the column. */
+  z-index: 550;
 }
 .vellum-canvas-divider::after {
   content: '';
@@ -289,6 +294,39 @@ body {
 .vellum-canvas-divider:hover::after,
 .vellum-canvas-divider:active::after {
   opacity: 0.35;
+}
+/* Cinnabar fleuron on the divider — a discoverability cue for the
+   resize handle. Anchored at the vertical centre of the thumb-index
+   footprint (var(--thumb-index-bottom)) so the ornament sits where
+   the rail meets the persistent right-column chrome. No background —
+   the fleuron sits directly on the parchment, reading as a printer's
+   ornament on the page rather than a chip in a notch.
+
+   z-index sits above the FloatingIsland / thumb-index chrome so the
+   fleuron isn't occluded by the right column's surface. */
+.vellum-canvas-divider::before {
+  content: '❦';
+  position: absolute;
+  left: 50%;
+  top: calc(var(--thumb-index-bottom, 9rem) / 2);
+  /* Nudge the fleuron a hair right of geometric centre — the ❦ glyph
+     has more visual weight on its left half (the bigger leaf), so a
+     true 50% leaves it reading slightly left-of-line. 1px shift puts
+     the optical centre on the divider's hairline rule. */
+  transform: translate(calc(-50% + 1px), -50%);
+  font-family: var(--font-serif, 'EB Garamond', Georgia, serif);
+  font-size: 16px;
+  line-height: 1;
+  color: var(--rubric, #BC4538);
+  pointer-events: none;
+  opacity: 0.65;
+  transition: opacity 120ms, font-size 120ms;
+  z-index: 600;
+}
+.vellum-canvas-divider:hover::before,
+.vellum-canvas-divider:active::before {
+  opacity: 0.95;
+  font-size: 18px;
 }
 /* At narrow viewports the split stops making sense — hide the canvas
    entirely. The divider is a no-op when the canvas has zero width. */
