@@ -1,0 +1,20 @@
+node_modules/
+dist/
+vendor/
+.vite/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+
+# Editor / IDE
+.obsidian/
+.claude/
+
+# npm pack output
+*.tgz
+
+# felt store metadata
+.felt/index.db
+.felt/*.canvas
+.felt/.obsidian/

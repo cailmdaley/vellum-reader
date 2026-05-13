@@ -1,19 +1,47 @@
 {
-  "name": "vellum",
-  "private": true,
+  "name": "vellum-reader",
+  "version": "0.1.0",
+  "description": "A static reader for felt fibers. Adapter-driven, MyST-rendered.",
   "type": "module",
+  "license": "MIT",
+  "author": "Cail Daley",
+  "homepage": "https://github.com/cailmdaley/vellum-reader#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cailmdaley/vellum-reader.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cailmdaley/vellum-reader/issues"
+  },
+  "keywords": [
+    "felt",
+    "myst",
+    "reader",
+    "fibers",
+    "static-site",
+    "knowledge-base"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./adapter": "./src/adapter.ts",
     "./css": "./src/vellum.css"
   },
+  "files": [
+    "src",
+    "dist",
+    "public",
+    "index.html",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "vite --port 3200",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview --port 3200",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run --config vitest.config.ts",
-    "test:watch": "vitest --config vitest.config.ts"
+    "test:watch": "vitest --config vitest.config.ts",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
     "react": "^18.2.0",
@@ -47,6 +75,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "^5.1.6",
-    "vite": "^7.1.7"
+    "vite": "^7.1.7",
+    "vitest": "2.1.9"
   }
 }
