@@ -1,5 +1,5 @@
 /**
- * AstraAppendix — paper-shaped pseudo-sections below the narrative prose.
+ * StructuredAppendix — paper-shaped pseudo-sections below the narrative prose.
  *
  * Pass 6 of the themes constitution. The long-tail Card listing from the
  * pre-Pass-6 shape is now reorganized into three ordered sections:
@@ -12,7 +12,7 @@
  *      section — not N sections for N sub-analyses; each sub-analysis is a
  *      link, not an inlined expansion.
  *   3. Appendix — the single full enumeration: every decision + output as
- *      a full Card, in ASTRA order.
+ *      a full Card, in structured order.
  *
  * Pass 9a: under `lightcone-linear` the findings / decisions / outputs
  * collapse into a single exclusive-open tray. At most one row is expanded
@@ -22,11 +22,11 @@
  * `vellum:expand-appendix-row` CustomEvent.
  *
  * Prior insights (GraphFinding.kind === 'prior_insight') are intentionally
- * absent from the top level. In ASTRA they are decision-level evidence; a
+ * absent from the top level. In structured they are decision-level evidence; a
  * later iteration will surface them inside the decision cards themselves,
- * via the per-option `insights:` refs already carried in the ASTRA fixture.
+ * via the per-option `insights:` refs already carried in the structured fixture.
  *
- * Empty sections hide themselves; a fiber with no ASTRA at all renders
+ * Empty sections hide themselves; a fiber with no structured at all renders
  * nothing.
  */
 
@@ -42,7 +42,7 @@ import { Card } from './Card';
 import { BibliographySection } from './BibliographySection';
 import { useTheme } from '~/contexts/ThemeContext';
 
-interface AstraAppendixProps {
+interface StructuredAppendixProps {
   node?: GraphNode;
   /** Inline content width of the prose column — cards stage at this width. */
   width: number;
@@ -63,7 +63,7 @@ interface AstraAppendixProps {
 }
 
 /** Row identity in the exclusive-open tray. `kind:key` keeps findings /
- *  decisions / outputs disjoint even when an ASTRA author reuses an id
+ *  decisions / outputs disjoint even when an structured author reuses an id
  *  across sections. */
 type RowId =
   | `finding:${string}`
@@ -78,14 +78,14 @@ interface ExpandAppendixRowDetail {
   id: string;
 }
 
-export function AstraAppendix({
+export function StructuredAppendix({
   node,
   width,
   onNavigate,
   childSubKeys,
   subAnalysisLabels,
   subAnalysisSlugs,
-}: AstraAppendixProps) {
+}: StructuredAppendixProps) {
   const { themeId } = useTheme();
   const collapsedTray = themeId === 'lightcone-linear';
   const [openRow, setOpenRow] = useState<RowId | null>(null);
@@ -113,12 +113,12 @@ export function AstraAppendix({
         requestAnimationFrame(() => {
           const domId =
             detail.kind === 'finding'
-              ? `astra-finding-${detail.id}`
+              ? `structured-finding-${detail.id}`
               : detail.kind === 'decision'
-                ? `astra-decision-${detail.id}`
+                ? `structured-decision-${detail.id}`
                 : detail.kind === 'output'
-                  ? `astra-output-${detail.id}`
-                  : `astra-input-${detail.id}`;
+                  ? `structured-output-${detail.id}`
+                  : `structured-input-${detail.id}`;
           const el = document.getElementById(domId);
           if (!el) return;
           const rect = el.getBoundingClientRect();
@@ -196,36 +196,36 @@ export function AstraAppendix({
 
   return (
     <aside
-      id="astra-appendix"
+      id="structured-appendix"
       className={
-        'astra-appendix' + (collapsedTray ? ' astra-appendix--collapsed-tray' : '')
+        'structured-appendix' + (collapsedTray ? ' structured-appendix--collapsed-tray' : '')
       }
-      aria-label="ASTRA appendix"
+      aria-label="structured appendix"
     >
-      <div className="astra-appendix__divider">
-        <span className="astra-appendix__divider-label">astra</span>
+      <div className="structured-appendix__divider">
+        <span className="structured-appendix__divider-label">structured</span>
       </div>
 
       {findings.length > 0 && (
-        <section id="astra-appendix-findings" className="astra-appendix__section">
+        <section id="structured-appendix-findings" className="structured-appendix__section">
           {/* aria-label preserves source-case text. Without it, CSS
-              text-transform: lowercase on .astra-appendix__heading bleeds into
+              text-transform: lowercase on .structured-appendix__heading bleeds into
               the accessible name calculation in modern Chrome — screen readers
               would announce "findings 3" instead of "Findings 3". */}
           <h3
-            className="astra-appendix__heading"
+            className="structured-appendix__heading"
             aria-label={`Findings, ${findings.length}`}
           >
-            Findings <span className="astra-appendix__count">{findings.length}</span>
+            Findings <span className="structured-appendix__count">{findings.length}</span>
           </h3>
-          <div className="astra-appendix__stack">
+          <div className="structured-appendix__stack">
             {findings.map((finding) => {
               const rowId: RowId = `finding:${finding.key}`;
               return (
                 <div
                   key={finding.key}
-                  id={`astra-finding-${finding.key}`}
-                  className="astra-appendix__item"
+                  id={`structured-finding-${finding.key}`}
+                  className="structured-appendix__item"
                 >
                   {collapsedTray ? (
                     <CollapsedRow
@@ -264,23 +264,23 @@ export function AstraAppendix({
       )}
 
       {hasMethods && (
-        <section id="astra-appendix-methods" className="astra-appendix__section">
-          <h3 className="astra-appendix__heading" aria-label="Methods">Methods</h3>
-          <div className="astra-appendix__methods">
+        <section id="structured-appendix-methods" className="structured-appendix__section">
+          <h3 className="structured-appendix__heading" aria-label="Methods">Methods</h3>
+          <div className="structured-appendix__methods">
             {decisions.length > 0 && (
-              <div className="astra-appendix__methods-group">
-                <div className="astra-appendix__methods-label">Decisions</div>
-                <ul className="astra-appendix__methods-list">
+              <div className="structured-appendix__methods-group">
+                <div className="structured-appendix__methods-label">Decisions</div>
+                <ul className="structured-appendix__methods-list">
                   {decisions.map((decision) => (
                     <li key={decision.key}>
                       <a
-                        href={`#astra-decision-${decision.key}`}
-                        className="astra-appendix__methods-link"
+                        href={`#structured-decision-${decision.key}`}
+                        className="structured-appendix__methods-link"
                       >
                         {decision.label}
                       </a>
                       {decision.selectedLabel && (
-                        <span className="astra-appendix__methods-selected">
+                        <span className="structured-appendix__methods-selected">
                           {' '}· {decision.selectedLabel}
                         </span>
                       )}
@@ -291,17 +291,17 @@ export function AstraAppendix({
             )}
 
             {inputs.length > 0 && (
-              <div className="astra-appendix__methods-group">
-                <div className="astra-appendix__methods-label">Inputs</div>
+              <div className="structured-appendix__methods-group">
+                <div className="structured-appendix__methods-label">Inputs</div>
                 {collapsedTray ? (
-                  <div className="astra-appendix__stack">
+                  <div className="structured-appendix__stack">
                     {inputs.map((input) => {
                       const rowId: RowId = `input:${input.id}`;
                       return (
                         <div
                           key={input.id}
-                          id={`astra-input-${input.id}`}
-                          className="astra-appendix__item"
+                          id={`structured-input-${input.id}`}
+                          className="structured-appendix__item"
                         >
                           <CollapsedRow
                             open={openRow === rowId}
@@ -320,12 +320,12 @@ export function AstraAppendix({
                     })}
                   </div>
                 ) : (
-                  <ul className="astra-appendix__methods-list">
+                  <ul className="structured-appendix__methods-list">
                     {inputs.map((input) => (
                       <li key={input.id}>
-                        <span className="astra-appendix__methods-id">{input.id}</span>
+                        <span className="structured-appendix__methods-id">{input.id}</span>
                         {input.description && (
-                          <span className="astra-appendix__methods-desc">
+                          <span className="structured-appendix__methods-desc">
                             {' '}— {input.description}
                           </span>
                         )}
@@ -337,9 +337,9 @@ export function AstraAppendix({
             )}
 
             {subKeys.length > 0 && (
-              <div className="astra-appendix__methods-group">
-                <div className="astra-appendix__methods-label">Sub-analyses</div>
-                <ul className="astra-appendix__methods-list">
+              <div className="structured-appendix__methods-group">
+                <div className="structured-appendix__methods-label">Sub-analyses</div>
+                <ul className="structured-appendix__methods-list">
                   {subKeys.map((key) => {
                     const label = subAnalysisLabels?.get(key) ?? key;
                     const slug = subAnalysisSlugs?.get(key);
@@ -352,7 +352,7 @@ export function AstraAppendix({
                               e.preventDefault();
                               onNavigate(slug);
                             }}
-                            className="astra-appendix__methods-link"
+                            className="structured-appendix__methods-link"
                           >
                             {label}
                           </a>
@@ -370,35 +370,35 @@ export function AstraAppendix({
       )}
 
       {hasAppendix && (
-        <section id="astra-appendix-enumeration" className="astra-appendix__section">
+        <section id="structured-appendix-enumeration" className="structured-appendix__section">
           <h3
-            className="astra-appendix__heading"
+            className="structured-appendix__heading"
             aria-label={`Appendix, ${decisions.length + outputs.length}`}
           >
             Appendix
-            <span className="astra-appendix__count">
+            <span className="structured-appendix__count">
               {decisions.length + outputs.length}
             </span>
           </h3>
           {decisions.length > 0 && (
             <div
-              id="astra-appendix-decisions"
-              className="astra-appendix__subsection"
+              id="structured-appendix-decisions"
+              className="structured-appendix__subsection"
             >
               <h4
-                className="astra-appendix__subheading"
+                className="structured-appendix__subheading"
                 aria-label={`Decisions, ${decisions.length}`}
               >
-                Decisions <span className="astra-appendix__count">{decisions.length}</span>
+                Decisions <span className="structured-appendix__count">{decisions.length}</span>
               </h4>
-              <div className="astra-appendix__stack">
+              <div className="structured-appendix__stack">
                 {decisions.map((decision) => {
                   const rowId: RowId = `decision:${decision.key}`;
                   return (
                     <div
                       key={decision.key}
-                      id={`astra-decision-${decision.key}`}
-                      className="astra-appendix__item"
+                      id={`structured-decision-${decision.key}`}
+                      className="structured-appendix__item"
                     >
                       {collapsedTray ? (
                         <CollapsedRow
@@ -429,23 +429,23 @@ export function AstraAppendix({
           )}
           {outputs.length > 0 && (
             <div
-              id="astra-appendix-outputs"
-              className="astra-appendix__subsection"
+              id="structured-appendix-outputs"
+              className="structured-appendix__subsection"
             >
               <h4
-                className="astra-appendix__subheading"
+                className="structured-appendix__subheading"
                 aria-label={`Outputs, ${outputs.length}`}
               >
-                Outputs <span className="astra-appendix__count">{outputs.length}</span>
+                Outputs <span className="structured-appendix__count">{outputs.length}</span>
               </h4>
-              <div className="astra-appendix__stack">
+              <div className="structured-appendix__stack">
                 {outputs.map((output) => {
                   const rowId: RowId = `output:${output.id}`;
                   return (
                     <div
                       key={output.id}
-                      id={`astra-output-${output.id}`}
-                      className="astra-appendix__item"
+                      id={`structured-output-${output.id}`}
+                      className="structured-appendix__item"
                     >
                       {collapsedTray ? (
                         <CollapsedRow
@@ -500,35 +500,35 @@ function CollapsedRow({ open, onToggle, kind, title, summary, children }: Collap
   // appears). Without aria-controls + id, the button announces "expanded"
   // but the panel below is just a generic <div> with no semantic tie-back.
   const reactId = useId();
-  const bodyId = `astra-appendix-row-body-${reactId}`;
-  const headId = `astra-appendix-row-head-${reactId}`;
+  const bodyId = `structured-appendix-row-body-${reactId}`;
+  const headId = `structured-appendix-row-head-${reactId}`;
   return (
     <div
       className={
-        'astra-appendix__row' +
-        ` astra-appendix__row--${kind}` +
-        (open ? ' astra-appendix__row--open' : '')
+        'structured-appendix__row' +
+        ` structured-appendix__row--${kind}` +
+        (open ? ' structured-appendix__row--open' : '')
       }
     >
       <button
         type="button"
         id={headId}
-        className="astra-appendix__row-head"
+        className="structured-appendix__row-head"
         aria-expanded={open}
         aria-controls={bodyId}
         onClick={onToggle}
       >
-        <span className="astra-appendix__row-caret" aria-hidden>
+        <span className="structured-appendix__row-caret" aria-hidden>
           {open ? '▾' : '▸'}
         </span>
-        <span className="astra-appendix__row-title">{title}</span>
+        <span className="structured-appendix__row-title">{title}</span>
         {summary && (
-          <span className="astra-appendix__row-summary">{summary}</span>
+          <span className="structured-appendix__row-summary">{summary}</span>
         )}
       </button>
       {open && (
         <div
-          className="astra-appendix__row-body"
+          className="structured-appendix__row-body"
           id={bodyId}
           role="region"
           aria-labelledby={headId}

@@ -11,7 +11,7 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
 };
 
 // lightcone-linear is the staging-ground rung — the layout-faithful
-// reimplementation that vellum's astra renderer also defaults to.
+// reimplementation that vellum's structured renderer also defaults to.
 export const DEFAULT_THEME_ID: ThemeId = 'lightcone-linear';
 
 // Theme selection: URL query param (`?theme=lightcone-linear`), with a
@@ -19,7 +19,7 @@ export const DEFAULT_THEME_ID: ThemeId = 'lightcone-linear';
 // Legacy slugs remap transparently so pinned URLs and stored preferences
 // keep working after retirements:
 //   - `lightcone` (Pass 1) and `lightcone-margin` (Pass 9b, retired
-//     2026-04-26 under vellum-reader/vellum-native-astra-renderer)
+//     2026-04-26 under vellum-reader/vellum-native-structured-renderer)
 //     both fall back to `lightcone-linear` — the staging-ground rung
 //     under the ladder.
 //   - `vellum-cail` is the original `cail-personal` slug.

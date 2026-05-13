@@ -959,8 +959,8 @@ async function loadPdfJs(): Promise<PdfJsModule> {
  *
  * Mirrors `paper-viewer.js`'s `scrollToPage` so the in-modal "Evidence ·
  * page <n>" link behaves the same in both renderers — see the
- * vellum-native astra renderer constitution at
- * `vellum-reader/vellum-native-astra-renderer`. Calls before the PDF
+ * vellum-native structured renderer constitution at
+ * `vellum-reader/vellum-native-structured-renderer`. Calls before the PDF
  * finishes loading are queued and replayed once the requested page
  * lands; calls for a non-existent page are no-ops.
  */
@@ -993,7 +993,7 @@ export const PdfReader = forwardRef<PdfReaderHandle, FileReaderProps>(function P
   // 30-page PDF would wait for pages 1..22 to render serially before
   // the user sees content (~6 s in the wild). The loop drains this
   // before every step. See fiber:
-  // `vellum-reader/astra-paper-modal-page-jump-render-wait`.
+  // `vellum-reader/structured-paper-modal-page-jump-render-wait`.
   const requestedPageRef = useRef<number | null>(null);
 
   const scrollToPage = useCallback((pageNum: number) => {

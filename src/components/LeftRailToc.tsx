@@ -8,13 +8,13 @@
  * its narrative H2 is present in the prose or it has at least one child.
  *
  *   Findings
- *     → individual findings (non-prior_insight)          #astra-finding-<id>
+ *     → individual findings (non-prior_insight)          #structured-finding-<id>
  *   Methods
- *     → decisions                                        #astra-decision-<key>
+ *     → decisions                                        #structured-decision-<key>
  *   Inputs
- *     → inputs                                           #astra-input-<id>
+ *     → inputs                                           #structured-input-<id>
  *   Outputs
- *     → outputs                                          #astra-output-<id>
+ *     → outputs                                          #structured-output-<id>
  *
  * The top-level entry always scrolls to the narrative H2 when present;
  * clicking a child triggers the appendix tray's expand path via
@@ -69,7 +69,7 @@ interface SectionEntry {
 interface LeftRailTocProps {
   proseRef: React.RefObject<HTMLElement>;
   /** Current graph node — source of truth for appendix children. Undefined
-   *  on fibers without an ASTRA graph (rail degrades to narrative-only). */
+   *  on fibers without an structured graph (rail degrades to narrative-only). */
   node?: GraphNode;
 }
 
@@ -85,11 +85,11 @@ function deriveChildren(node: GraphNode | undefined): Record<NarrativeKey, Child
   };
   if (!node) return empty;
 
-  // Findings — filter out prior_insights (same filter AstraAppendix uses).
+  // Findings — filter out prior_insights (same filter StructuredAppendix uses).
   empty.findings = (node.findings ?? [])
     .filter((f) => f.kind !== 'prior_insight')
     .map((f) => ({
-      domId: `astra-finding-${f.key}`,
+      domId: `structured-finding-${f.key}`,
       kind: 'finding' as const,
       rowId: f.key,
       label: f.label ?? f.key,
@@ -97,21 +97,21 @@ function deriveChildren(node: GraphNode | undefined): Record<NarrativeKey, Child
 
   // Methods hosts the decisions list (inputs get their own section).
   empty.methods = (node.decisions ?? []).map((d) => ({
-    domId: `astra-decision-${d.key}`,
+    domId: `structured-decision-${d.key}`,
     kind: 'decision' as const,
     rowId: d.key,
     label: d.label,
   }));
 
   empty.inputs = (node.inputs ?? []).map((i) => ({
-    domId: `astra-input-${i.id}`,
+    domId: `structured-input-${i.id}`,
     kind: 'input' as const,
     rowId: i.id,
     label: i.label ?? i.id,
   }));
 
   empty.outputs = (node.outputs ?? []).map((o) => ({
-    domId: `astra-output-${o.id}`,
+    domId: `structured-output-${o.id}`,
     kind: 'output' as const,
     rowId: o.id,
     label: o.label ?? o.id,

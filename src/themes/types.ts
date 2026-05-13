@@ -1,28 +1,28 @@
 /**
  * Theme identifiers and slot types.
  *
- * Two themes today, sitting on the astra-renderer ladder:
+ * Two themes today, sitting on the structured-renderer ladder:
  *   `lightcone-linear` — single centered column, left-rail ToC, section-end
  *     card tray. Default. Layout-faithful staging ground.
  *   `cail-personal` — power-user baseline with persistent marginalia
  *     column. Expressive divergence on top of linear's substrate.
  *
- * `lightcone-margin` retired 2026-04-26 under the vellum-native astra
+ * `lightcone-margin` retired 2026-04-26 under the vellum-native structured
  * renderer constitution — it was a half-step (margin column on, no full
  * layout divergence) that wasn't pulling weight under the ladder model.
  * Legacy `?theme=lightcone-margin` and stored preferences remap to
  * `lightcone-linear` via `LEGACY_ALIASES` in `index.ts`.
  *
- * See `vellum-reader/vellum-native-astra-renderer`.
+ * See `vellum-reader/vellum-native-structured-renderer`.
  */
 export type ThemeId = 'lightcone-linear' | 'cail-personal';
 
 export interface ThemePalette {
-  astraFinding: string;
-  astraDecision: string;
-  astraOutput: string;
-  astraInput: string;
-  astraAnalysis: string;
+  structuredFinding: string;
+  structuredDecision: string;
+  structuredOutput: string;
+  structuredInput: string;
+  structuredAnalysis: string;
 }
 
 export interface ThemeFonts {
@@ -49,7 +49,7 @@ export interface ThemeLayout {
    *   chrome (thumb-index, backlink nodes, floating island) stay hidden.
    *   Click-to-pin behaves as exclusive-expand (see ContextCardLayer).
    * - `'empty-gutter-hover'` — legacy Pass 1b lightcone-margin: gutter is
-   *   empty; hovering inline `.astra-anchor` in the prose pops a
+   *   empty; hovering inline `.structured-anchor` in the prose pops a
    *   GutterHoverCard at the anchor's line-Y. Kept as a value only for
    *   rollback + future power-user-opt-in.
    * - `'none'` — no margin column at all (`lightcone-linear`).
@@ -68,7 +68,7 @@ export interface ThemeLayout {
    */
   leftRailToc: 'on' | 'off';
   /**
-   * Margin-chip content shape for ASTRA glyphs.
+   * Margin-chip content shape for structured glyphs.
    *
    * - `'kind-name'` — legacy power-user baseline: `{kind-glyph, KindName}`
    *   where `KindName` is the fixed legend ("Finding", "Decision", …). The
@@ -105,7 +105,7 @@ export interface ThemeLayout {
    *   cards already surface figures), or inline beneath their owning
    *   finding/output (`lightcone-linear` — structure bounds density).
    * - `'section-end'` — mount `FigureGallery` below the narrative prose
-   *   (after `AstraAppendix`). Walks `collectFigures(currentNode)`,
+   *   (after `StructuredAppendix`). Walks `collectFigures(currentNode)`,
    *   renders each as a thumbnail + caption strip, click opens the
    *   lightbox with the full gallery carousel. `lightcone-margin`
    *   default — until the per-anchor margin adapter lands, the trailing
@@ -116,10 +116,10 @@ export interface ThemeLayout {
   /**
    * Per-anchor figure thumbnails in the margin rail.
    *
-   * - `'off'` — ASTRA chips render as plain kind/label chips regardless of
+   * - `'off'` — structured chips render as plain kind/label chips regardless of
    *   whether the anchored host carries figures (`cail-personal`,
    *   `lightcone-linear` — no margin rail at all).
-   * - `'on'` — when an ASTRA chip's href matches a collected figure's
+   * - `'on'` — when an structured chip's href matches a collected figure's
    *   anchor (`#outputs.<id>` or `#findings.<key>` per
    *   `collectFigures(currentNode)`), the chip's leading glyph becomes a
    *   small thumbnail of that figure instead of the kind symbol. The

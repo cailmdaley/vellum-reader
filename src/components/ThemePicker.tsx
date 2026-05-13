@@ -8,7 +8,7 @@
  * column but a weight lighter than the body.
  *
  * `lightcone-margin` retired 2026-04-26 — see `vellum-reader/vellum-native-
- * astra-renderer` Themes section. Legacy `?theme=lightcone-margin` URLs
+ * structured-renderer` Themes section. Legacy `?theme=lightcone-margin` URLs
  * remap to `lightcone-linear` via `LEGACY_ALIASES`.
  */
 

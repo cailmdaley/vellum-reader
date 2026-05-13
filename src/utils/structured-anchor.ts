@@ -1,5 +1,5 @@
 /**
- * astra-anchor — parse + resolve ASTRA anchor hrefs used inside narrative prose.
+ * structured-anchor — parse + resolve structured anchor hrefs used inside narrative prose.
  *
  * Grammar (tree-path-first, see narrative-overnight constitution §2):
  *   #inputs.<id>
@@ -28,7 +28,7 @@
 
 import type { GraphNode } from './content-types';
 
-export type AstraAnchorKind =
+export type StructuredAnchorKind =
   | 'findings'
   | 'decisions'
   | 'outputs'
@@ -50,9 +50,9 @@ const KNOWN_KINDS = new Set([
   'analyses',
 ]);
 
-export interface ParsedAstraAnchor {
+export interface ParsedStructuredAnchor {
   /** Normalized kind. `prior_insights` collapses to `findings` — they share the glyph family. */
-  kind: AstraAnchorKind;
+  kind: StructuredAnchorKind;
   /** Raw category token from the href before normalization (keeps `prior_insights` visible). */
   rawKind: string;
   /** Identifier at the category level, e.g. `bao_detection_highest_significance`. */
@@ -71,12 +71,12 @@ export interface ParsedAstraAnchor {
 }
 
 /**
- * Parse a markdown href into an ASTRA anchor descriptor. Returns `null` when
- * the href isn't an ASTRA anchor (e.g. wikilink, external URL). Returns
+ * Parse a markdown href into an structured anchor descriptor. Returns `null` when
+ * the href isn't an structured anchor (e.g. wikilink, external URL). Returns
  * `{broken: true}` when the href is shaped like an anchor but doesn't match
  * the grammar — the renderer still draws a broken-link icon in that case.
  */
-export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAnchor | null {
+export function parseStructuredAnchor(href: string | null | undefined): ParsedStructuredAnchor | null {
   if (!href) return null;
 
   let rest = href;
@@ -85,7 +85,7 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
   // Must be an in-document anchor.
   if (!rest.startsWith('#')) return null;
 
-  // Drop the `#` first. Per astra-spec canonical form, `../` escapes live
+  // Drop the `#` first. Per structured-spec canonical form, `../` escapes live
   // *inside* the fragment (e.g. `#../decisions.id`), so we consume leading
   // `../` from the body after the `#` has been stripped. `../` may chain for
   // multi-level escapes.
@@ -95,7 +95,7 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
     rest = rest.slice(3);
   }
 
-  // Split on `.`. A valid ASTRA anchor has at least two segments
+  // Split on `.`. A valid structured anchor has at least two segments
   // (category.id). A single-segment anchor like `#abstract` is a heading
   // anchor rendered by mystra's felt loader and is handled by the ordinary
   // link path, not by this module.
@@ -109,9 +109,9 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
   // Case 1: top-level category (`findings`, `decisions`, ...).
   if (KNOWN_KINDS.has(head)) {
     const rawKind = head;
-    const kind: AstraAnchorKind = FINDING_KIND_ALIASES.has(head)
+    const kind: StructuredAnchorKind = FINDING_KIND_ALIASES.has(head)
       ? 'findings'
-      : (head as AstraAnchorKind);
+      : (head as StructuredAnchorKind);
     let optionId: string | undefined;
     let trailingOut: string[] | undefined;
     if (rawKind === 'decisions' && trailing[0] === 'options' && trailing[1]) {
@@ -135,9 +135,9 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
   // third and beyond are the element id plus optional trailing path.
   if (trailing.length > 0 && KNOWN_KINDS.has(id)) {
     const rawKind = id;
-    const kind: AstraAnchorKind = FINDING_KIND_ALIASES.has(id)
+    const kind: StructuredAnchorKind = FINDING_KIND_ALIASES.has(id)
       ? 'findings'
-      : (id as AstraAnchorKind);
+      : (id as StructuredAnchorKind);
     const [innerId, ...innerTrailing] = trailing;
     return {
       kind,
@@ -160,7 +160,7 @@ export function parseAstraAnchor(href: string | null | undefined): ParsedAstraAn
  * A sub-analysis is a contained world with its own past and future, so
  * the lightcone shape is the semantic match for "scope."
  */
-export const KIND_SYMBOL: Record<AstraAnchorKind, string> = {
+export const KIND_SYMBOL: Record<StructuredAnchorKind, string> = {
   findings: '●',
   decisions: '◇',
   outputs: '▸',
@@ -169,7 +169,7 @@ export const KIND_SYMBOL: Record<AstraAnchorKind, string> = {
 };
 
 /** Human-readable legend label (singular, title-cased). */
-export const KIND_LEGEND: Record<AstraAnchorKind, string> = {
+export const KIND_LEGEND: Record<StructuredAnchorKind, string> = {
   findings: 'Finding',
   decisions: 'Decision',
   outputs: 'Output',
@@ -181,7 +181,7 @@ export const KIND_LEGEND: Record<AstraAnchorKind, string> = {
  * Does the graph contain *any* node hosting `kind.id`? Used as the off-page
  * fallback during anchor resolution: a ref that doesn't resolve against the
  * current node may still resolve via the `NarrativeView` click handler's
- * graph walk (see `findHostForAstraRef`), in which case it should render
+ * graph walk (see `findHostForStructuredRef`), in which case it should render
  * live, not broken. Without this, cross-analysis refs get false-positive
  * broken dashes in MarginCitations and no-hover in GutterHoverCard even
  * though clicking them navigates fine.
@@ -189,8 +189,8 @@ export const KIND_LEGEND: Record<AstraAnchorKind, string> = {
  * Decisions/findings key by `.key`; inputs/outputs by `.id` — mirrors the
  * click-path resolver in `NarrativeView.tsx`.
  */
-function astraRefHasHostInGraph(
-  kind: AstraAnchorKind,
+function structuredRefHasHostInGraph(
+  kind: StructuredAnchorKind,
   id: string,
   graphNodes: readonly GraphNode[],
 ): boolean {
@@ -205,7 +205,7 @@ function astraRefHasHostInGraph(
 }
 
 /**
- * Check whether an ASTRA anchor resolves against the current page's
+ * Check whether an structured anchor resolves against the current page's
  * GraphNode. Returns `null` when resolved (anchor is live) or a reason
  * string when the anchor is broken.
  *
@@ -221,8 +221,8 @@ function astraRefHasHostInGraph(
  * `NarrativeView`'s click-path graph-walk fallback so the visual broken
  * affordance stays consistent with click behavior.
  */
-export function resolveAstraAnchor(
-  parsed: ParsedAstraAnchor,
+export function resolveStructuredAnchor(
+  parsed: ParsedStructuredAnchor,
   node: Pick<GraphNode, 'findings' | 'decisions' | 'inputs' | 'outputs'>,
   childSubKeys?: Set<string>,
   parentSubKeys?: Set<string>,
@@ -255,7 +255,7 @@ export function resolveAstraAnchor(
   switch (parsed.kind) {
     case 'findings': {
       if (node.findings?.some((f) => f.key === parsed.id)) return null;
-      if (graphNodes && astraRefHasHostInGraph('findings', parsed.id, graphNodes)) return null;
+      if (graphNodes && structuredRefHasHostInGraph('findings', parsed.id, graphNodes)) return null;
       return `No finding "${parsed.id}"`;
     }
     case 'decisions': {
@@ -272,7 +272,7 @@ export function resolveAstraAnchor(
       if (
         !parsed.optionId &&
         graphNodes &&
-        astraRefHasHostInGraph('decisions', parsed.id, graphNodes)
+        structuredRefHasHostInGraph('decisions', parsed.id, graphNodes)
       ) {
         return null;
       }
@@ -280,12 +280,12 @@ export function resolveAstraAnchor(
     }
     case 'outputs': {
       if (node.outputs?.some((o) => o.id === parsed.id)) return null;
-      if (graphNodes && astraRefHasHostInGraph('outputs', parsed.id, graphNodes)) return null;
+      if (graphNodes && structuredRefHasHostInGraph('outputs', parsed.id, graphNodes)) return null;
       return `No output "${parsed.id}"`;
     }
     case 'inputs': {
       if (node.inputs?.some((i) => i.id === parsed.id)) return null;
-      if (graphNodes && astraRefHasHostInGraph('inputs', parsed.id, graphNodes)) return null;
+      if (graphNodes && structuredRefHasHostInGraph('inputs', parsed.id, graphNodes)) return null;
       return `No input "${parsed.id}"`;
     }
     case 'analyses':
@@ -295,16 +295,16 @@ export function resolveAstraAnchor(
 }
 
 /**
- * Walk an mdast tree and return the set of ASTRA anchor kinds that appear
+ * Walk an mdast tree and return the set of structured anchor kinds that appear
  * inside its link nodes. Used by the legend at the top of the narrative
  * page so kinds not referenced on this page stay hidden.
  */
-export function collectAstraAnchorKinds(mdast: any): AstraAnchorKind[] {
-  const seen = new Set<AstraAnchorKind>();
+export function collectStructuredAnchorKinds(mdast: any): StructuredAnchorKind[] {
+  const seen = new Set<StructuredAnchorKind>();
   const visit = (node: any): void => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'link' && typeof node.url === 'string') {
-      const parsed = parseAstraAnchor(node.url);
+      const parsed = parseStructuredAnchor(node.url);
       if (parsed) seen.add(parsed.kind);
     }
     if (Array.isArray(node.children)) {
@@ -325,8 +325,8 @@ export function collectAstraAnchorKinds(mdast: any): AstraAnchorKind[] {
  * rather than the raw key. `parentSubLabels` is the parent-scope-escape
  * mirror — labels for sibling sub-analyses reachable via `../analyses.<key>`.
  */
-export function resolveAstraLabel(
-  parsed: ParsedAstraAnchor,
+export function resolveStructuredLabel(
+  parsed: ParsedStructuredAnchor,
   node: Pick<GraphNode, 'findings' | 'decisions' | 'inputs' | 'outputs'>,
   subAnalysisLabels?: Map<string, string>,
   parentSubLabels?: Map<string, string>,
@@ -336,7 +336,7 @@ export function resolveAstraLabel(
   }
   switch (parsed.kind) {
     case 'findings': {
-      // `label?` added to findings/insights by astra-spec feature/narrative
+      // `label?` added to findings/insights by structured-spec feature/narrative
       // (see GraphFinding in content-types.ts). Margin chip + ToC rail
       // resolve `label ?? key` per themes-constitution §6. Without this
       // the chip falls back to the raw snake_case id

@@ -6,9 +6,9 @@
  * here. This pass adds an author row beneath the title and a keyword row
  * beneath the rule, drawing on whatever the frontmatter carries.
  *
- * The astra-spec today carries `name`, `authors: string[]`, and `tags:
+ * The structured-spec today carries `name`, `authors: string[]`, and `tags:
  * string[]`. mystra threads them onto `PageFrontmatter` (see
- * mystra/src/transform/render-astra-project.ts). When the spec grows richer
+ * mystra/src/transform/render-structured-project.ts). When the spec grows richer
  * fields (affiliations, ORCID, DOI, date, venue, license, funding) the
  * masthead reads them through the same permissive `frontmatter` bag and
  * renders them without further wiring. Missing fields degrade to absence,
@@ -121,7 +121,7 @@ function renderInlineOutcome(paragraph: string): ReactNode {
   return <Fragment>{out}</Fragment>;
 }
 
-/** myst-frontmatter author shape is an object; astra-spec emits a bare name
+/** myst-frontmatter author shape is an object; structured-spec emits a bare name
  *  string today. Normalize to `{ name, ...optional }` so the renderer is
  *  one-shape even before the spec grows. */
 interface MastheadAuthor {

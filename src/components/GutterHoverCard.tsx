@@ -1,9 +1,9 @@
 /**
- * GutterHoverCard — Lightcone-theme hover preview for inline ASTRA anchors.
+ * GutterHoverCard — Lightcone-theme hover preview for inline structured anchors.
  *
  * Mirror of MarginCitations's hover/pin path without the persistent glyph
  * column. Under `data-theme="lightcone-margin"` the right gutter is empty
- * whitespace; hovering an `.astra-anchor` in the prose floats a
+ * whitespace; hovering an `.structured-anchor` in the prose floats a
  * `MarginCardPreview` into that space at the anchor's pretext line-Y.
  * Clicking pins via `vellum:open-card` (the existing NarrativeView click
  * handler already owns the pin dispatch for Lightcone; this component just
@@ -14,8 +14,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { GraphNode } from '~/utils/content-types';
 import { useHoverGrace } from '~/hooks/useHoverGrace';
 import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
-import { parseAstraAnchor, resolveAstraAnchor } from '~/utils/astra-anchor';
-import { resolveAstraCardContent } from '~/utils/astra-card-content';
+import { parseStructuredAnchor, resolveStructuredAnchor } from '~/utils/structured-anchor';
+import { resolveStructuredCardContent } from '~/utils/structured-card-content';
 import { MarginCardPreview } from './MarginCardPreview';
 import type { CardContent } from './Card';
 
@@ -93,22 +93,22 @@ export function GutterHoverCard({
 
     const attach = () => {
       for (const fn of cleanups.splice(0)) fn();
-      const anchors = Array.from(prose.querySelectorAll<HTMLAnchorElement>('a.astra-anchor'));
+      const anchors = Array.from(prose.querySelectorAll<HTMLAnchorElement>('a.structured-anchor'));
       anchors.forEach((a, i) => {
         const href = a.getAttribute('href') ?? '';
         if (!href) return;
-        const parsed = parseAstraAnchor(href);
+        const parsed = parseStructuredAnchor(href);
         if (!parsed) return;
-        const key = `astra:${i}`;
+        const key = `structured:${i}`;
         const onEnter = () => {
           const { currentNode: cn, nodes: ns, childSubKeys: cs, parentSubKeys: ps, parentSubSlugs: pss } =
             propsRef.current;
           if (!cn) return;
           // Broken anchors — CSS already dims them; skip the card since
           // there's nothing to resolve.
-          const broken = resolveAstraAnchor(parsed, cn, cs, ps, ns);
+          const broken = resolveStructuredAnchor(parsed, cn, cs, ps, ns);
           if (broken) return;
-          const content = resolveAstraCardContent(parsed, cn, ns, pss);
+          const content = resolveStructuredCardContent(parsed, cn, ns, pss);
           if (!content) return;
           const geom = geometryFor(a);
           if (!geom) return;

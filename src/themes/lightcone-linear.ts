@@ -13,11 +13,11 @@ import type { ThemeConfig } from './types';
 export const lightconeLinearTheme: ThemeConfig = {
   id: 'lightcone-linear',
   palette: {
-    astraFinding: 'var(--portolan-verdigris)',
-    astraDecision: 'var(--rubric)',
-    astraOutput: 'var(--portolan-indigo)',
-    astraInput: '#6A7280',
-    astraAnalysis: 'var(--ochre-ink)',
+    structuredFinding: 'var(--portolan-verdigris)',
+    structuredDecision: 'var(--rubric)',
+    structuredOutput: 'var(--portolan-indigo)',
+    structuredInput: '#6A7280',
+    structuredAnalysis: 'var(--ochre-ink)',
   },
   fonts: {
     cardTitle: "'EB Garamond', 'Iowan Old Style', Georgia, serif",
@@ -34,9 +34,9 @@ export const lightconeLinearTheme: ThemeConfig = {
     // Pass 9a seed: no right margin surface — single centered prose column,
     // left-rail ToC on the left (LeftRailToc mounts in NarrativeView gated on
     // themeId === 'lightcone-linear'). No gutter-hover card; section info
-    // lives in the paper-shaped AstraAppendix (findings / methods / appendix
+    // lives in the paper-shaped StructuredAppendix (findings / methods / appendix
     // + bibliography) rendered below the narrative. Future 9a steps land
-    // exclusive-open collapsed card rows inside AstraAppendix under this
+    // exclusive-open collapsed card rows inside StructuredAppendix under this
     // theme root.
     marginColumn: 'none',
     inlineAnchorStyle: 'kind-colored-highlight',
@@ -47,11 +47,11 @@ export const lightconeLinearTheme: ThemeConfig = {
     // implying any intent to switch.
     chipShape: 'kind-name',
     // Pinned cards are rare under linear (no margin rail); when they do land
-    // from AstraAppendix or an inline anchor, keep stacking so multiple
+    // from StructuredAppendix or an inline anchor, keep stacking so multiple
     // expanded cards can sit side-by-side on the canvas.
     cardStacking: 'stack',
     // Figures group under their owning finding/output in the narrative +
-    // AstraAppendix, not in a trailing grid. Per constitution §3: "structure
+    // StructuredAppendix, not in a trailing grid. Per constitution §3: "structure
     // bounds density" — a trailing gallery would reintroduce the overflow
     // bucket the paper-shaped pseudo-sections are designed to avoid.
     figureGallery: 'off',

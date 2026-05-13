@@ -7,7 +7,7 @@ export type {
   Annotation,
   AnnotationAction,
   AnnotationBulkAction,
-  AstraGraph,
+  FiberGraph,
   FiberContent,
   FileContent,
   GraphNode,

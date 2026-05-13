@@ -224,10 +224,10 @@ function inlineClassName(variant: Variant, marks: MarkState): string {
   if (marks.strike) cls.push('is-strike');
   if (marks.href) {
     cls.push('is-link');
-    // ASTRA anchor refs (`#findings.id`, `#decisions.id`, …) get a kind-
+    // structured anchor refs (`#findings.id`, `#decisions.id`, …) get a kind-
     // colored underline so the reading eye can triage references without
     // leaving the prose column. Parsing is intentionally light here — the
-    // shared `astra-anchor` utility is used at the margin layer where the
+    // shared `structured-anchor` utility is used at the margin layer where the
     // full graph is available; this surface only needs the top-level
     // category token. A malformed anchor still receives the generic
     // `is-link` treatment.
@@ -237,23 +237,23 @@ function inlineClassName(variant: Variant, marks: MarkState): string {
       const body = withoutParents.slice(1);
       const firstDot = body.indexOf('.');
       const head = firstDot >= 0 ? body.slice(0, firstDot) : body;
-      cls.push('astra-anchor');
+      cls.push('structured-anchor');
       switch (head) {
         case 'findings':
         case 'prior_insights':
-          cls.push('astra-anchor--findings');
+          cls.push('structured-anchor--findings');
           break;
         case 'decisions':
-          cls.push('astra-anchor--decisions');
+          cls.push('structured-anchor--decisions');
           break;
         case 'outputs':
-          cls.push('astra-anchor--outputs');
+          cls.push('structured-anchor--outputs');
           break;
         case 'inputs':
-          cls.push('astra-anchor--inputs');
+          cls.push('structured-anchor--inputs');
           break;
         case 'analyses':
-          cls.push('astra-anchor--analyses');
+          cls.push('structured-anchor--analyses');
           break;
         default:
           // Sub-analysis-scoped anchor (`#<sub>.<category>.<id>`) or heading
@@ -418,7 +418,7 @@ function collectInlinePieces(
  * Source-line range for a block. Both endpoints are 1-indexed line numbers in
  * the source markdown; pulled from mdast `node.position.start.line` /
  * `node.position.end.line`. Optional because some synthetic nodes (e.g. the
- * astraFindingsStepper sentinel injected at render time) carry no position.
+ * structuredFindingsStepper sentinel injected at render time) carry no position.
  *
  * Layout items inherit the same range from their source block; every visual
  * line emitted by a wrapped paragraph shares its block's range. This is what
@@ -821,7 +821,7 @@ export function findElementForSourceLine(
 /**
  * Pull a source-line range out of an mdast node's position. mdast/myst put
  * these on every parsed node by default; synthetic nodes (like the
- * astraFindingsStepper sentinel injected by NarrativeView) have none, so the
+ * structuredFindingsStepper sentinel injected by NarrativeView) have none, so the
  * helper returns undefined and downstream stamping is skipped.
  */
 function readSource(node: any): SourceRange | undefined {
@@ -2102,10 +2102,10 @@ function renderLine(
         >
           <div className="pretext-prose-compat__inner vellum-prose-compat">
             {/* Vellum-native sentinels swapped in here instead of MyST.
-                The astraFindingsStepper node is injected by NarrativeView
+                The structuredFindingsStepper node is injected by NarrativeView
                 at the end of the findings narrative section; it carries no
                 payload — the stepper reads findings from FindingsContext. */}
-            {item.node?.type === 'astraFindingsStepper' ? (
+            {item.node?.type === 'structuredFindingsStepper' ? (
               <FindingsStepper />
             ) : (
               <MyST ast={withKatexHtml(item.node)} />

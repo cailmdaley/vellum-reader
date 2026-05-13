@@ -10,7 +10,7 @@
  *
  * Scope: surface only messages already emitted by mystra on
  * `FiberContent.messages` (mirror of `PageContent.messages` — see
- * `mystra/src/types/content-server.ts:LintMessage`). `astra validate`
+ * `mystra/src/types/content-server.ts:LintMessage`). `structured validate`
  * broken-anchor errors are the second feed the constitution calls for;
  * they'll join this surface when the validator is wired — same chip,
  * unified counter.

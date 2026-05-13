@@ -1,7 +1,7 @@
 /**
  * WorkspaceAnatomy — the right-side content for the Workspace tab.
  *
- * Decomposes a fiber into its ASTRA parts and renders each as a Card.
+ * Decomposes a fiber into its structured parts and renders each as a Card.
  * Layout is a simple vertical flow: the fiber's own card at the top,
  * then its decisions, then its findings. Width tracks the canvas pane
  * so each card restages via pretext as the user drags the divider.
@@ -88,7 +88,7 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
             explicit override, AT users hear "DECISIONS 1" instead of
             "Decisions, 1". The aria-label uses source case + a comma
             separator before the count so screen-reader pacing matches
-            the visual hierarchy. Pattern matches AstraAppendix headings
+            the visual hierarchy. Pattern matches StructuredAppendix headings
             (iter29 c2006c0).
           */}
           <h3
@@ -171,7 +171,7 @@ export function WorkspaceAnatomy({ node, onNavigate }: WorkspaceAnatomyProps) {
 
       {nothing && (
         <p className="workspace-anatomy__empty">
-          No ASTRA structure on <em>{node.label}</em> yet.
+          No structured structure on <em>{node.label}</em> yet.
         </p>
       )}
     </div>

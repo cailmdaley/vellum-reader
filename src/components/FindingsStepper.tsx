@@ -67,12 +67,12 @@ function EvidenceItem({
     const altText =
       evidence.figure?.caption ?? evidence.figure?.label ?? evidence.artifact;
     return (
-      <div className="astra-findings-stepper__evidence astra-findings-stepper__evidence--figure">
-        <span className="astra-findings-stepper__evidence-kind">figure</span>
-        <div className="astra-findings-stepper__evidence-body">
+      <div className="structured-findings-stepper__evidence structured-findings-stepper__evidence--figure">
+        <span className="structured-findings-stepper__evidence-kind">figure</span>
+        <div className="structured-findings-stepper__evidence-body">
           <button
             type="button"
-            className="astra-findings-stepper__thumbnail"
+            className="structured-findings-stepper__thumbnail"
             onClick={(e) => {
               e.stopPropagation();
               openFigureLightbox(hostNode, evidence, altText);
@@ -80,14 +80,14 @@ function EvidenceItem({
             title={`Open ${evidence.artifact}`}
           >
             <img
-              className="astra-findings-stepper__thumbnail-img"
+              className="structured-findings-stepper__thumbnail-img"
               src={src}
               alt={altText}
               loading="lazy"
             />
           </button>
           {evidence.figure?.label && (
-            <div className="astra-findings-stepper__evidence-caption">
+            <div className="structured-findings-stepper__evidence-caption">
               {evidence.figure.label}
             </div>
           )}
@@ -99,14 +99,14 @@ function EvidenceItem({
   // Quote evidence: render the exact passage as pull-quote.
   if (evidence.kind === 'quote' && evidence.quote) {
     return (
-      <div className="astra-findings-stepper__evidence">
-        <span className="astra-findings-stepper__evidence-kind">quote</span>
-        <div className="astra-findings-stepper__evidence-body">
-          <blockquote className="astra-findings-stepper__quote">
+      <div className="structured-findings-stepper__evidence">
+        <span className="structured-findings-stepper__evidence-kind">quote</span>
+        <div className="structured-findings-stepper__evidence-body">
+          <blockquote className="structured-findings-stepper__quote">
             “{evidence.quote.exact}”
           </blockquote>
           {doiUrl && (
-            <div className="astra-findings-stepper__evidence-meta">
+            <div className="structured-findings-stepper__evidence-meta">
               {evidence.location?.page !== undefined && (
                 <>p. {evidence.location.page} · </>
               )}
@@ -128,12 +128,12 @@ function EvidenceItem({
         ? 'Prior finding'
         : (evidence.artifact ?? evidence.kind);
   return (
-    <div className="astra-findings-stepper__evidence">
-      <span className="astra-findings-stepper__evidence-kind">{evidence.kind}</span>
-      <span className="astra-findings-stepper__evidence-body">
+    <div className="structured-findings-stepper__evidence">
+      <span className="structured-findings-stepper__evidence-kind">{evidence.kind}</span>
+      <span className="structured-findings-stepper__evidence-body">
         {label}
         {evidence.location?.page !== undefined && (
-          <span className="astra-findings-stepper__evidence-loc">
+          <span className="structured-findings-stepper__evidence-loc">
             {' '}· p. {evidence.location.page}
           </span>
         )}
@@ -160,7 +160,7 @@ function EvidenceBlock({
   const items = finding.evidence ?? [];
   if (items.length === 0) return null;
   return (
-    <div className="astra-findings-stepper__evidence-list">
+    <div className="structured-findings-stepper__evidence-list">
       {items.map((ev) => (
         <EvidenceItem key={ev.id} evidence={ev} hostNode={hostNode} />
       ))}
@@ -226,7 +226,7 @@ export function FindingsStepper({ variant = 'inline' }: FindingsStepperProps) {
 
   return (
     <div
-      className={`astra-findings-stepper astra-findings-stepper--${variant}`}
+      className={`structured-findings-stepper structured-findings-stepper--${variant}`}
       // role="group" lifts this from a generic focusable div to a labelled
       // ARIA group. Without a role the stepper announces as just "Findings
       // navigator" with no surrounding context — screen readers don't know
@@ -239,25 +239,25 @@ export function FindingsStepper({ variant = 'inline' }: FindingsStepperProps) {
       aria-label="Findings navigator"
       onKeyDown={onKeyDown}
     >
-      <div className="astra-findings-stepper__controls">
+      <div className="structured-findings-stepper__controls">
         <button
           type="button"
-          className="astra-findings-stepper__btn astra-findings-stepper__btn--prev"
+          className="structured-findings-stepper__btn structured-findings-stepper__btn--prev"
           aria-label="Previous finding"
           disabled={idx === 0}
           onClick={() => go(idx - 1)}
         >
           ◂
         </button>
-        <div className="astra-findings-stepper__marquee">
-          <span className="astra-findings-stepper__tag">{tag}</span>
-          <span className="astra-findings-stepper__counter">
+        <div className="structured-findings-stepper__marquee">
+          <span className="structured-findings-stepper__tag">{tag}</span>
+          <span className="structured-findings-stepper__counter">
             {idx + 1} / {findings.length}
           </span>
         </div>
         <button
           type="button"
-          className="astra-findings-stepper__btn astra-findings-stepper__btn--next"
+          className="structured-findings-stepper__btn structured-findings-stepper__btn--next"
           aria-label="Next finding"
           disabled={idx === findings.length - 1}
           onClick={() => go(idx + 1)}
@@ -266,16 +266,16 @@ export function FindingsStepper({ variant = 'inline' }: FindingsStepperProps) {
         </button>
       </div>
       <nav
-        className="astra-findings-stepper__progress"
+        className="structured-findings-stepper__progress"
         aria-label="Finding index"
         style={{ ['--stepper-fill' as any]: String(fillFrac) }}
       >
         {findings.map((item, i) => {
           const dotTag = item.label ?? item.key;
           const cls =
-            'astra-findings-stepper__dot' +
-            (i === idx ? ' astra-findings-stepper__dot--active' : '') +
-            (i < idx ? ' astra-findings-stepper__dot--seen' : '');
+            'structured-findings-stepper__dot' +
+            (i === idx ? ' structured-findings-stepper__dot--active' : '') +
+            (i < idx ? ' structured-findings-stepper__dot--seen' : '');
           return (
             <button
               key={item.key}
@@ -289,13 +289,13 @@ export function FindingsStepper({ variant = 'inline' }: FindingsStepperProps) {
         })}
       </nav>
       <div
-        className="astra-findings-stepper__slide"
+        className="structured-findings-stepper__slide"
         role="region"
         aria-live="polite"
       >
-        <h3 className="astra-findings-stepper__claim">{f.claim}</h3>
+        <h3 className="structured-findings-stepper__claim">{f.claim}</h3>
         {f.notes && (
-          <p className="astra-findings-stepper__notes">{f.notes}</p>
+          <p className="structured-findings-stepper__notes">{f.notes}</p>
         )}
         <EvidenceBlock finding={f} hostNode={hostNode} />
       </div>

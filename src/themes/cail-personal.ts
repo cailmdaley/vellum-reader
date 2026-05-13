@@ -12,11 +12,11 @@ import type { ThemeConfig } from './types';
 export const cailPersonalTheme: ThemeConfig = {
   id: 'cail-personal',
   palette: {
-    astraFinding: 'var(--rubric)',
-    astraDecision: 'var(--rubric)',
-    astraOutput: 'var(--rubric)',
-    astraInput: 'var(--rubric)',
-    astraAnalysis: 'var(--rubric)',
+    structuredFinding: 'var(--rubric)',
+    structuredDecision: 'var(--rubric)',
+    structuredOutput: 'var(--rubric)',
+    structuredInput: 'var(--rubric)',
+    structuredAnalysis: 'var(--rubric)',
   },
   fonts: {
     cardTitle: "'EB Garamond', 'Iowan Old Style', Georgia, serif",

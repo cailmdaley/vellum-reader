@@ -5,10 +5,10 @@
  *
  *   1. **Fiber links** — internal anchors `/some-fiber` picked up from the
  *      prose. Each glyph reflects the link target's fiber status (○/◐/●/…).
- *   2. **ASTRA anchors** — inline refs `#findings.id`, `#decisions.id`,
+ *   2. **structured anchors** — inline refs `#findings.id`, `#decisions.id`,
  *      `#outputs.id`, `#inputs.id`, `#analyses.sub`. Each glyph is a
  *      one-letter kind chip (F/D/O/I/A) keyed to the anchor kind, pulled
- *      from `utils/astra-anchor.ts`. Unresolved anchors render with a
+ *      from `utils/structured-anchor.ts`. Unresolved anchors render with a
  *      broken-link affordance — rule per narrative-overnight constitution
  *      §2: "Render as an inert link with a small broken-link icon. Do not
  *      crash. Do not silently drop."
@@ -29,16 +29,16 @@ import { glyphForNode, statusClass } from '~/utils/fiber-status';
 import {
   KIND_LEGEND,
   KIND_SYMBOL,
-  parseAstraAnchor,
-  resolveAstraAnchor,
-  resolveAstraLabel,
-  type AstraAnchorKind,
-  type ParsedAstraAnchor,
-} from '~/utils/astra-anchor';
+  parseStructuredAnchor,
+  resolveStructuredAnchor,
+  resolveStructuredLabel,
+  type StructuredAnchorKind,
+  type ParsedStructuredAnchor,
+} from '~/utils/structured-anchor';
 import { MarginCardPreview } from './MarginCardPreview';
 import type { CardContent } from './Card';
 import { marginaliaWidth, readCanvasWidth } from '~/utils/canvas-geometry';
-import { resolveAstraCardContent as resolveAstraCardContentFromParsed } from '~/utils/astra-card-content';
+import { resolveStructuredCardContent as resolveStructuredCardContentFromParsed } from '~/utils/structured-card-content';
 import { useTheme } from '~/contexts/ThemeContext';
 
 type FiberGlyph = {
@@ -50,19 +50,19 @@ type FiberGlyph = {
   linkEls: HTMLAnchorElement[];
 };
 
-type AstraGlyph = {
-  kind: 'astra';
+type StructuredGlyph = {
+  kind: 'structured';
   /** Anchor href, used for rendering + de-duplication within a line. */
   href: string;
-  parsed: ParsedAstraAnchor;
-  anchorKind: AstraAnchorKind;
+  parsed: ParsedStructuredAnchor;
+  anchorKind: StructuredAnchorKind;
   label: string;
   /** Broken-anchor reason — `null` when the anchor resolves against the page. */
   broken: string | null;
   linkEls: HTMLAnchorElement[];
 };
 
-type GlyphItem = (FiberGlyph | AstraGlyph) & { top: number };
+type GlyphItem = (FiberGlyph | StructuredGlyph) & { top: number };
 
 /** A cluster of glyphs at one line Y, rendered side-by-side in the margin. */
 interface GlyphGroup {
@@ -76,15 +76,15 @@ interface MarginCitationsProps {
   wrapperRef: React.RefObject<HTMLElement>;
   changedIds?: Set<string>;
   /**
-   * GraphNode for the page being rendered — used to resolve ASTRA anchor refs
+   * GraphNode for the page being rendered — used to resolve structured anchor refs
    * against the analysis' findings / decisions / inputs / outputs. When
-   * omitted (or when the page doesn't represent an astra-project), ASTRA
+   * omitted (or when the page doesn't represent an structured-project), structured
    * anchors on the page render as broken so readers still see the glyph.
    */
   currentNode?: GraphNode | null;
   /**
    * Child sub-analysis keys reachable from `currentNode` — derived from
-   * graph `contains` edges. Feeds `resolveAstraAnchor` for the
+   * graph `contains` edges. Feeds `resolveStructuredAnchor` for the
    * `#analyses.<key>` case so it can tell live sub-analysis refs from
    * broken ones. Empty set is treated as "this page has no sub-analyses",
    * so such refs render broken; omit the prop entirely to fall back to
@@ -93,14 +93,14 @@ interface MarginCitationsProps {
   childSubKeys?: Set<string>;
   /**
    * Display labels for child sub-analyses, keyed by the final path segment
-   * (e.g. `bao_fitting` → `BAO Fitting`). Feeds `resolveAstraLabel` so the
+   * (e.g. `bao_fitting` → `BAO Fitting`). Feeds `resolveStructuredLabel` so the
    * margin glyph for `#analyses.<key>` reads the human label rather than
    * the raw key.
    */
   subAnalysisLabels?: Map<string, string>;
   /**
    * Sibling sub-analysis keys reachable via one parent-scope escape. Feeds
-   * `resolveAstraAnchor` for the `../analyses.<key>` case so peer-pointing
+   * `resolveStructuredAnchor` for the `../analyses.<key>` case so peer-pointing
    * refs from inside a sub-analysis (e.g. `measurements` → `bao_fitting`)
    * resolve as live rather than broken.
    */
@@ -248,7 +248,7 @@ export function MarginCitations({
         ? pretextBox.getBoundingClientRect().top - wrapperRect.top
         : null;
 
-      // Collect both fiber anchors (href starts with "/") and ASTRA anchors
+      // Collect both fiber anchors (href starts with "/") and structured anchors
       // (href starts with "#" or "../") in DOM order. Pretext wraps a single
       // source link into N <a> fragments when it breaks across lines; we
       // fold those fragments per-anchor-key below.
@@ -260,7 +260,7 @@ export function MarginCitations({
       // this, an anchor that was broken on a prior render (e.g. before
       // `currentNode` loaded) would keep the dashed underline forever.
       for (const a of allAnchors) {
-        a.classList.remove('astra-anchor--broken');
+        a.classList.remove('structured-anchor--broken');
       }
 
       // Per-kind continuation tracking: when pretext emits two adjacent
@@ -311,15 +311,15 @@ export function MarginCitations({
           continue;
         }
 
-        const parsed = parseAstraAnchor(href);
+        const parsed = parseStructuredAnchor(href);
         if (!parsed) continue; // plain same-document heading anchor, ignore
 
-        if (lastItem && isContinuation(lastItem, 'astra', href, top, a)) {
+        if (lastItem && isContinuation(lastItem, 'structured', href, top, a)) {
           lastItem.linkEls.push(a);
           // Propagate broken class to continuation fragments pretext emits
           // when a link wraps across a line.
-          if (lastItem.kind === 'astra' && lastItem.broken) {
-            a.classList.add('astra-anchor--broken');
+          if (lastItem.kind === 'structured' && lastItem.broken) {
+            a.classList.add('structured-anchor--broken');
           }
           continue;
         }
@@ -327,17 +327,17 @@ export function MarginCitations({
         // Resolve against the page's GraphNode — broken anchors still get a
         // glyph, just with the broken affordance.
         const broken = currentNode
-          ? resolveAstraAnchor(parsed, currentNode, childSubKeys, parentSubKeys, nodes)
+          ? resolveStructuredAnchor(parsed, currentNode, childSubKeys, parentSubKeys, nodes)
           : 'No page node for anchor resolution';
         const label = currentNode
-          ? resolveAstraLabel(parsed, currentNode, subAnalysisLabels, parentSubLabels)
+          ? resolveStructuredLabel(parsed, currentNode, subAnalysisLabels, parentSubLabels)
           : parsed.id;
         // Mirror broken state on the inline anchor so prose readers see the
         // dashed underline for dead refs, not only the margin glyph. CSS for
-        // `.astra-anchor--broken` already lives in vellum.css.
-        if (broken) a.classList.add('astra-anchor--broken');
+        // `.structured-anchor--broken` already lives in vellum.css.
+        if (broken) a.classList.add('structured-anchor--broken');
         const item: GlyphItem = {
-          kind: 'astra',
+          kind: 'structured',
           href,
           parsed,
           anchorKind: parsed.kind,
@@ -408,7 +408,7 @@ export function MarginCitations({
             const { currentNode: cn, nodes: ns, parentSubSlugs: pss } = propsRef.current;
             const content: CardContent | null = item.kind === 'fiber'
               ? { type: 'fiber', node: item.node }
-              : resolveAstraCardContent(item, cn ?? null, ns, pss);
+              : resolveStructuredCardContent(item, cn ?? null, ns, pss);
             if (!content) return; // broken or unresolvable — let default fire
             e.preventDefault();
             e.stopPropagation();
@@ -531,7 +531,7 @@ export function MarginCitations({
             pinItem: (it, gt) => {
               const content: CardContent | null = it.kind === 'fiber'
                 ? { type: 'fiber', node: it.node }
-                : resolveAstraCardContent(it, currentNode ?? null, nodes, parentSubSlugs);
+                : resolveStructuredCardContent(it, currentNode ?? null, nodes, parentSubSlugs);
               if (!content) return;
               pinCardAtGroup({ content, groupTop: gt, railLeft });
             },
@@ -548,15 +548,15 @@ export function MarginCitations({
           onMouseLeave={scheduleClose}
         />
       )}
-      {hoveredItem && hoveredItem.item.kind === 'astra' && (() => {
+      {hoveredItem && hoveredItem.item.kind === 'structured' && (() => {
         // Unified hover experience: every anchor hover surfaces the same
         // Card primitive as the click-to-pin path, so readers don't get
         // two different renderings for the same content. Broken anchors
         // still fall back to the diagnostic tooltip since there's no
         // CardContent to hand Card.
-        const astra = hoveredItem.item;
-        const content = resolveAstraCardContent(astra, currentNode, nodes, parentSubSlugs);
-        if (content && !astra.broken) {
+        const structured = hoveredItem.item;
+        const content = resolveStructuredCardContent(structured, currentNode, nodes, parentSubSlugs);
+        if (content && !structured.broken) {
           return (
             <MarginCardPreview
               content={content}
@@ -568,8 +568,8 @@ export function MarginCitations({
           );
         }
         return (
-          <AstraAnchorTooltip
-            item={astra}
+          <StructuredAnchorTooltip
+            item={structured}
             top={hoveredItem.group.top + 20}
             left={railLeft}
             onMouseEnter={cancelClose}
@@ -605,19 +605,19 @@ function pinCardAtGroup(opts: { content: CardContent; groupTop: number; railLeft
   );
 }
 
-/** Map an ASTRA anchor glyph to the unified Card primitive. Mirrors the
+/** Map an structured anchor glyph to the unified Card primitive. Mirrors the
  *  same kind→CardContent switch NarrativeView's click handler uses, so
  *  hover and click render the same card — the pinned card on click is
  *  the verbatim hover preview. Returns null for kinds that don't have a
  *  structured host (e.g. analyses that route to a sub-analysis fiber
  *  but whose target GraphNode isn't in the graph yet). */
-function resolveAstraCardContent(
-  item: Extract<GlyphItem, { kind: 'astra' }>,
+function resolveStructuredCardContent(
+  item: Extract<GlyphItem, { kind: 'structured' }>,
   currentNode: GraphNode | null | undefined,
   nodes: GraphNode[],
   parentSubSlugs?: Map<string, string>,
 ): CardContent | null {
-  return resolveAstraCardContentFromParsed(item.parsed, currentNode, nodes, parentSubSlugs);
+  return resolveStructuredCardContentFromParsed(item.parsed, currentNode, nodes, parentSubSlugs);
 }
 
 interface GlyphRenderCtx {
@@ -631,7 +631,7 @@ interface GlyphRenderCtx {
   groupTop: number;
   /**
    * Per-anchor figure lookup. Non-empty only when `theme.layout.marginFigureThumbs
-   * === 'on'` and the current page is an ASTRA graph node. When an ASTRA chip's
+   * === 'on'` and the current page is an structured graph node. When an structured chip's
    * href hits this map, the chip's leading dot slot renders as a <img> thumbnail
    * instead of the kind symbol. Empty map is the no-op case.
    */
@@ -679,19 +679,19 @@ function renderGlyph(
     );
   }
 
-  // ASTRA anchor glyph. Broken anchors short-circuit the figure branch: the
+  // structured anchor glyph. Broken anchors short-circuit the figure branch: the
   // ⚠ marker is the load-bearing signal for the reader, and a thumbnail next
   // to it would make the chip read as "this figure is broken" when the real
   // failure is the anchor itself not resolving. Fall back to the kind glyph +
   // ⚠ instead. (Defensive — `collectFigures` only walks the current fiber's
-  // resolved ASTRA tree, so a broken anchor with a figure collected off its
+  // resolved structured tree, so a broken anchor with a figure collected off its
   // href shouldn't happen today; this keeps that assumption from leaking into
   // visual state if `figureByAnchor` is ever sourced more widely.)
   const figure = item.broken ? null : (ctx.figureByAnchor.get(item.href) ?? null);
   const cls =
-    `margin-glyph margin-glyph--astra margin-glyph--astra-${item.anchorKind}` +
-    (item.broken ? ' margin-glyph--astra-broken' : '') +
-    (figure ? ' margin-glyph--astra-figure' : '') +
+    `margin-glyph margin-glyph--structured margin-glyph--structured-${item.anchorKind}` +
+    (item.broken ? ' margin-glyph--structured-broken' : '') +
+    (figure ? ' margin-glyph--structured-figure' : '') +
     (active ? ' margin-glyph--active' : '');
   const symbol = KIND_SYMBOL[item.anchorKind];
   const kindName = KIND_LEGEND[item.anchorKind];
@@ -736,7 +736,7 @@ function renderGlyph(
       )}
       {chipShape === 'label-caret' ? (
         <>
-          <span className="margin-glyph__astra-label">{item.label}</span>
+          <span className="margin-glyph__structured-label">{item.label}</span>
           <span className="margin-glyph__caret" aria-hidden="true">›</span>
         </>
       ) : (
@@ -749,14 +749,14 @@ function renderGlyph(
   );
 }
 
-function AstraAnchorTooltip({
+function StructuredAnchorTooltip({
   item,
   top,
   left,
   onMouseEnter,
   onMouseLeave,
 }: {
-  item: Extract<GlyphItem, { kind: 'astra' }>;
+  item: Extract<GlyphItem, { kind: 'structured' }>;
   top: number;
   left: number;
   onMouseEnter: () => void;
@@ -764,15 +764,15 @@ function AstraAnchorTooltip({
 }) {
   return (
     <div
-      className="margin-astra-tooltip"
+      className="margin-structured-tooltip"
       style={{ position: 'absolute', top, left }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="margin-astra-tooltip__kind">{KIND_LEGEND[item.anchorKind]}</div>
-      <div className="margin-astra-tooltip__label">{item.label}</div>
+      <div className="margin-structured-tooltip__kind">{KIND_LEGEND[item.anchorKind]}</div>
+      <div className="margin-structured-tooltip__label">{item.label}</div>
       {item.broken && (
-        <div className="margin-astra-tooltip__broken">⚠ {item.broken}</div>
+        <div className="margin-structured-tooltip__broken">⚠ {item.broken}</div>
       )}
     </div>
   );
@@ -782,11 +782,11 @@ function AstraAnchorTooltip({
  * Pretext emits one `<a>` per wrapped line fragment of a single source link.
  * Fold same-href adjacent fragments into one glyph when their y-coordinates
  * are within 1.5 line-heights — same heuristic both the old MarginCitations
- * used for fiber links and what we want for ASTRA anchors.
+ * used for fiber links and what we want for structured anchors.
  */
 function isContinuation(
   prev: GlyphItem,
-  nextKind: 'fiber' | 'astra',
+  nextKind: 'fiber' | 'structured',
   href: string,
   top: number,
   anchor: HTMLAnchorElement,

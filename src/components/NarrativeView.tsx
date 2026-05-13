@@ -18,7 +18,7 @@ import { ThemePicker } from './ThemePicker';
 import { FindingsProvider } from '~/contexts/FindingsContext';
 import { MarginFindingsStepper } from './MarginFindingsStepper';
 import { AuthoringLintStrip } from './AuthoringLintStrip';
-import { AstraAppendix } from './AstraAppendix';
+import { StructuredAppendix } from './StructuredAppendix';
 import { FigureGallery } from './FigureGallery';
 import { MarginCitations } from './MarginCitations';
 import { NarrativeCounter } from './NarrativeCounter';
@@ -42,7 +42,7 @@ import { useAdapter } from '~/contexts/AdapterContext';
 import { useAnnotationActions } from '~/contexts/AnnotationActionsContext';
 import { useTheme } from '~/contexts/ThemeContext';
 import { transformTweetEmbeds } from '~/utils/tweet-transform';
-import { parseAstraAnchor } from '~/utils/astra-anchor';
+import { parseStructuredAnchor } from '~/utils/structured-anchor';
 
 /**
  * Initial content width used before the real `.vellum-prose` element has
@@ -76,17 +76,17 @@ function nodeText(node: any): string {
 }
 
 /**
- * Walk the full graph to locate a node that hosts an ASTRA ref. Used as a
+ * Walk the full graph to locate a node that hosts an structured ref. Used as a
  * last-ditch resolver before we give up on a click: if the user clicked
  * `#findings.foo` but `foo` lives on another analysis, navigate there with
- * the hash so that analysis's AstraAppendix auto-expands the row on mount.
+ * the hash so that analysis's StructuredAppendix auto-expands the row on mount.
  *
  * Without this fallback every "off-page" ref silently no-ops, which was
  * the named gap in the themes-constitution Pass 9a checklist. Decisions
  * and findings are keyed by `.key`; inputs and outputs by `.id` — mirroring
  * the local-lookup shape in handleProseClick.
  */
-function findHostForAstraRef(
+function findHostForStructuredRef(
   graphNodes: GraphNode[],
   kind: 'decisions' | 'findings' | 'outputs' | 'inputs',
   id: string,
@@ -195,7 +195,7 @@ function demoteHeadingsIfBodyHasH1(mdast: any): any {
 }
 
 /**
- * Inject a sentinel mdast node — `{ type: 'astraFindingsStepper' }` —
+ * Inject a sentinel mdast node — `{ type: 'structuredFindingsStepper' }` —
  * at the end of the findings narrative section, so PretextProse renders
  * the stepper inline right after the findings prose. Safe to call with
  * no findings heading or no findings; returns the tree unchanged.
@@ -220,7 +220,7 @@ function injectFindingsStepper(mdast: any, findingsCount: number): any {
     if (c?.type === 'heading' && (c.depth ?? 99) <= 2) break;
     end++;
   }
-  const sentinel = { type: 'astraFindingsStepper' };
+  const sentinel = { type: 'structuredFindingsStepper' };
   children.splice(end, 0, sentinel);
   return { ...mdast, children };
 }
@@ -381,7 +381,7 @@ export function NarrativeView({
   /**
    * Child sub-analyses reachable from the current node via `contains` edges,
    * indexed by the final path segment (the key `#analyses.<key>` refers to).
-   * The astra-project graph builder emits one `contains` link per nested
+   * The structured-project graph builder emits one `contains` link per nested
    * `analyses.<key>`. `childSubKeys` (the set of keys) and
    * `subAnalysisLabels` (key → display label) feed margin-glyph resolution
    * and label rendering respectively. Undefined when graphLinks is absent,
@@ -529,7 +529,7 @@ export function NarrativeView({
       const target = e.target as HTMLElement | null;
       if (!target) return;
       if (target.closest('a')) return;
-      if (target.closest('.astra-block, .text-annotation, .vellum-backlink, .fiber-header__meta')) return;
+      if (target.closest('.structured-block, .text-annotation, .vellum-backlink, .fiber-header__meta')) return;
       e.preventDefault();
       window.getSelection()?.removeAllRanges();
 
@@ -564,7 +564,7 @@ export function NarrativeView({
       return;
     }
 
-    // MarginCitations owns the click→pin path for fiber + ASTRA anchors: its
+    // MarginCitations owns the click→pin path for fiber + structured anchors: its
     // native click listener (attached during the measure pass) dispatches the
     // same `vellum:open-card` event the hover-card's pin button uses, so both
     // hover and click land the same card in the same spot. If that listener
@@ -595,19 +595,19 @@ export function NarrativeView({
       );
     };
 
-    // ASTRA anchors — `#findings.id`, `#decisions.id`, `#outputs.id`,
+    // structured anchors — `#findings.id`, `#decisions.id`, `#outputs.id`,
     // `#inputs.id`, `#analyses.sub`, `#decisions.id.options.optid`. The
     // margin glyph column already signals broken anchors visually; here
     // we simply no-op on them instead of navigating to a meaningless
     // hash that would scroll the page out of the reader.
     if (href.startsWith('#') || href.startsWith('../')) {
-      const parsed = parseAstraAnchor(href);
+      const parsed = parseStructuredAnchor(href);
       if (!parsed) return; // plain heading anchor — let the default fire
       e.preventDefault();
       if (!currentNode) return;
       // Under lightcone-linear the appendix collapses into an exclusive-open
       // tray; prose ref clicks drive that tray rather than opening a float
-      // card. Dispatch first; AstraAppendix expands the matching row and
+      // card. Dispatch first; StructuredAppendix expands the matching row and
       // scrolls it into view. Inputs have no tray entry — fall through to
       // the float-card path so the reader still has a surface.
       if (themeId === 'lightcone-linear' && !parsed.parentEscapes) {
@@ -637,7 +637,7 @@ export function NarrativeView({
       }
       // Parent-escape refs (`../findings.id`, `../decisions.id`, `../outputs.id`,
       // `../inputs.id`) resolve against the parent node and navigate there,
-      // carrying a hash so the parent's AstraAppendix can auto-expand the
+      // carrying a hash so the parent's StructuredAppendix can auto-expand the
       // targeted row after load. If the ref doesn't exist on the parent,
       // fall through to the graph-walk fallback below — the author may have
       // written `../` loosely when the true host is a sibling or cousin.
@@ -659,10 +659,10 @@ export function NarrativeView({
         }
         // fall through to graph-walk fallback
       }
-      // Graph-walk fallback for any non-analyses ASTRA ref that doesn't
+      // Graph-walk fallback for any non-analyses structured ref that doesn't
       // resolve against `currentNode` (or `parentNode` for `../`): search
       // the full graph for a node hosting `kind.id` and navigate there
-      // with the hash. `AstraAppendix` auto-expands the row on mount from
+      // with the hash. `StructuredAppendix` auto-expands the row on mount from
       // the hash, so the landing state mirrors a local tray click. This
       // closes the "off-page refs silently no-op" gap named in the Pass
       // 9a checklist without requiring a broken-ref modal for the common
@@ -670,7 +670,7 @@ export function NarrativeView({
       const offPageNavigate = (
         kind: 'decisions' | 'findings' | 'outputs' | 'inputs',
       ): boolean => {
-        const host = findHostForAstraRef(graphNodes, kind, parsed.id);
+        const host = findHostForStructuredRef(graphNodes, kind, parsed.id);
         if (!host || host.slug === currentNode.slug) return false;
         navigate(`/${host.slug}#${kind}.${parsed.id}`);
         return true;
@@ -829,7 +829,7 @@ export function NarrativeView({
         )}
 
         {editorBuffer === null && (
-          <AstraAppendix
+          <StructuredAppendix
             node={currentNode}
             width={contentWidth}
             onNavigate={(s) => navigate(`/${s}`)}

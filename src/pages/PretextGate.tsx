@@ -46,7 +46,7 @@ import { useAdapter } from '~/contexts/AdapterContext';
 import { FiberCardWithMedia, type MediaPane } from '~/components/FiberCardWithMedia';
 import { PretextFiberCard } from '~/components/PretextFiberCard';
 import type {
-  AstraGraph,
+  FiberGraph,
   FiberContent,
   GraphNode,
 } from '~/utils/content-types';
@@ -74,7 +74,7 @@ const MEDIA_WIDTH = 190;
 const MEDIA_HEIGHT = 120;
 
 /**
- * Synthesize a minimal GraphNode when the requested slug isn't in the ASTRA
+ * Synthesize a minimal GraphNode when the requested slug isn't in the structured
  * graph. Mirrors the fallback in the original reference routes so both gates
  * can render orphan fibers without a loader crash.
  */
@@ -102,7 +102,7 @@ function synthesizeNode(slug: string, content: FiberContent | null): GraphNode {
   };
 }
 
-function nodeFromGraph(graph: AstraGraph, slug: string): GraphNode | null {
+function nodeFromGraph(graph: FiberGraph, slug: string): GraphNode | null {
   return graph.nodes.find((n) => n.slug === slug) ?? null;
 }
 
@@ -191,7 +191,7 @@ export function PretextGate() {
   const adapter = useAdapter();
 
   const [content, setContent] = useState<FiberContent | null>(null);
-  const [graph, setGraph] = useState<AstraGraph>({ nodes: [], links: [] });
+  const [graph, setGraph] = useState<FiberGraph>({ nodes: [], links: [] });
 
   useEffect(() => {
     let cancelled = false;
@@ -205,7 +205,7 @@ export function PretextGate() {
 
   useEffect(() => {
     let cancelled = false;
-    adapter.getAstraGraph().then((next) => {
+    adapter.getFiberGraph().then((next) => {
       if (!cancelled) setGraph(next);
     });
     return () => {

@@ -4,7 +4,7 @@
  *
  * Mounted by NarrativeView under `cail-personal` (the only surviving
  * theme with a persistent margin column after `lightcone-margin` retired
- * in vellum-reader/vellum-native-astra-renderer). The constitution wants
+ * in vellum-reader/vellum-native-structured-renderer). The constitution wants
  * the stepper in the margin, next to the prose, so the reader doesn't
  * lose narrative flow by scrolling past an inline block. Same
  * positioning vocabulary as MarginCitations:
@@ -141,7 +141,7 @@ export function MarginFindingsStepper({
   if (top == null) return null;
   return (
     <div
-      className="astra-findings-stepper-margin-host"
+      className="structured-findings-stepper-margin-host"
       style={{ position: 'absolute', top, left, width }}
     >
       <FindingsStepper variant="margin" />

@@ -1,7 +1,7 @@
 /**
  * Card — the unified polymorphic card primitive for Vellum.
  *
- * One public entry point that renders a Card for any of the ASTRA nouns.
+ * One public entry point that renders a Card for any of the structured nouns.
  * Today: fiber, decision, finding, plot, input, output.
  * The goal is a single form factor — title lockup at the top, pretext-
  * composed typography, the Weathered Substrate palette — shared across
@@ -501,13 +501,13 @@ function DecisionCard({
 }
 
 // ── Finding ──────────────────────────────────────────────────────────────
-// An ASTRA finding is a claim with optional evidence. The claim is the
+// An structured finding is a claim with optional evidence. The claim is the
 // body; the title carries a presence dot, the evidence list renders below
 // as the generalized §4 evidence-artifact surface.
 
 /**
  * Short kind glyph + label for an evidence row header. Mirrors the
- * MarginCitations / AstraLegend color family so a quote-on-the-page and a
+ * MarginCitations / StructuredLegend color family so a quote-on-the-page and a
  * quote-inside-a-card read as the same kind.
  */
 const EVIDENCE_KIND_GLYPH: Record<GraphEvidence['kind'], string> = {
@@ -595,7 +595,7 @@ function EvidenceRow({
           aria-label the heading announces "QUOTE" / "FIGURE" / "CODE" /
           "FINDING" / "EVIDENCE" instead of source case. The aria-label
           uses the original `label` value verbatim so AT users hear
-          "Quote", "Figure", etc. Same pattern as AstraAppendix and
+          "Quote", "Figure", etc. Same pattern as StructuredAppendix and
           WorkspaceAnatomy headings.
         */}
         <h4 className="card__evidence-label" aria-label={label}>{label}</h4>

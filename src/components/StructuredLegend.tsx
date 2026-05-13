@@ -1,5 +1,5 @@
 /**
- * AstraLegend — the subtle kind-chip strip at the top of astra-project
+ * StructuredLegend — the subtle kind-chip strip at the top of structured-project
  * narrative pages.
  *
  * Only the kinds the page actually cites appear — a page whose abstract
@@ -9,18 +9,18 @@
  *
  * Kinds discovered here are the same set the margin glyphs use. The
  * grammar that turns `#findings.id` etc. into a kind lives in
- * `utils/astra-anchor.ts`.
+ * `utils/structured-anchor.ts`.
  */
 
-import { KIND_SYMBOL, KIND_LEGEND, type AstraAnchorKind } from '~/utils/astra-anchor';
+import { KIND_SYMBOL, KIND_LEGEND, type StructuredAnchorKind } from '~/utils/structured-anchor';
 
-interface AstraLegendProps {
+interface StructuredLegendProps {
   /** Kinds present on the page, in canonical order. Empty → the legend doesn't render. */
-  kinds: AstraAnchorKind[];
+  kinds: StructuredAnchorKind[];
 }
 
 /** Canonical display order for the legend. */
-const DISPLAY_ORDER: AstraAnchorKind[] = [
+const DISPLAY_ORDER: StructuredAnchorKind[] = [
   'findings',
   'decisions',
   'outputs',
@@ -28,21 +28,21 @@ const DISPLAY_ORDER: AstraAnchorKind[] = [
   'analyses',
 ];
 
-export function AstraLegend({ kinds }: AstraLegendProps) {
+export function StructuredLegend({ kinds }: StructuredLegendProps) {
   if (!kinds || kinds.length === 0) return null;
   const present = new Set(kinds);
   const ordered = DISPLAY_ORDER.filter((k) => present.has(k));
 
   return (
-    <div className="astra-legend" aria-label="ASTRA anchor kinds on this page">
-      <span className="astra-legend__hint">Refs</span>
+    <div className="structured-legend" aria-label="structured anchor kinds on this page">
+      <span className="structured-legend__hint">Refs</span>
       {ordered.map((kind) => (
         <span
           key={kind}
-          className={`astra-legend__chip astra-legend__chip--${kind}`}
+          className={`structured-legend__chip structured-legend__chip--${kind}`}
         >
-          <span className="astra-legend__dot" aria-hidden="true">{KIND_SYMBOL[kind]}</span>
-          <span className="astra-legend__label">{KIND_LEGEND[kind]}</span>
+          <span className="structured-legend__dot" aria-hidden="true">{KIND_SYMBOL[kind]}</span>
+          <span className="structured-legend__label">{KIND_LEGEND[kind]}</span>
         </span>
       ))}
     </div>

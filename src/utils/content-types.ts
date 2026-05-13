@@ -5,35 +5,35 @@
  * browser components (which call `api.ts`) or tests and tooling. This file must not
  * reference `process`, `node-fetch`, or any node built-ins.
  *
- * Two flavors of ASTRA types coexist in vellum:
+ * Two flavors of structured types coexist in vellum:
  *
  *   - `Graph*` (defined here): vellum's projection of mystra's graph route
  *     output. Denormalized for card-rendering — paths resolved, evidence
  *     compacted, decisions flattened. This is what every component in
  *     vellum imports day-to-day.
  *
- *   - `ASTRA*` (structural aliases below): the canonical spec-shaped
- *     records, mirroring astra-spec / extern/ASTRA Pydantic models. Reach
+ *   - `structured*` (structural aliases below): the canonical spec-shaped
+ *     records, mirroring structured-spec / extern/structured Pydantic models. Reach
  *     for these when working with raw frontmatter or anything upstream of
  *     mystra's graph projection.
  */
 
-// Vellum intentionally keeps these structural: the canonical ASTRA type
+// Vellum intentionally keeps these structural: the canonical structured type
 // package boundary has moved a few times, while the reader mostly needs to
 // carry raw frontmatter-shaped records through without owning validation.
-export type ASTRAAnalysis = Record<string, any>;
-export type ASTRADecision = Record<string, any>;
-export type ASTRAOption = Record<string, any>;
-export type ASTRAEvidence = Record<string, any>;
-export type ASTRAInput = Record<string, any>;
-export type ASTRAOutput = Record<string, any>;
-export type ASTRAInsight = Record<string, any>;
-export type ASTRARecipe = Record<string, any>;
-export type ASTRANarrative = Record<string, any>;
-export type ASTRANarrativeSection = string | Record<string, any>;
-export type ASTRAUniverse = Record<string, any>;
-export type ASTRAUniverseNode = Record<string, any>;
-export type ASTRASuccessCriterion = Record<string, any>;
+export type structuredAnalysis = Record<string, any>;
+export type structuredDecision = Record<string, any>;
+export type structuredOption = Record<string, any>;
+export type structuredEvidence = Record<string, any>;
+export type structuredInput = Record<string, any>;
+export type structuredOutput = Record<string, any>;
+export type structuredInsight = Record<string, any>;
+export type structuredRecipe = Record<string, any>;
+export type structuredNarrative = Record<string, any>;
+export type structuredNarrativeSection = string | Record<string, any>;
+export type structuredUniverse = Record<string, any>;
+export type structuredUniverseNode = Record<string, any>;
+export type structuredSuccessCriterion = Record<string, any>;
 export type TextQuoteSelector = Record<string, any>;
 export type FigureSelector = Record<string, any>;
 export type TableSelector = Record<string, any>;
@@ -106,7 +106,7 @@ export interface GraphFinding {
    */
   kind?: 'finding' | 'prior_insight';
   /** Short human-readable name for compact rendering (margin chip, collapsed
-   *  card head). Falls back to `key` when absent. astra-spec feature/narrative. */
+   *  card head). Falls back to `key` when absent. structured-spec feature/narrative. */
   label?: string;
   claim: string;
   hasEvidence: boolean;
@@ -178,7 +178,7 @@ export interface GraphNode {
   tempered?: boolean;
   depth?: number;
   narrative?: boolean;
-  hasASTRA?: boolean;
+  hasStructuredData?: boolean;
 }
 
 export interface GraphLink {
@@ -187,7 +187,7 @@ export interface GraphLink {
   kind: 'contains' | 'data-flow' | 'cites';
 }
 
-export interface AstraGraph {
+export interface FiberGraph {
   nodes: GraphNode[];
   links: GraphLink[];
   /** Optional collection root. Hosts can provide this so empty/index routes

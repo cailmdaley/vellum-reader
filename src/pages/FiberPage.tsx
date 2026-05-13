@@ -21,7 +21,7 @@ import { useDelta } from '~/utils/use-delta';
 import { FILE_TARGET_ROUTE, useFileTarget, type FileTarget } from '~/contexts/FileTargetContext';
 import { useWorkspaceSlot } from '~/contexts/WorkspaceSlotContext';
 import { FileViewerPage, type SaveState } from './FileViewerPage';
-import type { Annotation, AstraGraph, FiberContent, HistoryEvent } from '~/utils/content-types';
+import type { Annotation, FiberGraph, FiberContent, HistoryEvent } from '~/utils/content-types';
 
 const MODE_KEYS: Record<string, Mode> = {
   '1': 'narrative',
@@ -156,7 +156,7 @@ export function FiberPage() {
   }, []);
 
   const [content, setContent] = useState<FiberContent | null>(null);
-  const [graph, setGraph] = useState<AstraGraph>({ nodes: [], links: [] });
+  const [graph, setGraph] = useState<FiberGraph>({ nodes: [], links: [] });
   const [graphLoading, setGraphLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(true);
   const [contentVersion, setContentVersion] = useState(0);
@@ -224,7 +224,7 @@ export function FiberPage() {
     let cancelled = false;
     setGraphLoading(true);
 
-    adapter.getAstraGraph().then((nextGraph) => {
+    adapter.getFiberGraph().then((nextGraph) => {
       if (cancelled) return;
       setGraph(nextGraph);
       setGraphLoading(false);
@@ -487,7 +487,7 @@ export function FiberPage() {
         </div>
       )}
 
-      {/* Workspace consumes the AstraGraph. While it's still loading,
+      {/* Workspace consumes the FiberGraph. While it's still loading,
           WorkspaceView's `nodeBySlug.get(currentSlug)` lookup misses and
           the view renders "Fiber X not found" — a transient flash that
           looks like a real error. Show a loading indicator until the graph

@@ -1,6 +1,6 @@
 /**
  * collect-figures — walk a GraphNode's outputs + finding evidence to produce
- * a flat, ordered list of figures keyed by the ASTRA anchor that points at
+ * a flat, ordered list of figures keyed by the structured anchor that points at
  * them.
  *
  * Two host shapes produce figures today (see `content-types.ts`):
@@ -8,7 +8,7 @@
  *   1. `GraphOutput` with `kind === 'figure'`. The `id` IS the static
  *      artifact filename; the thumbnail URL is `/static/<slug>/<id>`.
  *      Anchor: `#outputs.<id>`. Host label: `label ?? id`. Caption:
- *      `description` (ASTRA outputs carry their caption as `description`).
+ *      `description` (structured outputs carry their caption as `description`).
  *   2. `GraphEvidence` with `kind === 'figure'` and an `artifact` pointer,
  *      nested inside `GraphFinding.evidence`. The thumbnail URL is
  *      `/static/<slug>/<artifact>`. Anchor: `#findings.<finding.key>`.
@@ -40,7 +40,7 @@ export type CollectedFigureHost =
   | { kind: 'finding'; key: string; evidenceId: string; finding: GraphFinding; evidence: GraphEvidence };
 
 export interface CollectedFigure {
-  /** ASTRA anchor that points at this figure's host. Used as the join key
+  /** structured anchor that points at this figure's host. Used as the join key
    *  against inline-ref marginalia — `#outputs.<id>` or `#findings.<key>`. */
   anchor: string;
   /** Thumbnail URL (matches the paths Card.tsx already uses at ll. 630, 837). */
@@ -59,8 +59,8 @@ export interface CollectedFigure {
 /**
  * Collect every figure hanging off a graph node's outputs + finding
  * evidence. Returns an empty list when the node is missing, has no
- * figures, or isn't an ASTRA node at all. Stable: call order ==
- * ASTRA authoring order within each source bucket.
+ * figures, or isn't an structured node at all. Stable: call order ==
+ * structured authoring order within each source bucket.
  */
 export function collectFigures(node: GraphNode | null | undefined): CollectedFigure[] {
   if (!node) return [];

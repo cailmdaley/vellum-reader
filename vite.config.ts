@@ -47,9 +47,10 @@ export default defineConfig({
         target: 'http://127.0.0.1:3100',
         changeOrigin: true,
       },
-      '/astra-graph.json': {
+      '/fiber-graph.json': {
         target: 'http://127.0.0.1:3100',
         changeOrigin: true,
+        rewrite: () => '/astra-graph.json',
       },
       '/doi-metadata': {
         target: 'http://127.0.0.1:3100',

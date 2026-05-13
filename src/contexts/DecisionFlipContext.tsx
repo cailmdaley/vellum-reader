@@ -1,5 +1,5 @@
 /**
- * DecisionFlipContext — visual-only overrides for ASTRA decisions.
+ * DecisionFlipContext — visual-only overrides for structured decisions.
  *
  * A Decision Card reads its "selected option" from the fiber by default.
  * When the reader clicks a different option, that click flips the card

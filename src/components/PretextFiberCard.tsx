@@ -2,7 +2,7 @@
  * PretextFiberCard — Gate 1a fiber card for Vellum Workspace.
  *
  * Renders a single fiber as a composed typographic card whose title, outcome,
- * and one ASTRA highlight restage through @chenglou/pretext as the `width`
+ * and one structured highlight restage through @chenglou/pretext as the `width`
  * prop changes. Goal per [[vellum-reader/workspace]] Gate 1a: editorial
  * quality at every width from ~180px to ~900px, text selectable via native
  * DOM, no CSS flow involvement.

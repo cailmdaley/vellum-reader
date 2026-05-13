@@ -1,12 +1,12 @@
 /**
  * NarrativeCounter — marginalia table-of-contents next to the FiberHeader.
  *
- * One row per ASTRA kind present on the current fiber (findings,
+ * One row per structured kind present on the current fiber (findings,
  * decisions, outputs, inputs, analyses) plus outgoing refs. Each row is
  * a count; clicking jumps to that kind's section in the appendix.
  * Lives in the right-margin canvas column, absolutely positioned inside
  * the prose wrapper so it scrolls with the page — unlike the fixed
- * thumb-index above it. Replaces both the older inline `AstraLegend`
+ * thumb-index above it. Replaces both the older inline `StructuredLegend`
  * kind-strip and the short-lived `PageMeta` nav sub-panel.
  *
  * Hidden on narrow viewports (≤960px) since the thumb-index itself
@@ -20,7 +20,7 @@ type Kind = 'findings' | 'decisions' | 'outputs' | 'inputs' | 'analyses';
 
 const KIND_ORDER: Kind[] = ['findings', 'decisions', 'outputs', 'inputs', 'analyses'];
 
-// Unified with MarginCitations / AstraLegend (see utils/astra-anchor
+// Unified with MarginCitations / StructuredLegend (see utils/structured-anchor
 // KIND_SYMBOL). `⧗` on analyses is the Lightcone glyph — two cones
 // meeting at a point, matching "sub-analysis = contained scope."
 const KIND_GLYPH: Record<Kind, string> = {
@@ -99,7 +99,7 @@ export function NarrativeCounter({ node, refCount, analysisCount }: NarrativeCou
   if (visibleKinds.length === 0 && refCount === 0) return null;
 
   const scrollTo = (id: string) => {
-    const el = document.getElementById(id) ?? document.getElementById('astra-appendix');
+    const el = document.getElementById(id) ?? document.getElementById('structured-appendix');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -107,7 +107,7 @@ export function NarrativeCounter({ node, refCount, analysisCount }: NarrativeCou
   // own fibers, reached from the thumb-index children row). Soft-fall
   // to the appendix root so the click still goes somewhere meaningful.
   const targetFor = (kind: Kind) =>
-    kind === 'analyses' ? 'astra-appendix' : `astra-appendix-${kind}`;
+    kind === 'analyses' ? 'structured-appendix' : `structured-appendix-${kind}`;
 
   return (
     <aside ref={ref} className="narrative-counter" aria-label="On this page">

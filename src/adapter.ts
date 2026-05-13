@@ -30,7 +30,7 @@
 
 import type {
   Annotation,
-  AstraGraph,
+  FiberGraph,
   FiberContent,
   FileContent,
   HistoryResponse,
@@ -87,7 +87,7 @@ export interface SaveFileOptions {
 
 export interface ReadOnlyAdapter {
   getFiberContent(slug: string): Promise<FiberContent | null>;
-  getAstraGraph(): Promise<AstraGraph>;
+  getFiberGraph(): Promise<FiberGraph>;
   getRawFiber(slug: string): Promise<RawFiber | null>;
   getAnnotations(slug: string, opts?: GetAnnotationsOptions): Promise<Annotation[]>;
   searchFibers(query: string): Promise<SearchHit[]>;

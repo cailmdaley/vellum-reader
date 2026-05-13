@@ -99,7 +99,7 @@
   --portolan-cinnabar: var(--cinnabar);
   --portolan-ochre: var(--ochre);
   --portolan-indigo: var(--cobalt);
-  /* ASTRA anchor kinds — one rubricated hand for every annotation, Gwern.
+  /* structured anchor kinds — one rubricated hand for every annotation, Gwern.
      Rubrication is the typographer's habitual second color and the most
      consequential mark on a page deserves a single ink, not a legend of
      competing primaries. Kind differentiation survives through glyph
@@ -107,11 +107,11 @@
      color can carry a coarser signal: red means "this is annotation."
      Status (gold=open, teal=resolved) remains an orthogonal axis on
      card rails; UI chrome (hover, focus, links) keeps its gold. */
-  --astra-finding: var(--rubric);
-  --astra-decision: var(--rubric);
-  --astra-output: var(--rubric);
-  --astra-input: var(--rubric);
-  --astra-analysis: var(--rubric);
+  --structured-finding: var(--rubric);
+  --structured-decision: var(--rubric);
+  --structured-output: var(--rubric);
+  --structured-input: var(--rubric);
+  --structured-analysis: var(--rubric);
   /* Tally ink — counts and tallies live in a third, cooler register:
      indigo. The narrative counter and delta view count use it so the eye
      reads them as "how many of a thing" rather than "click this
@@ -740,7 +740,7 @@ body {
   gap: 4px;
 }
 
-/* Parent + ASTRA summary share one row — keeps the back-link from
+/* Parent + structured summary share one row — keeps the back-link from
    sitting isolated and uses the empty trailing space for a clickable
    structural summary of the current fiber. */
 .thumb-index__parent-row {
@@ -784,8 +784,8 @@ body {
   opacity: 0.5;
 }
 
-/* ASTRA summary chip — counts + tempered mark, jumps to appendix. */
-.thumb-index__astra-summary {
+/* structured summary chip — counts + tempered mark, jumps to appendix. */
+.thumb-index__structured-summary {
   -webkit-appearance: none;
   appearance: none;
   background: none;
@@ -801,25 +801,25 @@ body {
   flex-shrink: 0;
   transition: color 0.12s;
 }
-.thumb-index__astra-summary:hover {
+.thumb-index__structured-summary:hover {
   color: var(--gold, #C49333);
 }
-.thumb-index__astra-pair {
+.thumb-index__structured-pair {
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
 }
-.thumb-index__astra-count {
+.thumb-index__structured-count {
   font-variant-numeric: tabular-nums;
 }
-.thumb-index__astra-glyph {
+.thumb-index__structured-glyph {
   opacity: 0.75;
 }
-.thumb-index__astra-label {
+.thumb-index__structured-label {
   opacity: 0.75;
   letter-spacing: 0.01em;
 }
-.thumb-index__astra-pair--tempered .thumb-index__astra-glyph {
+.thumb-index__structured-pair--tempered .thumb-index__structured-glyph {
   color: var(--teal, #3F8278);
   opacity: 1;
 }
@@ -1003,7 +1003,7 @@ body {
 /* ── Narrative counter ────────────────────────────────────────────
    Marginalia strip that sits next to the FiberHeader in the right
    column (below the thumb-index) and scrolls with the page. Lists
-   one line per ASTRA kind present (findings, decisions, outputs,
+   one line per structured kind present (findings, decisions, outputs,
    inputs, analyses) plus outgoing refs, each line clickable to
    jump to the section. Minimal chrome — no dividers, just the
    rows. The thumb-index pushes the FiberHeader down via --thumb-
@@ -1070,11 +1070,11 @@ body {
   min-width: 0;
   flex: 1;
 }
-.narrative-counter__row--findings   .narrative-counter__glyph { color: var(--astra-finding); }
-.narrative-counter__row--decisions  .narrative-counter__glyph { color: var(--astra-decision); }
-.narrative-counter__row--outputs    .narrative-counter__glyph { color: var(--astra-output); }
-.narrative-counter__row--inputs     .narrative-counter__glyph { color: var(--astra-input); }
-.narrative-counter__row--analyses   .narrative-counter__glyph { color: var(--astra-analysis); }
+.narrative-counter__row--findings   .narrative-counter__glyph { color: var(--structured-finding); }
+.narrative-counter__row--decisions  .narrative-counter__glyph { color: var(--structured-decision); }
+.narrative-counter__row--outputs    .narrative-counter__glyph { color: var(--structured-output); }
+.narrative-counter__row--inputs     .narrative-counter__glyph { color: var(--structured-input); }
+.narrative-counter__row--analyses   .narrative-counter__glyph { color: var(--structured-analysis); }
 .narrative-counter__row--refs       .narrative-counter__glyph { color: var(--gold); opacity: 0.85; }
 /* The --refs row is a static <div>, not a <button> — refs surface as
    inline links throughout the body, so there's no kind-section to scroll
@@ -1376,7 +1376,7 @@ body {
    the header box itself to resize. NarrativeCounter publishes its
    height via a ResizeObserver; the fallback (calc(100% - 1px)) keeps
    the rule pinned to the bottom when the var isn't set — fibers
-   without ASTRA structure see the legacy cartouche. */
+   without structured structure see the legacy cartouche. */
 .vellum-fiber-header::after {
   content: '';
   position: absolute;
@@ -1598,7 +1598,7 @@ body {
   letter-spacing: 0.04em;
 }
 
-.vellum-astra-badge {
+.vellum-structured-badge {
   font-size: 0.65rem;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   color: var(--teal);
@@ -1611,7 +1611,7 @@ body {
   transition: opacity 0.15s;
   margin-left: auto;
 }
-.vellum-astra-badge:hover { opacity: 1; }
+.vellum-structured-badge:hover { opacity: 1; }
 
 .vellum-tempered-badge {
   font-size: 0.65rem;
@@ -1912,7 +1912,7 @@ body {
   max-width: calc(var(--canvas-overlay-width) - 28px);
 }
 
-/* ── ASTRA anchor kind glyphs ── */
+/* ── structured anchor kind glyphs ── */
 /* Symbol + muted kind-name, per glyph-systems-diverge: the word teaches the
    glyph so readers don't have to learn a separate visual vocabulary for the
    margin vs. the card typography. Symbol inherits its kind color below. */
@@ -1922,12 +1922,12 @@ body {
    that coherence; keep both in the kind palette. Red is reserved for the
    uses where it does original work elsewhere (decision kind, rubric
    cartouche, inline rubrication). */
-.margin-glyph--astra .margin-glyph__dot {
+.margin-glyph--structured .margin-glyph__dot {
   display: inline-block;
   font-size: 0.85rem;
   line-height: 1;
 }
-/* Pass 9b step 7 prep: when an ASTRA chip resolves to a figure-bearing
+/* Pass 9b step 7 prep: when an structured chip resolves to a figure-bearing
    host (output/finding with a figure-kind evidence entry), the leading
    dot slot becomes a small thumbnail. Restrained default — 20×15 so it
    reads "chip with preview" rather than "inline image", preserving the
@@ -1968,7 +1968,7 @@ body {
 .margin-glyph--active .margin-glyph__dot--figure {
   transform: none;
 }
-.margin-glyph--astra .margin-glyph__kind-name {
+.margin-glyph--structured .margin-glyph__kind-name {
   font-size: 0.7rem;
   font-family: 'Spectral', 'EB Garamond', Georgia, serif;
   font-weight: 400;
@@ -1976,16 +1976,16 @@ body {
   margin-left: 4px;
 }
 
-.margin-glyph--astra-findings  .margin-glyph__dot,
-.margin-glyph--astra-findings  .margin-glyph__kind-name { color: var(--astra-finding); }
-.margin-glyph--astra-decisions .margin-glyph__dot,
-.margin-glyph--astra-decisions .margin-glyph__kind-name { color: var(--astra-decision); }
-.margin-glyph--astra-outputs   .margin-glyph__dot,
-.margin-glyph--astra-outputs   .margin-glyph__kind-name { color: var(--astra-output); }
-.margin-glyph--astra-inputs    .margin-glyph__dot,
-.margin-glyph--astra-inputs    .margin-glyph__kind-name { color: var(--astra-input); }
-.margin-glyph--astra-analyses  .margin-glyph__dot,
-.margin-glyph--astra-analyses  .margin-glyph__kind-name { color: var(--astra-analysis); }
+.margin-glyph--structured-findings  .margin-glyph__dot,
+.margin-glyph--structured-findings  .margin-glyph__kind-name { color: var(--structured-finding); }
+.margin-glyph--structured-decisions .margin-glyph__dot,
+.margin-glyph--structured-decisions .margin-glyph__kind-name { color: var(--structured-decision); }
+.margin-glyph--structured-outputs   .margin-glyph__dot,
+.margin-glyph--structured-outputs   .margin-glyph__kind-name { color: var(--structured-output); }
+.margin-glyph--structured-inputs    .margin-glyph__dot,
+.margin-glyph--structured-inputs    .margin-glyph__kind-name { color: var(--structured-input); }
+.margin-glyph--structured-analyses  .margin-glyph__dot,
+.margin-glyph--structured-analyses  .margin-glyph__kind-name { color: var(--structured-analysis); }
 
 /* Same-kind labels appear only on the first occurrence on the page —
    every later pin of a kind renders glyph-only regardless of whether
@@ -1994,22 +1994,22 @@ body {
    reader sees "Finding" once and a column of quiet dots for the rest.
    The selector targets only matching-kind pins inside the later row so
    mixed-kind rows still show labels for their other kinds. */
-.margin-glyph-row:has(.margin-glyph--astra-findings)  ~ .margin-glyph-row .margin-glyph--astra-findings  .margin-glyph__kind-name,
-.margin-glyph-row:has(.margin-glyph--astra-decisions) ~ .margin-glyph-row .margin-glyph--astra-decisions .margin-glyph__kind-name,
-.margin-glyph-row:has(.margin-glyph--astra-outputs)   ~ .margin-glyph-row .margin-glyph--astra-outputs   .margin-glyph__kind-name,
-.margin-glyph-row:has(.margin-glyph--astra-inputs)    ~ .margin-glyph-row .margin-glyph--astra-inputs    .margin-glyph__kind-name,
-.margin-glyph-row:has(.margin-glyph--astra-analyses)  ~ .margin-glyph-row .margin-glyph--astra-analyses  .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--structured-findings)  ~ .margin-glyph-row .margin-glyph--structured-findings  .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--structured-decisions) ~ .margin-glyph-row .margin-glyph--structured-decisions .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--structured-outputs)   ~ .margin-glyph-row .margin-glyph--structured-outputs   .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--structured-inputs)    ~ .margin-glyph-row .margin-glyph--structured-inputs    .margin-glyph__kind-name,
+.margin-glyph-row:has(.margin-glyph--structured-analyses)  ~ .margin-glyph-row .margin-glyph--structured-analyses  .margin-glyph__kind-name,
 /* Within a single row: when the same kind appears multiple times, keep
    only the last occurrence's label so the cluster reads as
    "⧗ ⧗ Sub-analysis" — glyphs first, one shared label after. A pin
    whose kind-name is suppressed is one that has a later same-kind
    sibling in the same row; the final same-kind pin retains its label,
    which visually sits after the whole dot run. */
-.margin-glyph-row > .margin-glyph--astra-findings:has(~ .margin-glyph--astra-findings)   .margin-glyph__kind-name,
-.margin-glyph-row > .margin-glyph--astra-decisions:has(~ .margin-glyph--astra-decisions) .margin-glyph__kind-name,
-.margin-glyph-row > .margin-glyph--astra-outputs:has(~ .margin-glyph--astra-outputs)     .margin-glyph__kind-name,
-.margin-glyph-row > .margin-glyph--astra-inputs:has(~ .margin-glyph--astra-inputs)       .margin-glyph__kind-name,
-.margin-glyph-row > .margin-glyph--astra-analyses:has(~ .margin-glyph--astra-analyses)   .margin-glyph__kind-name {
+.margin-glyph-row > .margin-glyph--structured-findings:has(~ .margin-glyph--structured-findings)   .margin-glyph__kind-name,
+.margin-glyph-row > .margin-glyph--structured-decisions:has(~ .margin-glyph--structured-decisions) .margin-glyph__kind-name,
+.margin-glyph-row > .margin-glyph--structured-outputs:has(~ .margin-glyph--structured-outputs)     .margin-glyph__kind-name,
+.margin-glyph-row > .margin-glyph--structured-inputs:has(~ .margin-glyph--structured-inputs)       .margin-glyph__kind-name,
+.margin-glyph-row > .margin-glyph--structured-analyses:has(~ .margin-glyph--structured-analyses)   .margin-glyph__kind-name {
   visibility: hidden;
   width: 0;
   margin-left: 0;
@@ -2022,20 +2022,20 @@ body {
    theme used per-content `label + caret` chips and would have broken
    margin-scan legibility under this rule). The original
    `:not([data-theme="lightcone-margin"])` defense was dropped when the
-   theme retired — see [[vellum-reader/vellum-native-astra-renderer]]. */
-.margin-glyph-row:has(.margin-glyph--astra-findings)  ~ .margin-glyph-row:has(.margin-glyph--astra-findings)  .margin-glyph__dot,
-.margin-glyph-row:has(.margin-glyph--astra-decisions) ~ .margin-glyph-row:has(.margin-glyph--astra-decisions) .margin-glyph__dot,
-.margin-glyph-row:has(.margin-glyph--astra-outputs)   ~ .margin-glyph-row:has(.margin-glyph--astra-outputs)   .margin-glyph__dot,
-.margin-glyph-row:has(.margin-glyph--astra-inputs)    ~ .margin-glyph-row:has(.margin-glyph--astra-inputs)    .margin-glyph__dot,
-.margin-glyph-row:has(.margin-glyph--astra-analyses)  ~ .margin-glyph-row:has(.margin-glyph--astra-analyses)  .margin-glyph__dot {
+   theme retired — see [[vellum-reader/vellum-native-structured-renderer]]. */
+.margin-glyph-row:has(.margin-glyph--structured-findings)  ~ .margin-glyph-row:has(.margin-glyph--structured-findings)  .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--structured-decisions) ~ .margin-glyph-row:has(.margin-glyph--structured-decisions) .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--structured-outputs)   ~ .margin-glyph-row:has(.margin-glyph--structured-outputs)   .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--structured-inputs)    ~ .margin-glyph-row:has(.margin-glyph--structured-inputs)    .margin-glyph__dot,
+.margin-glyph-row:has(.margin-glyph--structured-analyses)  ~ .margin-glyph-row:has(.margin-glyph--structured-analyses)  .margin-glyph__dot {
   opacity: 0.7;
 }
 
 /* lightcone-margin compact-chip: `{kind-glyph, label ?? id, ›}`. Each chip
    is its own content; stack glyph+label horizontally with the caret pushed
    right. Label color inherits from the kind (the per-kind rules above hit
-   `.margin-glyph__kind-name`; mirror for `__astra-label`). */
-.margin-glyph--astra .margin-glyph__astra-label {
+   `.margin-glyph__kind-name`; mirror for `__structured-label`). */
+.margin-glyph--structured .margin-glyph__structured-label {
   font-size: 0.72rem;
   font-family: 'Spectral', 'EB Garamond', Georgia, serif;
   font-weight: 400;
@@ -2046,12 +2046,12 @@ body {
   white-space: nowrap;
   opacity: 0.9;
 }
-.margin-glyph--astra-findings  .margin-glyph__astra-label { color: var(--astra-finding); }
-.margin-glyph--astra-decisions .margin-glyph__astra-label { color: var(--astra-decision); }
-.margin-glyph--astra-outputs   .margin-glyph__astra-label { color: var(--astra-output); }
-.margin-glyph--astra-inputs    .margin-glyph__astra-label { color: var(--astra-input); }
-.margin-glyph--astra-analyses  .margin-glyph__astra-label { color: var(--astra-analysis); }
-.margin-glyph--astra .margin-glyph__caret {
+.margin-glyph--structured-findings  .margin-glyph__structured-label { color: var(--structured-finding); }
+.margin-glyph--structured-decisions .margin-glyph__structured-label { color: var(--structured-decision); }
+.margin-glyph--structured-outputs   .margin-glyph__structured-label { color: var(--structured-output); }
+.margin-glyph--structured-inputs    .margin-glyph__structured-label { color: var(--structured-input); }
+.margin-glyph--structured-analyses  .margin-glyph__structured-label { color: var(--structured-analysis); }
+.margin-glyph--structured .margin-glyph__caret {
   font-size: 0.7rem;
   font-weight: 400;
   opacity: 0.5;
@@ -2065,14 +2065,14 @@ body {
 /* Broken-anchor chips already show a ⚠ sigil and drop to 0.55 opacity —
    the caret would read as "navigable" which it isn't. Suppress it so the
    warning sits cleanly after the label. */
-.margin-glyph--astra-broken .margin-glyph__caret {
+.margin-glyph--structured-broken .margin-glyph__caret {
   display: none;
 }
 
-.margin-glyph--astra-broken {
+.margin-glyph--structured-broken {
   opacity: 0.55;
 }
-.margin-glyph--astra-broken .margin-glyph__dot {
+.margin-glyph--structured-broken .margin-glyph__dot {
   color: var(--text-muted);
 }
 .margin-glyph__broken {
@@ -2081,7 +2081,7 @@ body {
   margin-left: 2px;
 }
 
-.margin-astra-tooltip {
+.margin-structured-tooltip {
   position: absolute;
   z-index: 460;
   width: var(--canvas-overlay-width);
@@ -2094,7 +2094,7 @@ body {
   line-height: 1.3;
   pointer-events: auto;
 }
-.margin-astra-tooltip__kind {
+.margin-structured-tooltip__kind {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.68rem;
   letter-spacing: 0.04em;
@@ -2102,17 +2102,17 @@ body {
   color: var(--text-muted);
   margin-bottom: 3px;
 }
-.margin-astra-tooltip__label {
+.margin-structured-tooltip__label {
   color: var(--text);
   font-family: 'EB Garamond', Georgia, serif;
 }
-.margin-astra-tooltip__broken {
+.margin-structured-tooltip__broken {
   margin-top: 4px;
   color: var(--mauve);
   font-size: 0.7rem;
 }
 
-/* ── Inline ASTRA anchor links inside the prose ──
+/* ── Inline structured anchor links inside the prose ──
    Two surfaces carry annotation — the margin (where the author's hand
    lives) and the prose (where the reference phrase lives). Keeping both
    equally red makes the prose feel stained. Let the margin carry the
@@ -2120,26 +2120,26 @@ body {
    dotted, muted) and brighten it to rubric red only on hover or when
    the corresponding margin pin is active. The reader's eye reads prose
    as prose; when they reach for a reference, the red ink lights up. */
-.pretext-prose a.astra-anchor {
+.pretext-prose a.structured-anchor {
   color: var(--text);
   text-decoration: none;
   border-bottom: 1px dotted var(--text-muted);
   transition: background 0.15s, border-bottom-color 0.15s, border-bottom-style 0.15s;
 }
-.pretext-prose a.astra-anchor:hover,
-.pretext-prose a.astra-anchor.margin-active {
+.pretext-prose a.structured-anchor:hover,
+.pretext-prose a.structured-anchor.margin-active {
   background: var(--rubric-faint);
   border-bottom-style: solid;
   border-bottom-color: var(--rubric);
 }
-.pretext-prose a.astra-anchor--broken {
+.pretext-prose a.structured-anchor--broken {
   border-bottom-style: dashed;
   border-bottom-color: var(--text-muted);
   color: var(--text-muted);
 }
 
-/* ── Legend chip strip at the top of an astra-project narrative page ── */
-.astra-legend {
+/* ── Legend chip strip at the top of an structured-project narrative page ── */
+.structured-legend {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -2150,29 +2150,29 @@ body {
   font-size: 0.7rem;
   color: var(--text-muted);
 }
-.astra-legend__hint {
+.structured-legend__hint {
   opacity: 0.7;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-size: 0.65rem;
 }
-.astra-legend__chip {
+.structured-legend__chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 2px 0;
 }
-.astra-legend__dot {
+.structured-legend__dot {
   display: inline-block;
   font-size: 0.85rem;
   line-height: 1;
 }
-.astra-legend__chip--findings  { color: var(--astra-finding); }
-.astra-legend__chip--decisions { color: var(--astra-decision); }
-.astra-legend__chip--outputs   { color: var(--astra-output); }
-.astra-legend__chip--inputs    { color: var(--astra-input); }
-.astra-legend__chip--analyses  { color: var(--astra-analysis); }
-.astra-legend__label {
+.structured-legend__chip--findings  { color: var(--structured-finding); }
+.structured-legend__chip--decisions { color: var(--structured-decision); }
+.structured-legend__chip--outputs   { color: var(--structured-output); }
+.structured-legend__chip--inputs    { color: var(--structured-input); }
+.structured-legend__chip--analyses  { color: var(--structured-analysis); }
+.structured-legend__label {
   color: var(--text-muted);
   font-family: 'Spectral', 'EB Garamond', Georgia, serif;
   font-weight: 400;
@@ -3544,28 +3544,28 @@ body {
   margin-top: 4px;
 }
 
-/* ── ASTRA Blocks ── */
-.astra-blocks {
+/* ── structured Blocks ── */
+.structured-blocks {
   margin-top: 3.5rem;
   padding-top: 0;
 }
 
-.astra-blocks__divider {
+.structured-blocks__divider {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 2rem;
 }
 
-.astra-blocks__divider::before,
-.astra-blocks__divider::after {
+.structured-blocks__divider::before,
+.structured-blocks__divider::after {
   content: '';
   flex: 1;
   height: 1px;
   background: var(--border);
 }
 
-.astra-blocks__divider-label {
+.structured-blocks__divider-label {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.6rem;
   letter-spacing: 0.18em;
@@ -3574,11 +3574,11 @@ body {
   opacity: 0.5;
 }
 
-.astra-section {
+.structured-section {
   margin-bottom: 2rem;
 }
 
-.astra-section__heading {
+.structured-section__heading {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.72rem;
   font-weight: 500;
@@ -3591,42 +3591,42 @@ body {
   gap: 8px;
 }
 
-.astra-section__count {
+.structured-section__count {
   font-size: 0.65rem;
   color: var(--text-muted);
   opacity: 0.5;
 }
 
 /* Decision cards */
-.astra-decision {
+.structured-decision {
   padding: 1rem 0;
   border-top: 1px solid var(--border-faint);
 }
-.astra-decision:last-child {
+.structured-decision:last-child {
   padding-bottom: 0;
 }
 
-.astra-decision__header {
+.structured-decision__header {
   display: flex;
   align-items: baseline;
   gap: 8px;
   margin-bottom: 0.4rem;
 }
 
-.astra-decision__glyph {
+.structured-decision__glyph {
   color: var(--gold);
   font-size: 0.85rem;
   flex-shrink: 0;
 }
 
-.astra-decision__label {
+.structured-decision__label {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-weight: 400;
   font-size: 0.85rem;
   color: var(--text);
 }
 
-.astra-decision__selected {
+.structured-decision__selected {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.78rem;
   color: var(--teal);
@@ -3634,13 +3634,13 @@ body {
   padding-left: 1.35rem;
 }
 
-.astra-decision__selected-arrow {
+.structured-decision__selected-arrow {
   color: var(--teal);
   margin-right: 0.35em;
   opacity: 0.6;
 }
 
-.astra-decision__rationale {
+.structured-decision__rationale {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -3649,21 +3649,21 @@ body {
   padding-left: 1.35rem; /* align under label, past the glyph */
 }
 
-.astra-decision__rationale strong,
-.astra-decision__rationale em,
-.astra-decision__rationale b,
-.astra-decision__rationale i {
+.structured-decision__rationale strong,
+.structured-decision__rationale em,
+.structured-decision__rationale b,
+.structured-decision__rationale i {
   font-weight: inherit;
   font-style: normal;
 }
 
 /* Excluded alternatives */
-.astra-decision__excluded {
+.structured-decision__excluded {
   margin-top: 0.5rem;
   padding-left: 1.35rem;
 }
 
-.astra-excluded {
+.structured-excluded {
   display: flex;
   gap: 6px;
   align-items: baseline;
@@ -3674,37 +3674,37 @@ body {
   margin-bottom: 0.25rem;
 }
 
-.astra-excluded strong,
-.astra-excluded em,
-.astra-excluded b,
-.astra-excluded i {
+.structured-excluded strong,
+.structured-excluded em,
+.structured-excluded b,
+.structured-excluded i {
   font-weight: inherit;
   font-style: normal;
 }
 
-.astra-excluded__glyph {
+.structured-excluded__glyph {
   color: var(--mauve);
   font-size: 0.65rem;
   flex-shrink: 0;
   opacity: 0.8;
 }
 
-.astra-excluded__label {
+.structured-excluded__label {
   text-decoration: line-through;
   flex-shrink: 0;
 }
 
-.astra-excluded__reason {
+.structured-excluded__reason {
   opacity: 0.8;
 }
 
 /* Findings */
-.astra-finding {
+.structured-finding {
   padding: 1rem 0;
   border-top: 1px solid var(--border-faint);
 }
 
-.astra-finding__verdict {
+.structured-finding__verdict {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.78rem;
   color: var(--text);
@@ -3712,7 +3712,7 @@ body {
   line-height: 1.6;
 }
 
-.astra-finding__claim {
+.structured-finding__claim {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.78rem;
   font-weight: 400;
@@ -3721,19 +3721,19 @@ body {
   line-height: 1.6;
 }
 
-.astra-finding__verdict strong,
-.astra-finding__verdict em,
-.astra-finding__verdict b,
-.astra-finding__verdict i,
-.astra-finding__claim strong,
-.astra-finding__claim em,
-.astra-finding__claim b,
-.astra-finding__claim i {
+.structured-finding__verdict strong,
+.structured-finding__verdict em,
+.structured-finding__verdict b,
+.structured-finding__verdict i,
+.structured-finding__claim strong,
+.structured-finding__claim em,
+.structured-finding__claim b,
+.structured-finding__claim i {
   font-weight: inherit;
   font-style: normal;
 }
 
-.astra-finding__evidence-dot {
+.structured-finding__evidence-dot {
   color: var(--teal);
   font-size: 0.5rem;
   margin-right: 0.5em;
@@ -3816,7 +3816,7 @@ body {
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--astra-output, rgba(184, 134, 11, 0.9));
+  color: var(--structured-output, rgba(184, 134, 11, 0.9));
   margin-bottom: 0.75rem;
 }
 .vellum-lightbox__provenance-desc {
@@ -3853,7 +3853,7 @@ body {
   color: rgba(255, 255, 255, 0.82);
 }
 .vellum-lightbox__provenance-ingredients code {
-  color: var(--astra-input, rgba(120, 170, 200, 0.95));
+  color: var(--structured-input, rgba(120, 170, 200, 0.95));
 }
 
 .vellum-lightbox__image {
@@ -4844,8 +4844,8 @@ body {
 }
 /* Kind-ink the kicker so the id picks up the same taxonomy the rail
    carries — muted but present, matching the appendix section headings. */
-.card--input  .card__kicker { color: var(--astra-input); }
-.card--output .card__kicker { color: var(--astra-output); }
+.card--input  .card__kicker { color: var(--structured-input); }
+.card--output .card__kicker { color: var(--structured-output); }
 
 /* .card__chrome + .card__pin + .card__close styles live alongside
    .fiber-card__chrome above — a single ruleset covers both. */
@@ -5021,10 +5021,10 @@ body {
   color: var(--text);
   opacity: 0.75;
 }
-.card__evidence--quote   .card__evidence-glyph { color: var(--astra-finding); opacity: 1; }
-.card__evidence--figure  .card__evidence-glyph { color: var(--astra-output);  opacity: 1; }
-.card__evidence--code    .card__evidence-glyph { color: var(--astra-input);   opacity: 1; }
-.card__evidence--insight .card__evidence-glyph { color: var(--astra-finding); opacity: 1; }
+.card__evidence--quote   .card__evidence-glyph { color: var(--structured-finding); opacity: 1; }
+.card__evidence--figure  .card__evidence-glyph { color: var(--structured-output);  opacity: 1; }
+.card__evidence--code    .card__evidence-glyph { color: var(--structured-input);   opacity: 1; }
+.card__evidence--insight .card__evidence-glyph { color: var(--structured-finding); opacity: 1; }
 .card__evidence-label {
   /* Promoted from <span> to <h4> so AT users navigating by heading inside
      the FindingCard article landmark hear "Quote" / "Figure" / "Code" /
@@ -5859,7 +5859,7 @@ a.pretext-prose-frag:hover {
   border-radius: 0;
 }
 
-/* ── ASTRA Appendix ────────────────────────────────────────────────────
+/* ── structured Appendix ────────────────────────────────────────────────────
    A plate of catalog entries at the foot of the narrative, not a
    dashboard of cards. Hudson-River restraint: the entries live on the
    page surface with a single kind-colored rail; the cartouche divider
@@ -5867,7 +5867,7 @@ a.pretext-prose-frag:hover {
    Cards here shed their border and chrome — they are paragraphs with
    a hanging kind-letter, not framed widgets. */
 
-.astra-appendix {
+.structured-appendix {
   margin-top: 4.5rem;
   display: flex;
   flex-direction: column;
@@ -5875,8 +5875,8 @@ a.pretext-prose-frag:hover {
 }
 
 /* Cartouche: centered rubric tristanpunctus on a hairline rule.
-   The small-caps word "Astra" sits above as a plate title. */
-.astra-appendix__divider {
+   The small-caps word "Structured" sits above as a plate title. */
+.structured-appendix__divider {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5885,7 +5885,7 @@ a.pretext-prose-frag:hover {
   position: relative;
 }
 
-.astra-appendix__divider-label {
+.structured-appendix__divider-label {
   font-family: 'Spectral', 'EB Garamond', serif;
   font-weight: 400;
   font-style: italic;
@@ -5897,7 +5897,7 @@ a.pretext-prose-frag:hover {
   order: 1;
 }
 
-.astra-appendix__divider::after {
+.structured-appendix__divider::after {
   /* Decorative cadence-mark closing the divider — hide from AT. */
   content: '⁘' / '';
   order: 2;
@@ -5909,7 +5909,7 @@ a.pretext-prose-frag:hover {
   line-height: 1;
 }
 
-.astra-appendix__divider::before {
+.structured-appendix__divider::before {
   content: '';
   order: 3;
   display: block;
@@ -5920,13 +5920,13 @@ a.pretext-prose-frag:hover {
   margin-top: 4px;
 }
 
-.astra-appendix__section {
+.structured-appendix__section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.astra-appendix__heading {
+.structured-appendix__heading {
   font-family: 'Spectral', 'EB Garamond', serif;
   font-size: 0.82rem;
   font-weight: 500;
@@ -5943,7 +5943,7 @@ a.pretext-prose-frag:hover {
   gap: 0.5rem;
 }
 
-.astra-appendix__heading::before {
+.structured-appendix__heading::before {
   content: '';
   display: inline-block;
   width: 0.6em;
@@ -5955,24 +5955,24 @@ a.pretext-prose-frag:hover {
   transform: translateY(-0.05em);
 }
 
-#astra-appendix-findings      .astra-appendix__heading { color: var(--astra-finding); }
-#astra-appendix-methods       .astra-appendix__heading { color: var(--astra-decision); }
-#astra-appendix-enumeration   .astra-appendix__heading { color: var(--astra-output); }
+#structured-appendix-findings      .structured-appendix__heading { color: var(--structured-finding); }
+#structured-appendix-methods       .structured-appendix__heading { color: var(--structured-decision); }
+#structured-appendix-enumeration   .structured-appendix__heading { color: var(--structured-output); }
 /* Keep the label text in muted ink; only the dot carries the kind color. */
-#astra-appendix-findings      .astra-appendix__heading,
-#astra-appendix-methods       .astra-appendix__heading,
-#astra-appendix-enumeration   .astra-appendix__heading {
+#structured-appendix-findings      .structured-appendix__heading,
+#structured-appendix-methods       .structured-appendix__heading,
+#structured-appendix-enumeration   .structured-appendix__heading {
   color: var(--text-muted);
 }
-#astra-appendix-findings      .astra-appendix__heading::before { background: var(--astra-finding); }
-#astra-appendix-methods       .astra-appendix__heading::before { background: var(--astra-decision); }
-#astra-appendix-enumeration   .astra-appendix__heading::before { background: var(--astra-output); }
-#astra-appendix-references    .astra-appendix__heading::before { background: var(--text-muted); opacity: 0.5; }
+#structured-appendix-findings      .structured-appendix__heading::before { background: var(--structured-finding); }
+#structured-appendix-methods       .structured-appendix__heading::before { background: var(--structured-decision); }
+#structured-appendix-enumeration   .structured-appendix__heading::before { background: var(--structured-output); }
+#structured-appendix-references    .structured-appendix__heading::before { background: var(--text-muted); opacity: 0.5; }
 
 /* Bibliography — hanging-indent reference list. One entry per unique DOI
    cited from evidence across this fiber's findings + prior_insights.
    Metadata resolved from /doi-metadata/ at load time on the server. */
-.astra-bibliography {
+.structured-bibliography {
   list-style: none;
   margin: 0;
   padding-left: 1rem;
@@ -5985,56 +5985,56 @@ a.pretext-prose-frag:hover {
   color: var(--text);
   counter-reset: bibliography;
 }
-.astra-bibliography__item {
+.structured-bibliography__item {
   padding-left: 1.6rem;
   text-indent: -1.6rem;
   counter-increment: bibliography;
 }
-.astra-bibliography__item::before {
+.structured-bibliography__item::before {
   content: "[" counter(bibliography) "]";
   color: var(--text-muted);
   opacity: 0.65;
   font-style: italic;
   margin-right: 0.5rem;
 }
-.astra-bibliography__authors {
+.structured-bibliography__authors {
   color: var(--text);
 }
-.astra-bibliography__year {
+.structured-bibliography__year {
   color: var(--text-muted);
 }
-.astra-bibliography__title {
+.structured-bibliography__title {
   color: var(--text);
 }
-.astra-bibliography__journal {
+.structured-bibliography__journal {
   color: var(--text-muted);
 }
-.astra-bibliography__doi {
+.structured-bibliography__doi {
   font-family: 'Spectral', 'EB Garamond', serif;
   font-style: italic;
   color: var(--text-muted);
   text-decoration: none;
   border-bottom: 1px dotted var(--border);
 }
-.astra-bibliography__doi:hover {
+.structured-bibliography__doi:hover {
   color: var(--rubric);
   border-bottom-color: var(--rubric);
 }
 
 /* Methods section — compact summary of decisions, inputs, sub-analyses.
    No Card primitive; hanging catalog entries on the paper surface. */
-.astra-appendix__methods {
+.structured-appendix__methods {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
   padding-left: 1rem;
 }
-.astra-appendix__methods-group {
+.structured-appendix__methods-group {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
-.astra-appendix__methods-label {
+.structured-appendix__methods-label {
   font-family: 'Spectral', 'EB Garamond', serif;
   font-size: 0.72rem;
   font-weight: 500;
@@ -6043,7 +6043,7 @@ a.pretext-prose-frag:hover {
   color: var(--text-muted);
   opacity: 0.75;
 }
-.astra-appendix__methods-list {
+.structured-appendix__methods-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -6055,11 +6055,11 @@ a.pretext-prose-frag:hover {
   line-height: 1.4;
   color: var(--text);
 }
-.astra-appendix__methods-list li {
+.structured-appendix__methods-list li {
   padding-left: 0.9rem;
   text-indent: -0.9rem;
 }
-.astra-appendix__methods-list li::before {
+.structured-appendix__methods-list li::before {
   /* Decorative bullet — visible but hidden from AT (the listitem
      semantics already convey "this is a list entry"). */
   content: '·' / '';
@@ -6067,37 +6067,37 @@ a.pretext-prose-frag:hover {
   opacity: 0.6;
   margin-right: 0.45rem;
 }
-.astra-appendix__methods-link {
+.structured-appendix__methods-link {
   color: var(--text);
   text-decoration: none;
   border-bottom: 1px dotted var(--border);
 }
-.astra-appendix__methods-link:hover {
+.structured-appendix__methods-link:hover {
   border-bottom-color: var(--rubric);
   color: var(--rubric);
 }
-.astra-appendix__methods-selected {
+.structured-appendix__methods-selected {
   color: var(--text-muted);
   font-style: italic;
 }
-.astra-appendix__methods-id {
+.structured-appendix__methods-id {
   font-family: 'Spectral', 'EB Garamond', serif;
   font-style: italic;
   color: var(--text-muted);
 }
-.astra-appendix__methods-desc {
+.structured-appendix__methods-desc {
   color: var(--text-muted);
   opacity: 0.85;
 }
 
 /* Appendix enumeration — inner subsections for Decisions + Outputs. */
-.astra-appendix__subsection {
+.structured-appendix__subsection {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   margin-top: 0.75rem;
 }
-.astra-appendix__subheading {
+.structured-appendix__subheading {
   font-family: 'Spectral', 'EB Garamond', serif;
   font-size: 0.72rem;
   font-weight: 500;
@@ -6111,7 +6111,7 @@ a.pretext-prose-frag:hover {
   gap: 0.4rem;
 }
 
-.astra-appendix__count {
+.structured-appendix__count {
   font-family: 'EB Garamond', serif;
   font-style: italic;
   font-weight: 400;
@@ -6123,7 +6123,7 @@ a.pretext-prose-frag:hover {
   text-transform: none;
 }
 
-.astra-appendix__stack {
+.structured-appendix__stack {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
@@ -6135,7 +6135,7 @@ a.pretext-prose-frag:hover {
    hanging catalog entries on the paper surface: no border, transparent bg,
    a quiet hairline between siblings. Pinned-margin and workspace cards
    keep their original framing — these overrides are scoped to appendix. */
-.astra-appendix .card {
+.structured-appendix .card {
   background: transparent;
   border: none;
   border-radius: 0;
@@ -6143,29 +6143,29 @@ a.pretext-prose-frag:hover {
   padding: 0.35rem 0 0.35rem 1rem;
   overflow: visible;
 }
-.astra-appendix__item:not(:last-child) {
+.structured-appendix__item:not(:last-child) {
   border-bottom: 1px dotted var(--border);
   padding-bottom: 0.55rem;
   margin-bottom: 0.15rem;
 }
 /* Appendix cards inherit the same indigo rail — no kind-specific
    overrides. The section heading above already names the kind. */
-#astra-appendix-decisions .astra-appendix .card,
-#astra-appendix-findings  .astra-appendix .card,
-#astra-appendix-outputs   .astra-appendix .card { border-left-color: var(--counter); }
-.astra-appendix .card--open,
-.astra-appendix .card--resolved,
-.astra-appendix .card--flipped.card--resolved {
+#structured-appendix-decisions .structured-appendix .card,
+#structured-appendix-findings  .structured-appendix .card,
+#structured-appendix-outputs   .structured-appendix .card { border-left-color: var(--counter); }
+.structured-appendix .card--open,
+.structured-appendix .card--resolved,
+.structured-appendix .card--flipped.card--resolved {
   /* Suppress the default gold/teal rails — kind color wins in the
      appendix, since "open/resolved" is not a status the reader is
      scanning for here. */
   border-left-width: 2px;
 }
-.astra-appendix .card__chrome {
+.structured-appendix .card__chrome {
   /* No pin/close affordances at rest; the catalog entry is static. */
   display: none;
 }
-.astra-appendix .card__evidence {
+.structured-appendix .card__evidence {
   background: transparent;
   padding-left: 10px;
   border-left: 1px solid var(--border);
@@ -6177,14 +6177,14 @@ a.pretext-prose-frag:hover {
 
    Pass 9a. The appendix findings / decisions / outputs collapse to
    single-line rows under this theme. Clicking a row head toggles it;
-   AstraAppendix enforces exclusivity (one open at a time). Row head
+   StructuredAppendix enforces exclusivity (one open at a time). Row head
    reads as: kind-colored caret · title · compact summary. Row body
    mounts the full Card under the head with a left rail tying it to
    the head so the reader can see the expanded card belongs to the
    clicked entry.
    ------------------------------------------------------------------ */
 
-.astra-appendix--collapsed-tray .astra-appendix__item {
+.structured-appendix--collapsed-tray .structured-appendix__item {
   /* Collapse the dotted sibling hairline — row heads already sit on
      their own border, and the row + hairline double up visually. */
   border-bottom: none;
@@ -6192,14 +6192,14 @@ a.pretext-prose-frag:hover {
   margin-bottom: 0;
 }
 
-.astra-appendix__row {
+.structured-appendix__row {
   border-bottom: 1px dotted var(--border);
 }
-.astra-appendix__row:last-child {
+.structured-appendix__row:last-child {
   border-bottom: none;
 }
 
-.astra-appendix__row-head {
+.structured-appendix__row-head {
   all: unset;
   box-sizing: border-box;
   display: flex;
@@ -6213,28 +6213,28 @@ a.pretext-prose-frag:hover {
   border-left: 2px solid var(--border);
   transition: background 120ms ease, border-color 120ms ease;
 }
-.astra-appendix__row-head:hover {
+.structured-appendix__row-head:hover {
   background: color-mix(in oklab, var(--paper) 96%, var(--counter) 4%);
 }
-.astra-appendix__row-head:focus-visible {
+.structured-appendix__row-head:focus-visible {
   outline: 2px solid var(--counter);
   outline-offset: -2px;
 }
 
-.astra-appendix__row-caret {
+.structured-appendix__row-caret {
   color: var(--text-muted, #7A6F5C);
   font-size: 0.85em;
   width: 0.75em;
   flex: 0 0 auto;
 }
 
-.astra-appendix__row-title {
+.structured-appendix__row-title {
   color: var(--text, #1a1a1a);
   font-weight: 500;
   flex: 0 1 auto;
 }
 
-.astra-appendix__row-summary {
+.structured-appendix__row-summary {
   color: var(--text-muted, #7A6F5C);
   font-style: italic;
   font-size: 0.9em;
@@ -6243,34 +6243,34 @@ a.pretext-prose-frag:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.astra-appendix__row-summary::before {
+.structured-appendix__row-summary::before {
   content: " · ";
   font-style: normal;
   opacity: 0.6;
 }
 
 /* Kind-colored rails pick up the Pass 9a structural palette. */
-.astra-appendix__row--finding  .astra-appendix__row-head { border-left-color: var(--astra-finding); }
-.astra-appendix__row--decision .astra-appendix__row-head { border-left-color: var(--astra-decision); }
-.astra-appendix__row--output   .astra-appendix__row-head { border-left-color: var(--astra-output); }
-.astra-appendix__row--input    .astra-appendix__row-head { border-left-color: var(--astra-input); }
+.structured-appendix__row--finding  .structured-appendix__row-head { border-left-color: var(--structured-finding); }
+.structured-appendix__row--decision .structured-appendix__row-head { border-left-color: var(--structured-decision); }
+.structured-appendix__row--output   .structured-appendix__row-head { border-left-color: var(--structured-output); }
+.structured-appendix__row--input    .structured-appendix__row-head { border-left-color: var(--structured-input); }
 
-.astra-appendix__row--open .astra-appendix__row-head {
+.structured-appendix__row--open .structured-appendix__row-head {
   background: color-mix(in oklab, var(--paper) 92%, var(--counter) 8%);
   border-left-width: 3px;
 }
-.astra-appendix__row--open .astra-appendix__row-title {
+.structured-appendix__row--open .structured-appendix__row-title {
   font-weight: 600;
 }
 
-.astra-appendix__row-body {
+.structured-appendix__row-body {
   padding: 0.25rem 0 0.75rem 0;
   border-left: 1px dashed var(--border);
   margin-left: 0.25rem;
 }
 /* Inside the row body, the Card already ships appendix-scoped chrome —
    strip its redundant left rail so the dashed rail is the only vertical. */
-.astra-appendix__row-body .card {
+.structured-appendix__row-body .card {
   border-left: none;
   padding-left: 1rem;
 }
@@ -6280,17 +6280,17 @@ a.pretext-prose-frag:hover {
    Section-end trailing grid of every output + finding-evidence figure
    in the fiber. Mounted under `lightcone-margin` only via
    theme.layout.figureGallery === 'section-end'. Shares the cartouche
-   divider language with AstraAppendix so the two read as sibling
+   divider language with StructuredAppendix so the two read as sibling
    plates below the narrative.
    ------------------------------------------------------------------ */
-.astra-figure-gallery {
+.structured-figure-gallery {
   margin-top: 3.5rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
 }
 
-.astra-figure-gallery__divider {
+.structured-figure-gallery__divider {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
@@ -6299,7 +6299,7 @@ a.pretext-prose-frag:hover {
   opacity: 0.85;
 }
 
-.astra-figure-gallery__divider-label {
+.structured-figure-gallery__divider-label {
   font-family: 'Spectral', 'EB Garamond', serif;
   font-size: 0.82rem;
   font-weight: 500;
@@ -6309,20 +6309,20 @@ a.pretext-prose-frag:hover {
   color: var(--text-muted);
 }
 
-.astra-figure-gallery__count {
+.structured-figure-gallery__count {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 0.72rem;
   color: var(--text-muted);
   opacity: 0.7;
 }
 
-.astra-figure-gallery__grid {
+.structured-figure-gallery__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1.25rem 1rem;
 }
 
-.astra-figure-gallery__tile {
+.structured-figure-gallery__tile {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -6335,13 +6335,13 @@ a.pretext-prose-frag:hover {
   cursor: zoom-in;
 }
 
-.astra-figure-gallery__tile:focus-visible {
+.structured-figure-gallery__tile:focus-visible {
   outline: 2px solid var(--rubric);
   outline-offset: 4px;
   border-radius: 2px;
 }
 
-.astra-figure-gallery__thumb {
+.structured-figure-gallery__thumb {
   display: block;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -6350,24 +6350,24 @@ a.pretext-prose-frag:hover {
   transition: border-color 120ms ease, transform 120ms ease;
 }
 
-.astra-figure-gallery__thumb img {
+.structured-figure-gallery__thumb img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
 }
 
-.astra-figure-gallery__tile:hover .astra-figure-gallery__thumb {
+.structured-figure-gallery__tile:hover .structured-figure-gallery__thumb {
   border-color: var(--rubric);
 }
 
-.astra-figure-gallery__caption {
+.structured-figure-gallery__caption {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
 }
 
-.astra-figure-gallery__label {
+.structured-figure-gallery__label {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 0.72rem;
   color: var(--text-muted);
@@ -6375,7 +6375,7 @@ a.pretext-prose-frag:hover {
   word-break: break-word;
 }
 
-.astra-figure-gallery__desc {
+.structured-figure-gallery__desc {
   font-family: 'Spectral', 'EB Garamond', serif;
   font-size: 0.88rem;
   line-height: 1.38;
@@ -6685,8 +6685,8 @@ a.pretext-prose-frag:hover {
   min-height: 0;
 }
 
-/* `lightcone-margin` retired 2026-04-26 under the vellum-native astra
-   renderer (felt: vellum-reader/vellum-native-astra-renderer). The
+/* `lightcone-margin` retired 2026-04-26 under the vellum-native structured
+   renderer (felt: vellum-reader/vellum-native-structured-renderer). The
    two-rung ladder — `lightcone-linear` (staging) + `cail-personal`
    (expressive) — replaces the middle "margin column on, layout still
    paper-shape" slot. Legacy `?theme=lightcone-margin` URLs and stored
@@ -6700,8 +6700,8 @@ a.pretext-prose-frag:hover {
    lightcone-linear — single centered prose column + left-rail ToC (Pass 9a).
 
    Paper-shape, not viewer-shape. The prose column centers in the viewport
-   (no left-rail chrome beyond the ToC; no persistent right margin). ASTRA
-   spec info lives in AstraAppendix below the narrative (Findings / Methods
+   (no left-rail chrome beyond the ToC; no persistent right margin). structured
+   spec info lives in StructuredAppendix below the narrative (Findings / Methods
    / Appendix), exactly as Pass 6 already renders it. Kind-colored inline
    anchor highlights match the lightcone-margin palette so prose-level
    affordances read identically across themes — the difference is container,
@@ -6717,11 +6717,11 @@ a.pretext-prose-frag:hover {
    `.left-rail-toc` block near line ~6000.
    ────────────────────────────────────────────────────────────────────── */
 :root[data-theme="lightcone-linear"] {
-  --astra-finding: var(--portolan-verdigris);
-  --astra-decision: var(--rubric);
-  --astra-output: var(--portolan-indigo);
-  --astra-input: #6A7280;
-  --astra-analysis: var(--ochre-ink);
+  --structured-finding: var(--portolan-verdigris);
+  --structured-decision: var(--rubric);
+  --structured-output: var(--portolan-indigo);
+  --structured-input: #6A7280;
+  --structured-analysis: var(--ochre-ink);
 }
 
 /* Center the prose column. .vellum-page's default margin-left comes from
@@ -6750,35 +6750,35 @@ a.pretext-prose-frag:hover {
 /* Kind-colored inline anchor highlights. Same tonal recipe as
    lightcone-margin — the argument for rubricated anchors is about prose
    affordance, not theme branding, and carries identically into linear. */
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor {
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor {
   color: inherit;
   border-bottom: none;
-  background: var(--astra-anchor-bg, rgba(181, 69, 58, 0.10));
+  background: var(--structured-anchor-bg, rgba(181, 69, 58, 0.10));
   padding: 0 2px;
   border-radius: 2px;
   transition: background 0.15s, box-shadow 0.15s;
 }
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--findings {
-  --astra-anchor-bg: rgba(74, 124, 111, 0.14);
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--findings {
+  --structured-anchor-bg: rgba(74, 124, 111, 0.14);
 }
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--decisions {
-  --astra-anchor-bg: rgba(181, 69, 58, 0.12);
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--decisions {
+  --structured-anchor-bg: rgba(181, 69, 58, 0.12);
 }
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--outputs {
-  --astra-anchor-bg: rgba(74, 90, 124, 0.14);
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--outputs {
+  --structured-anchor-bg: rgba(74, 90, 124, 0.14);
 }
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--inputs {
-  --astra-anchor-bg: rgba(106, 114, 128, 0.14);
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--inputs {
+  --structured-anchor-bg: rgba(106, 114, 128, 0.14);
 }
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--analyses {
-  --astra-anchor-bg: rgba(154, 123, 53, 0.16);
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--analyses {
+  --structured-anchor-bg: rgba(154, 123, 53, 0.16);
 }
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor:hover,
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor.margin-active {
-  background: var(--astra-anchor-bg, rgba(181, 69, 58, 0.10));
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor:hover,
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor.margin-active {
+  background: var(--structured-anchor-bg, rgba(181, 69, 58, 0.10));
   box-shadow: inset 0 -2px 0 0 currentColor;
 }
-:root[data-theme="lightcone-linear"] .pretext-prose a.astra-anchor--broken {
+:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--broken {
   background: transparent;
   border-bottom: 1px dashed var(--text-muted);
   color: var(--text-muted);
@@ -6789,7 +6789,7 @@ a.pretext-prose-frag:hover {
    reads better, and the constitution wants room for a future sticky
    chapter-head. */
 :root[data-theme="lightcone-linear"] h2.pretext-prose-line--h2,
-:root[data-theme="lightcone-linear"] .astra-appendix__section {
+:root[data-theme="lightcone-linear"] .structured-appendix__section {
   scroll-margin-top: 2rem;
 }
 
@@ -6906,7 +6906,7 @@ a.pretext-prose-frag:hover {
 /* Hierarchical children — individual findings / decisions / inputs / outputs
    nested under their parent narrative section. Smaller type, indented rule
    against the section's rubric, truncation for long labels (chip-style
-   aliases tend to be short but ASTRA authors can write long ones). */
+   aliases tend to be short but structured authors can write long ones). */
 .left-rail-toc__children {
   list-style: none;
   margin: 0 0 0.25rem 0;

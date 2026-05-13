@@ -7,12 +7,12 @@
  * reader can page through every figure without leaving the fiber.
  *
  * Gated on `theme.layout.figureGallery === 'section-end'`. After
- * `lightcone-margin` retired in vellum-reader/vellum-native-astra-renderer,
+ * `lightcone-margin` retired in vellum-reader/vellum-native-structured-renderer,
  * no surviving theme ships `'section-end'` (both `cail-personal` and
  * `lightcone-linear` opt out — see theme configs); the component is kept
  * as a reusable primitive for future themes that want a section-end grid.
  *
- * Mounted inside the prose article, immediately after `AstraAppendix`.
+ * Mounted inside the prose article, immediately after `StructuredAppendix`.
  * Empty fibers (no figures collected) render nothing.
  */
 
@@ -63,38 +63,38 @@ export function FigureGallery({ node }: FigureGalleryProps) {
 
   return (
     <aside
-      id="astra-figure-gallery"
-      className="astra-figure-gallery"
+      id="structured-figure-gallery"
+      className="structured-figure-gallery"
       aria-label="Figures"
     >
-      <div className="astra-figure-gallery__divider">
-        <span className="astra-figure-gallery__divider-label">figures</span>
-        <span className="astra-figure-gallery__count">{figures.length}</span>
+      <div className="structured-figure-gallery__divider">
+        <span className="structured-figure-gallery__divider-label">figures</span>
+        <span className="structured-figure-gallery__count">{figures.length}</span>
       </div>
-      <div className="astra-figure-gallery__grid">
+      <div className="structured-figure-gallery__grid">
         {figures.map((fig, i) => {
-          // Anchor IDs mirror AstraAppendix/FiberHeader so cross-refs from
+          // Anchor IDs mirror StructuredAppendix/FiberHeader so cross-refs from
           // the prose can target a gallery tile directly if needed later.
           const anchorId =
             fig.host.kind === 'output'
-              ? `astra-figure-output-${fig.host.id}`
-              : `astra-figure-finding-${fig.host.key}-${fig.host.evidenceId}`;
+              ? `structured-figure-output-${fig.host.id}`
+              : `structured-figure-finding-${fig.host.key}-${fig.host.evidenceId}`;
           return (
             <button
               key={anchorId}
               id={anchorId}
               type="button"
-              className="astra-figure-gallery__tile"
+              className="structured-figure-gallery__tile"
               onClick={() => openAt(i)}
               aria-label={`Open figure: ${fig.label}`}
             >
-              <span className="astra-figure-gallery__thumb">
+              <span className="structured-figure-gallery__thumb">
                 <img src={fig.src} alt={fig.alt} loading="lazy" />
               </span>
-              <span className="astra-figure-gallery__caption">
-                <span className="astra-figure-gallery__label">{fig.label}</span>
+              <span className="structured-figure-gallery__caption">
+                <span className="structured-figure-gallery__label">{fig.label}</span>
                 {fig.caption && (
-                  <span className="astra-figure-gallery__desc">{fig.caption}</span>
+                  <span className="structured-figure-gallery__desc">{fig.caption}</span>
                 )}
               </span>
             </button>

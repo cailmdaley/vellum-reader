@@ -1,5 +1,5 @@
 /**
- * astra-card-content — map a parsed ASTRA anchor to the unified Card primitive.
+ * structured-card-content — map a parsed structured anchor to the unified Card primitive.
  *
  * Shared between MarginCitations (the Cail-theme margin rail) and
  * GutterHoverCard (the Lightcone-theme empty-gutter hover card) so both
@@ -7,12 +7,12 @@
  * stay visually identical across themes.
  */
 
-import type { ParsedAstraAnchor } from './astra-anchor';
+import type { ParsedStructuredAnchor } from './structured-anchor';
 import type { GraphNode } from './content-types';
 import type { CardContent } from '~/components/Card';
 
-export function resolveAstraCardContent(
-  parsed: ParsedAstraAnchor,
+export function resolveStructuredCardContent(
+  parsed: ParsedStructuredAnchor,
   currentNode: GraphNode | null | undefined,
   nodes: GraphNode[],
   parentSubSlugs?: Map<string, string>,

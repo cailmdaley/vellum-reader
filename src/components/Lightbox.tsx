@@ -76,7 +76,7 @@ export function Lightbox({
       .map((link) => graphNodes.find((graphNode) => graphNode.id === link.source))
       .filter((graphNode): graphNode is GraphNode => !!graphNode);
 
-    if (!node.hasASTRA && upstream.length === 0) return null;
+    if (!node.hasStructuredData && upstream.length === 0) return null;
     return { node, upstream };
   }, [image?.fiberSlug, graphNodes, graphLinks]);
 
@@ -413,9 +413,9 @@ export function Lightbox({
       {traceability && (
         <div className="vellum-lightbox__trace">
           <button className="vellum-lightbox__trace-toggle" onClick={() => setTraceExpanded((prev) => !prev)}>
-            <span className="vellum-lightbox__trace-glyph">{traceability.node.hasASTRA ? '◇' : '○'}</span>
+            <span className="vellum-lightbox__trace-glyph">{traceability.node.hasStructuredData ? '◇' : '○'}</span>
             <span className="vellum-lightbox__trace-title">{traceability.node.label}</span>
-            {traceability.node.hasASTRA && (
+            {traceability.node.hasStructuredData && (
               <span className="vellum-lightbox__trace-badge">
                 {(traceability.node.decisionCount ?? 0) > 0 && `${traceability.node.decisionCount}d`}
                 {(traceability.node.decisionCount ?? 0) > 0 && (traceability.node.findingCount ?? 0) > 0 && ' '}

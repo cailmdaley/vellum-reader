@@ -1,5 +1,5 @@
 /**
- * BibliographySection — References list for the ASTRA appendix.
+ * BibliographySection — References list for the structured appendix.
  *
  * Pass 5 step 1 of the themes constitution: harvest unique DOIs from
  * `node.findings[].evidence[].doi` (both new-knowledge findings and
@@ -94,41 +94,41 @@ export function BibliographySection({ node }: BibliographySectionProps) {
 
   return (
     <section
-      id="astra-appendix-references"
-      className="astra-appendix__section"
+      id="structured-appendix-references"
+      className="structured-appendix__section"
     >
-      <h3 className="astra-appendix__heading">
-        References <span className="astra-appendix__count">{dois.length}</span>
+      <h3 className="structured-appendix__heading">
+        References <span className="structured-appendix__count">{dois.length}</span>
       </h3>
-      <ol className="astra-bibliography">
+      <ol className="structured-bibliography">
         {entries.map((entry) => (
-          <li key={entry.doi} className="astra-bibliography__item">
+          <li key={entry.doi} className="structured-bibliography__item">
             {entry.authorShort && (
-              <span className="astra-bibliography__authors">
+              <span className="structured-bibliography__authors">
                 {entry.authorShort}
               </span>
             )}
             {entry.year && (
-              <span className="astra-bibliography__year">
+              <span className="structured-bibliography__year">
                 {' '}({entry.year})
               </span>
             )}
             {entry.title && (
               <>
                 {'. '}
-                <span className="astra-bibliography__title">
+                <span className="structured-bibliography__title">
                   {cleanTitle(entry.title)}
                 </span>
               </>
             )}
             {entry.journal && (
-              <span className="astra-bibliography__journal">
+              <span className="structured-bibliography__journal">
                 . <em>{cleanTitle(entry.journal)}</em>
               </span>
             )}
             {'. '}
             <a
-              className="astra-bibliography__doi"
+              className="structured-bibliography__doi"
               href={`https://doi.org/${entry.doi}`}
               target="_blank"
               rel="noopener noreferrer"

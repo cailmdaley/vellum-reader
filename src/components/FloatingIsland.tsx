@@ -370,7 +370,7 @@ export function FloatingIsland({
         <nav className="thumb-index__modes" aria-label="View mode">
           {modes.map(({ id, letter, full }) => {
             // In file mode, only Narrative is meaningful. Workspace + Delta
-            // need an AstraGraph and a fiber slug; greying the buttons signals
+            // need an FiberGraph and a fiber slug; greying the buttons signals
             // "open a fiber to use these" without hiding the chrome.
             const disabled = isFileMode && id !== 'narrative';
             const className = `thumb-index__mode thumb-index__mode--${id}${
@@ -521,7 +521,7 @@ export function FloatingIsland({
           mount, root fibers in a city mount). The rail never blanks. */}
       <div className="thumb-index__nav" ref={navRef}>
         {/* Parent back-link. Always rendered — it's the rail's positional
-            anchor. The ASTRA counts + tempered flag used to share this
+            anchor. The structured counts + tempered flag used to share this
             row; they moved to the page-meta panel below so they sit in
             the top-right blank space mirroring the empty top-left above
             the FiberHeader.

@@ -8,7 +8,7 @@
 
 import type {
   Annotation,
-  AstraGraph,
+  FiberGraph,
   FiberContent,
   FileContent,
   HistoryResponse,
@@ -35,10 +35,10 @@ export function createLightconeAdapter(): Adapter {
       return res.json() as Promise<FiberContent>;
     },
 
-    async getAstraGraph(): Promise<AstraGraph> {
-      const res = await fetch('/astra-graph.json').catch(() => null);
+    async getFiberGraph(): Promise<FiberGraph> {
+      const res = await fetch('/fiber-graph.json').catch(() => null);
       if (!res || res.status === 404 || !res.ok) return { nodes: [], links: [] };
-      return res.json() as Promise<AstraGraph>;
+      return res.json() as Promise<FiberGraph>;
     },
 
     async searchFibers(query: string): Promise<SearchHit[]> {
