@@ -25,18 +25,36 @@ site rendered from a snapshot — without forking the component tree.
 ## Install
 
 ```bash
-npm install vellum-reader
+git clone https://github.com/cailmdaley/vellum-reader.git
+cd vellum-reader && npm install
 ```
 
-`react` and `react-dom` are peer dependencies — install them in the host app.
+To consume vellum-reader from another project, install it as a sibling
+checkout and reference it from `package.json`:
+
+```json
+{
+  "dependencies": {
+    "vellum-reader": "file:../vellum-reader"
+  }
+}
+```
+
+`react` and `react-dom` are peer dependencies — install them in the host
+app.
 
 ## Quick usage
 
 ```tsx
-import { AdapterProvider, WorkspaceMount, createLightconeAdapter } from 'vellum-reader';
+import { AdapterProvider, WorkspaceMount, type Adapter } from 'vellum-reader';
 import 'vellum-reader/css';
 
-const adapter = createLightconeAdapter(); // or write your own
+const adapter: Adapter = {
+  async getFiberContent(slug) { /* fetch and return a FiberContent */ },
+  async getFiberGraph() { /* return { nodes: [...], links: [...] } */ },
+  async searchFibers(q) { /* return SearchHit[] */ },
+  // ...the rest of the Adapter interface
+};
 
 export default function App() {
   return (
@@ -47,10 +65,9 @@ export default function App() {
 }
 ```
 
-Roll your own adapter against the `Adapter` interface in
-[`src/adapter.ts`](src/adapter.ts) — return fibers, graphs, annotations,
-and search hits from whatever backend you have, and the rest of the reader
-keeps working.
+The full `Adapter` interface lives in [`src/adapter.ts`](src/adapter.ts) —
+return fibers, graphs, annotations, and search hits from whatever backend
+you have, and the rest of the reader keeps working.
 
 ## Adapter architecture
 
