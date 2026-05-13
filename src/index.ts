@@ -41,10 +41,6 @@ export { FiberCard } from './components/FiberCard';
 export type { FiberCardProps } from './components/FiberCard';
 export { Card } from './components/Card';
 export type { CardContent, CardProps } from './components/Card';
-export { AstraPaperView } from './components/astra/AstraPaperView';
-export type { AstraPaperViewProps, AstraLayout } from './components/astra/AstraPaperView';
-export { AstraPicker } from './components/astra/AstraPicker';
-export type { AstraPickerProps, AstraLadderRung } from './components/astra/AstraPicker';
 export {
   DecisionFlipProvider,
   useDecisionFlip,
