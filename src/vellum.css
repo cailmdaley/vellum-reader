@@ -1,26 +1,28 @@
 @import 'katex/dist/katex.min.css';
 
 /**
- * Vellum — First Light (Marginal Observation)
+ * Vellum — Pigment & Parchment (sharp vibrancy on a warm base)
  *
  * Three hands for research prose: primary (EB Garamond), annotation
- * (Spectral), technical (IBM Plex Mono). Rubric is the typographer's
- * second color — decisions, section numbers, dropcaps. Gold retains
- * for UI chrome (links, focus rings). See
- * .felt/vision-board/typography-specimen and
- * .felt/vellum-reader/first-light-implementation.
+ * (Spectral), technical (IBM Plex Mono). Cinnabar is the typographer's
+ * second color — decisions, section numbers, dropcaps. Ochre carries
+ * UI chrome (links, focus rings). Four pigments earn their place,
+ * never more: cinnabar / teal / cobalt / ochre.
  *
- * Palette:
- *   page-bg:    #EDE8E0    (parchment)
- *   prose-bg:   #FAFAF7    (rag — where the eye rests)
- *   ink:        #1F1A15    (warm near-black)
- *   muted:      #7A7368    (recedes without disappearing)
- *   rubric:     #B5453A    (second hand — decisions, rubrication)
- *   ochre-ink:  #9A7B35    (links, sub-analyses, UI chrome)
- *   verdigris:  #4A7C6F    (findings)
- *   indigo:     #4A5A7C    (outputs)
- *   slate:      #6A7280    (inputs)
- *   border:     #D4CCBF
+ * Manifesto: ~/Documents/projects/LightconeResearch/lightcone/.felt/
+ *   vision-board/pigment-and-parchment/pigment-and-parchment.md
+ *
+ * Palette (operative hex values):
+ *   parchment:  #EDE2CE    (substrate — the June-warmed page)
+ *   rag:        #FBF6E9    (where the eye rests — prose columns, cards)
+ *   ink:        #1B1611    (iron-gall warm near-black; never #000)
+ *   ink-muted:  #7A6F5C    (faded ink; marginalia, secondary chrome)
+ *   cinnabar:   #BC4538    (the single red gesture — rubric, dropcaps)
+ *   teal:       #3F8278    (weathered-copper teal — findings, rest with life)
+ *   cobalt:     #3D5BA0    (mountain-sky blue — outputs, second hand)
+ *   ochre:      #C49333    (warm yellow-gold — structure, UI chrome)
+ *   rule:       #C5B89E    (the straightedge mark)
+ *   tooth:      rgba(197,184,158,0.45)   (sub-rule, fold lines)
  */
 
 /* ── Fonts ── */
@@ -41,44 +43,62 @@
 
 /* ── Custom Properties ── */
 :root {
-  --page-bg: #EDE8E0;
-  --prose-bg: #FAFAF7;
-  --text: #1F1A15;
-  --ink: #1F1A15;
-  --text-muted: #7A7368;
-  --ink-muted: #7A7368;
-  /* Gold retains for UI chrome (links, focus, highlights). Same hex as
-     ochre-ink; the two names signal different semantic roles — gold for
-     chrome, ochre-ink for sub-analysis kind. */
-  --gold: #9A7B35;
-  --gold-faint: rgba(154, 123, 53, 0.12);
-  --ochre-ink: #9A7B35;
-  --ochre: #C2963B;
-  /* Rubric — the typographer's second color (Gwern). Reserved for the
-     author's second hand: decision kind, section numbers, dropcaps,
-     selective inline emphasis. Never decorative. */
-  --rubric: #B5453A;
-  --rubric-faint: rgba(181, 69, 58, 0.12);
-  --teal: #5A7B7B;
-  --teal-faint: rgba(90, 123, 123, 0.12);
-  --amber: #B8963E;
+  /* ── Pigment & Parchment — operative palette ──────────────────────────
+   * Canonical pigment names; the legacy variable aliases below
+   * (page-bg, gold, rubric, etc.) re-export the same hexes so older
+   * selectors cascade cleanly without a sweeping rename pass. */
+  --parchment: #EDE2CE;
+  --rag: #FBF6E9;
+  --ink: #1B1611;
+  --ink-muted: #7A6F5C;
+  --cinnabar: #BC4538;
+  --cinnabar-faint: rgba(188, 69, 56, 0.12);
+  --teal: #3F8278;
+  --teal-faint: rgba(63, 130, 120, 0.12);
+  --cobalt: #3D5BA0;
+  --cobalt-faint: rgba(61, 91, 160, 0.12);
+  --ochre: #C49333;
+  --ochre-faint: rgba(196, 147, 51, 0.12);
+  --rule: #C5B89E;
+  --tooth: rgba(197, 184, 158, 0.45);
+  /* Tally ink — counts and tallies live in a third, cooler register;
+     cobalt reads as "how many of a thing." */
+  --counter: var(--cobalt);
+  --counter-faint: var(--cobalt-faint);
+
+  /* ── Legacy aliases (held for back-compat) ────────────────────────────
+   * Old selectors reference --page-bg / --gold / --rubric / etc.; aliasing
+   * them onto the four pigments + substrate is what makes the swap
+   * mostly-mechanical. Names retained, hexes rotated.
+   */
+  --page-bg: var(--parchment);
+  --prose-bg: var(--rag);
+  --text: var(--ink);
+  --text-muted: var(--ink-muted);
+  --gold: var(--ochre);
+  --gold-faint: var(--ochre-faint);
+  --ochre-ink: var(--ochre);
+  /* "Rubric" stays a name; the hex moved to cinnabar (vermilion). */
+  --rubric: var(--cinnabar);
+  --rubric-faint: var(--cinnabar-faint);
+  --amber: var(--ochre);
   --mauve: #A87070;
-  --border: #D4CCBF;
-  --border-faint: rgba(212, 204, 191, 0.5);
+  --border: var(--rule);
+  --border-faint: var(--tooth);
   --prose-shell-width: 720px;
   --prose-width: 720px;
   --margin-width: 160px;
   --margin-gap: 56px;
   --canvas-overlay-left: calc(100vw - var(--canvas-width, 360px) + 12px);
   --canvas-overlay-width: calc(var(--canvas-width, 360px) - 24px);
-  --shadow: 0 2px 8px rgba(31, 26, 21, 0.07), 0 1px 3px rgba(31, 26, 21, 0.04);
-  /* Portolan palette — colors from Mediterranean navigation charts. Kept
-     as tonal primitives for non-kind chrome (teal for resolved status,
-     ochre for UI gold), but no longer carry kind taxonomy. */
-  --portolan-verdigris: #4A7C6F;
-  --portolan-cinnabar: #B5453A;
-  --portolan-ochre: #C2963B;
-  --portolan-indigo: #4A5A7C;
+  --shadow: 0 2px 8px rgba(27, 22, 17, 0.07), 0 1px 3px rgba(27, 22, 17, 0.04);
+  /* Portolan palette — the four pigments mapped through their old names.
+     Cinnabar, teal, ochre, cobalt are the discipline; the old verdigris
+     / indigo names are kept as historical aliases. */
+  --portolan-verdigris: var(--teal);
+  --portolan-cinnabar: var(--cinnabar);
+  --portolan-ochre: var(--ochre);
+  --portolan-indigo: var(--cobalt);
   /* ASTRA anchor kinds — one rubricated hand for every annotation, Gwern.
      Rubrication is the typographer's habitual second color and the most
      consequential mark on a page deserves a single ink, not a legend of
@@ -119,19 +139,20 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  /* Tonal key unity (Hudson River). Atmospheric perspective = temperature:
-     (1) warm dawn light from the upper-left — the near, illuminated edge,
-     (2) a cool blue-gray atmospheric recession from the lower-right —
-         distant air, the Bierstadt valley haze,
-     (3) warm-tinted grain is the material substrate — not cold gray noise.
-     The cross-diagonal warm/cool split gives the page depth without
-     competing with prose ink. Layers are all `fixed` so scrolling reveals
-     paper, not wallpaper. */
-  background-color: var(--page-bg);
+  /* Pigment & Parchment temperature differential (June morning, ten a.m.).
+     The Hudson River dawn-mist is set down here — no atmospheric fade
+     into haze, no blue valley recession. Two subtle radial pools instead:
+     (1) a warm cinnabar/ochre wash in the upper-left — the lit edge,
+     (2) a cool cobalt-tinted breath in the lower-right — air, not fog,
+     (3) warm-tinted grain (the parchment's tooth) — fixed, so scrolling
+         reveals paper, not wallpaper.
+     The page is *lit*, not glowing. Pigments hold their saturation
+     against the warmth rather than dissolving into it. */
+  background-color: var(--parchment);
   background-image:
-    radial-gradient(ellipse 85% 50% at 22% -8%, rgba(255, 243, 210, 0.34), transparent 55%),
-    radial-gradient(ellipse 110% 60% at 78% 112%, rgba(96, 118, 142, 0.14), transparent 60%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0.55 0 0 0 0.08  0.48 0 0 0 0.05  0.32 0 0 0 0.02  0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    radial-gradient(ellipse 95% 55% at 18% -10%, rgba(196, 147, 51, 0.10), transparent 58%),
+    radial-gradient(ellipse 105% 60% at 82% 110%, rgba(61, 91, 160, 0.07), transparent 62%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0.55 0 0 0 0.08  0.48 0 0 0 0.05  0.32 0 0 0 0.02  0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
   background-attachment: fixed, fixed, fixed;
   background-size: auto, auto, 256px;
 }
@@ -737,7 +758,7 @@ body {
   border: none;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.68rem;
-  color: #7A7368;
+  color: #7A6F5C;
   cursor: pointer;
   padding: 2px 0;
   text-align: left;
@@ -753,10 +774,10 @@ body {
    user spots the anchor at a glance: "this is where I am, there's
    no level above." Cursor stays default since the click is a no-op. */
 .thumb-index__parent--at-index {
-  color: #B83434;
+  color: #BC4538;
   cursor: default;
 }
-.thumb-index__parent--at-index:hover { color: #B83434; }
+.thumb-index__parent--at-index:hover { color: #BC4538; }
 .thumb-index__parent--at-index .thumb-index__arrow { opacity: 0.7; }
 .thumb-index__arrow {
   margin-right: 3px;
@@ -775,13 +796,13 @@ body {
   padding: 2px 4px;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.68rem;
-  color: #7A7368;
+  color: #7A6F5C;
   cursor: pointer;
   flex-shrink: 0;
   transition: color 0.12s;
 }
 .thumb-index__astra-summary:hover {
-  color: var(--gold, #b8860b);
+  color: var(--gold, #C49333);
 }
 .thumb-index__astra-pair {
   display: inline-flex;
@@ -799,7 +820,7 @@ body {
   letter-spacing: 0.01em;
 }
 .thumb-index__astra-pair--tempered .thumb-index__astra-glyph {
-  color: var(--teal, #2dd4bf);
+  color: var(--teal, #3F8278);
   opacity: 1;
 }
 
@@ -812,7 +833,7 @@ body {
 .thumb-index__nav-label {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.55rem;
-  color: #7A7368;
+  color: #7A6F5C;
   opacity: 0.5;
   white-space: nowrap;
   flex-shrink: 0;
@@ -852,7 +873,7 @@ body {
 .pretext-nav-frag {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 11px;
-  color: #7A7368;
+  color: #7A6F5C;
   border-radius: 2px;
   transition: color 0.12s, background 0.12s;
 }
@@ -877,13 +898,13 @@ body {
 .pretext-nav-glyph {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 9px;
-  color: #7A7368;
+  color: #7A6F5C;
   opacity: 0.7;
 }
 .pretext-nav-sep {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 11px;
-  color: #7A7368;
+  color: #7A6F5C;
   opacity: 0.4;
 }
 
@@ -896,7 +917,7 @@ body {
   border: none;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.62rem;
-  color: #7A7368;
+  color: #7A6F5C;
   cursor: pointer;
   padding: 2px 4px;
   text-align: left;
@@ -912,14 +933,14 @@ body {
 
 /* Ellipsis and count indicators for truncated lists */
 .thumb-index__ellipsis {
-  color: #7A7368;
+  color: #7A6F5C;
   font-size: 0.6rem;
   padding: 0 2px;
   opacity: 0.5;
 }
 .thumb-index__count-hint {
   font-size: 0.55rem;
-  color: #7A7368;
+  color: #7A6F5C;
   opacity: 0.5;
   padding: 1px 4px;
   white-space: nowrap;
@@ -1214,12 +1235,12 @@ body {
   background: rgba(46, 42, 38, 0.055);
   padding: 0.15em 0.35em;
   border-radius: 2px;
-  color: #4A453F;
+  color: #3A332A;
 }
 
 .vellum-prose pre {
   background: #2E2A26;
-  color: #D4CCBF;
+  color: #C5B89E;
   border-radius: 3px;
   padding: 1.25em 1.5em;
   overflow-x: auto;
@@ -1643,7 +1664,7 @@ body {
   padding: 0;
   margin: 0;
   font: inherit;
-  color: var(--text-muted, #8a7e6e);
+  color: var(--text-muted, #7A6F5C);
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1757,7 +1778,7 @@ body {
   padding: 0;
   margin: 0;
   font: inherit;
-  color: var(--text-muted, #8a7e6e);
+  color: var(--text-muted, #7A6F5C);
   opacity: 0.6;
   cursor: pointer;
   white-space: nowrap;
@@ -1765,7 +1786,7 @@ body {
 }
 .quiet-compass__sibling:hover { opacity: 1; color: var(--text); }
 .quiet-compass__sibling--current {
-  color: var(--gold, #b8860b);
+  color: var(--gold, #C49333);
   opacity: 1;
 }
 .quiet-compass__glyph {
@@ -1919,7 +1940,7 @@ body {
   overflow: hidden;
   border-radius: 2px;
   vertical-align: middle;
-  background: var(--surface-warm, #f6efe0);
+  background: var(--surface-warm, #EDE2CE);
 }
 .margin-glyph__thumb {
   display: block;
@@ -3030,7 +3051,7 @@ body {
 
 .delta-card__error {
   font-size: 0.72rem;
-  color: #b4534a;
+  color: #BC4538;
   padding: 4px 6px;
   background: rgba(180, 83, 74, 0.08);
   border-radius: 2px;
@@ -4704,7 +4725,7 @@ body {
 }
 
 .fiber-card--active {
-  border-left: 2px solid var(--teal, #2dd4bf);
+  border-left: 2px solid var(--teal, #3F8278);
 }
 
 .fiber-card--closed {
@@ -4788,7 +4809,7 @@ body {
    in ordinary CSS. */
 
 .card {
-  background: var(--prose-bg, #FAFAF7);
+  background: var(--prose-bg, #FBF6E9);
   /* Bolder border so overlapping cards read as distinct plates against
      the paper substrate rather than blending at their edges. */
   border: 1px solid rgba(30, 28, 25, 0.32);
@@ -4874,7 +4895,7 @@ body {
   color: var(--text);
 }
 .card__option-btn:focus-visible {
-  outline: 2px solid var(--gold, #b8860b);
+  outline: 2px solid var(--gold, #C49333);
   outline-offset: 1px;
 }
 .card__option--selected .card__option-btn {
@@ -4883,7 +4904,7 @@ body {
   color: var(--text);
 }
 .card--flipped.card--resolved {
-  border-left-color: var(--gold, #b8860b);
+  border-left-color: var(--gold, #C49333);
 }
 .card__option-glyph {
   margin-right: 6px;
@@ -4892,7 +4913,7 @@ body {
   flex-shrink: 0;
 }
 .card__option--selected .card__option-glyph {
-  color: var(--teal, #2dd4bf);
+  color: var(--teal, #3F8278);
   opacity: 1;
 }
 .card__option-label {
@@ -4903,7 +4924,7 @@ body {
   padding: 1px 5px;
   border-radius: 2px;
   background: rgba(184, 134, 11, 0.1);
-  color: var(--gold, #b8860b);
+  color: var(--gold, #C49333);
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10px;
   letter-spacing: 0.03em;
@@ -4936,7 +4957,7 @@ body {
 }
 .card__option-insight-glyph {
   flex: 0 0 auto;
-  color: var(--insight-color, var(--gold, #b8860b));
+  color: var(--insight-color, var(--gold, #C49333));
   opacity: 0.7;
   font-size: 11px;
 }
@@ -4951,7 +4972,7 @@ body {
   margin-left: 2px;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 11px;
-  color: var(--gold, #b8860b);
+  color: var(--gold, #C49333);
   cursor: pointer;
   opacity: 0.75;
 }
@@ -5129,7 +5150,7 @@ button.card__evidence-source--artifact:hover {
 }
 .card__detail-tab--active {
   color: var(--text);
-  border-bottom-color: var(--gold, #b8860b);
+  border-bottom-color: var(--gold, #C49333);
 }
 .card__detail-panel {
   min-height: 20px;
@@ -5318,7 +5339,7 @@ button.card__evidence-source--artifact:hover {
   margin: 16px 0 8px;
 }
 .fiber-card__prose a {
-  color: var(--gold, #b8860b);
+  color: var(--gold, #C49333);
 }
 
 .pretext-sparkline {
@@ -5392,7 +5413,7 @@ button.card__evidence-source--artifact:hover {
 }
 
 .pretext-gate-2__hud.is-bad {
-  border-left: 2px solid #b94a4a;
+  border-left: 2px solid #BC4538;
 }
 
 .pretext-gate-2__hud-metric {
@@ -5582,7 +5603,7 @@ h3.pretext-prose-line--h3::before {
   background: rgba(46, 42, 38, 0.055);
   padding: 0.1em 0.32em;
   border-radius: 2px;
-  color: #4A453F;
+  color: #3A332A;
 }
 .pretext-prose-frag.is-math {
   white-space: nowrap;
@@ -5638,7 +5659,7 @@ a.pretext-prose-frag:hover {
    the frame. */
 .pretext-prose-code {
   background: #2E2A26;
-  color: #D4CCBF;
+  color: #C5B89E;
   border-radius: 3px;
   overflow: hidden;
 }
@@ -6201,7 +6222,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-appendix__row-caret {
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-size: 0.85em;
   width: 0.75em;
   flex: 0 0 auto;
@@ -6214,7 +6235,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-appendix__row-summary {
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-style: italic;
   font-size: 0.9em;
   flex: 1 1 auto;
@@ -6324,7 +6345,7 @@ a.pretext-prose-frag:hover {
   display: block;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: var(--surface, #faf8f3);
+  background: var(--surface, #FBF6E9);
   aspect-ratio: 4 / 3;
   transition: border-color 120ms ease, transform 120ms ease;
 }
@@ -6382,7 +6403,7 @@ a.pretext-prose-frag:hover {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-size: 12px;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   flex: 0 0 auto;
 }
 
@@ -6394,7 +6415,7 @@ a.pretext-prose-frag:hover {
 }
 
 .vellum-file-viewer-page__dirty {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   font-weight: 600;
 }
 
@@ -6539,7 +6560,7 @@ a.pretext-prose-frag:hover {
 }
 .vellum-modal-btn--destructive:hover {
   background: rgba(160, 48, 48, 0.10);
-  color: #A03030;
+  color: #BC4538;
 }
 .vellum-modal-btn--destructive .vellum-modal-btn__count {
   background: rgba(160, 48, 48, 0.10);
@@ -6547,7 +6568,7 @@ a.pretext-prose-frag:hover {
 }
 .vellum-modal-btn--destructive:hover .vellum-modal-btn__count {
   background: rgba(160, 48, 48, 0.20);
-  color: #A03030;
+  color: #BC4538;
 }
 
 /* Narrative bulk-action toolbar — same button shape as
@@ -6808,7 +6829,7 @@ a.pretext-prose-frag:hover {
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--text-muted, #8a8070);
+  color: var(--text-muted, #7A6F5C);
   cursor: pointer;
   padding: 0;
   font-size: 18px;
@@ -6816,7 +6837,7 @@ a.pretext-prose-frag:hover {
   transition: color 0.15s, background 0.15s;
 }
 .left-rail-toc__toggle:hover {
-  color: var(--ink, #1f1a15);
+  color: var(--ink, #1B1611);
   background: rgba(31, 26, 21, 0.04);
 }
 
@@ -6830,7 +6851,7 @@ a.pretext-prose-frag:hover {
   flex: 1 1 auto;
   min-width: 0;
   padding: 0.25rem 1rem 0.75rem 0.25rem;
-  background: var(--bg, #fbf8f3);
+  background: var(--bg, #FBF6E9);
   border-right: 1px solid var(--border-faint, rgba(212, 204, 191, 0.5));
   box-shadow: 2px 0 6px rgba(31, 26, 21, 0.04);
   animation: left-rail-toc-fade-in 0.12s ease-out;
@@ -6866,13 +6887,13 @@ a.pretext-prose-frag:hover {
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 .left-rail-toc__link:hover {
-  color: var(--ink, #1f1a15);
+  color: var(--ink, #1B1611);
   background: rgba(31, 26, 21, 0.03);
 }
 
 .left-rail-toc__item--active > .left-rail-toc__link {
-  color: var(--ink, #1f1a15);
-  border-left-color: var(--rubric, #b5453a);
+  color: var(--ink, #1B1611);
+  border-left-color: var(--rubric, #BC4538);
   font-variant-numeric: oldstyle-nums;
 }
 
@@ -6907,7 +6928,7 @@ a.pretext-prose-frag:hover {
   padding: 0.08rem 0.4rem 0.08rem 0.7rem;
   font: inherit;
   font-size: 0.82rem;
-  color: var(--text-muted, #8a8070);
+  color: var(--text-muted, #7A6F5C);
   cursor: pointer;
   border-left: 2px solid transparent;
   margin-left: -1px; /* align the active bar with the children rule */
@@ -6917,13 +6938,13 @@ a.pretext-prose-frag:hover {
   text-overflow: ellipsis;
 }
 .left-rail-toc__child-link:hover {
-  color: var(--ink, #1f1a15);
+  color: var(--ink, #1B1611);
   background: rgba(31, 26, 21, 0.03);
 }
 
 .left-rail-toc__child--active > .left-rail-toc__child-link {
-  color: var(--ink, #1f1a15);
-  border-left-color: var(--rubric, #b5453a);
+  color: var(--ink, #1B1611);
+  border-left-color: var(--rubric, #BC4538);
   font-variant-numeric: oldstyle-nums;
 }
 
@@ -7127,7 +7148,7 @@ a.pretext-prose-frag:hover {
   padding: 0;
   font-family: var(--font-spectral, var(--ui-font, system-ui));
   font-size: 0.82rem;
-  color: var(--ink-muted, #7A7368);
+  color: var(--ink-muted, #7A6F5C);
 }
 .vellum-authoring-lint__toggle {
   display: inline-flex;
@@ -7159,7 +7180,7 @@ a.pretext-prose-frag:hover {
 }
 .vellum-authoring-lint__glyph[data-severity='error'],
 .vellum-authoring-lint__row-glyph[data-severity='error'] {
-  color: var(--rubric, #B5453A);
+  color: var(--rubric, #BC4538);
 }
 .vellum-authoring-lint__glyph[data-severity='warning'],
 .vellum-authoring-lint__row-glyph[data-severity='warning'] {
@@ -7167,10 +7188,10 @@ a.pretext-prose-frag:hover {
 }
 .vellum-authoring-lint__glyph[data-severity='info'],
 .vellum-authoring-lint__row-glyph[data-severity='info'] {
-  color: var(--ink-muted, #7A7368);
+  color: var(--ink-muted, #7A6F5C);
 }
 .vellum-authoring-lint__summary {
-  color: var(--ink, #1F1A15);
+  color: var(--ink, #1B1611);
   font-variant-numeric: tabular-nums;
 }
 .vellum-authoring-lint__label {
@@ -7275,8 +7296,8 @@ a.pretext-prose-frag:hover {
 }
 
 .vellum-file-viewer-page__source-toggle--on {
-  border-color: var(--gold, #9A7B35);
-  color: var(--gold, #9A7B35);
+  border-color: var(--gold, #C49333);
+  color: var(--gold, #C49333);
 }
 
 .astra-paper-view-host {
@@ -7317,15 +7338,15 @@ a.pretext-prose-frag:hover {
 .astra-paper-view-host__notice {
   margin: 0.5em 1em 0;
   padding: 0.5em 0.75em;
-  border-left: 3px solid var(--gold, #9A7B35);
+  border-left: 3px solid var(--gold, #C49333);
   background: rgba(154, 123, 53, 0.06);
   font-size: 0.9em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-paper-view-host__loading {
   padding: 2em 1em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-style: italic;
 }
 
@@ -7367,21 +7388,21 @@ a.pretext-prose-frag:hover {
  * inherit ink-muted + italic so the prosaic narrative comments at the head
  * of every astra.yaml read as background context. */
 .astra-source-view__key {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
 }
 .astra-source-view__string {
-  color: var(--teal, #5A7B7B);
+  color: var(--teal, #3F8278);
 }
 .astra-source-view__number {
-  color: var(--teal, #5A7B7B);
+  color: var(--teal, #3F8278);
 }
 .astra-source-view__bool,
 .astra-source-view__null {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   font-style: italic;
 }
 .astra-source-view__comment {
-  color: var(--ink-muted, #7A7368);
+  color: var(--ink-muted, #7A6F5C);
   font-style: italic;
 }
 /* List dashes, document markers, flow brackets/commas, block-scalar `>` /
@@ -7389,11 +7410,11 @@ a.pretext-prose-frag:hover {
  * gold) so the eye reads `key:` as "load-bearing" and `-` / `[` / `>` as
  * "scaffolding." */
 .astra-source-view__marker {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   opacity: 0.75;
 }
 .astra-source-view__anchor {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   font-weight: 600;
 }
 
@@ -7422,7 +7443,7 @@ a.pretext-prose-frag:hover {
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
   font-size: clamp(11px, calc(0.5em + 1.5cqi), 0.92em);
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-picker__label {
@@ -7482,7 +7503,7 @@ a.pretext-prose-frag:hover {
 
 .astra-picker__option--active {
   color: var(--text, #2E2A26);
-  border-bottom-color: var(--gold, #9A7B35);
+  border-bottom-color: var(--gold, #C49333);
 }
 
 /* ── AstraPaperView body ──────────────────────────────────────────────── */
@@ -7576,7 +7597,7 @@ a.pretext-prose-frag:hover {
   initial-letter: 2 1;
   -webkit-initial-letter: 2 1;
   font-weight: 600;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   margin-right: 0.08em;
   padding-right: 0.04em;
 }
@@ -7650,7 +7671,7 @@ a.pretext-prose-frag:hover {
 .astra-paper-view__authors {
   margin: 0 0 0.5em;
   font-style: italic;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-paper-view__meta {
@@ -7659,7 +7680,7 @@ a.pretext-prose-frag:hover {
   gap: 0.75em;
   flex-wrap: wrap;
   font-size: 0.85em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-paper-view__universe {
@@ -7716,7 +7737,7 @@ a.pretext-prose-frag:hover {
 
 .astra-paper-view__section-count {
   font-size: 0.7em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-variant-caps: normal;
   letter-spacing: 0;
 }
@@ -7734,7 +7755,7 @@ a.pretext-prose-frag:hover {
  * the ref-click handler scrolls + flashes the target so the reader doesn't
  * lose the thread when jumping inside the document. */
 .astra-paper-view__ref {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   text-decoration: none;
   border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
   cursor: pointer;
@@ -7770,7 +7791,7 @@ a.pretext-prose-frag:hover {
 
 .astra-finding {
   padding: 0.75em 1em;
-  border-left: 3px solid var(--portolan-verdigris, #5A7B7B);
+  border-left: 3px solid var(--portolan-verdigris, #3F8278);
   background: rgba(90, 123, 123, 0.05);
 }
 
@@ -7800,7 +7821,7 @@ a.pretext-prose-frag:hover {
   margin: 0.5em 0 0;
   padding: 0;
   font-size: 0.92em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-finding__evidence-item {
@@ -7844,7 +7865,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-finding__evidence-link {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   text-decoration: none;
   border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
   align-self: flex-start;
@@ -7879,7 +7900,7 @@ a.pretext-prose-frag:hover {
 
 .astra-finding__evidence-link-glyph {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-size: 0.9em;
 }
 
@@ -7887,7 +7908,7 @@ a.pretext-prose-frag:hover {
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
   font-size: 0.78em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   margin-left: 0.35em;
 }
 
@@ -7902,7 +7923,7 @@ a.pretext-prose-frag:hover {
   align-items: baseline;
   gap: 0.5em;
   font-size: 0.88em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-finding__cite-page {
@@ -7920,11 +7941,11 @@ a.pretext-prose-frag:hover {
 .astra-finding__cite-label {
   font-variant-caps: small-caps;
   letter-spacing: 0.05em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-finding__cite-link {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   text-decoration: none;
   border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
 }
@@ -7959,7 +7980,7 @@ a.pretext-prose-frag:hover {
 .astra-finding__informs-label {
   font-variant-caps: small-caps;
   letter-spacing: 0.05em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-finding__informs-pills {
@@ -7976,7 +7997,7 @@ a.pretext-prose-frag:hover {
   padding: 0.1em 0.55em;
   border: 1px solid rgba(154, 123, 53, 0.45);
   border-radius: 999px;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   text-decoration: none;
   font-size: 0.92em;
   line-height: 1.4;
@@ -8006,7 +8027,7 @@ a.pretext-prose-frag:hover {
 
 .astra-insight {
   padding: 0.6em 0.85em;
-  border-left: 3px solid var(--gold, #9A7B35);
+  border-left: 3px solid var(--gold, #C49333);
   background: rgba(154, 123, 53, 0.04);
 }
 
@@ -8020,7 +8041,7 @@ a.pretext-prose-frag:hover {
 .astra-insight__id {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-size: 0.82em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-insight__claim {
@@ -8060,7 +8081,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-decision-card--flipped {
-  border-left-color: var(--gold, #9A7B35);
+  border-left-color: var(--gold, #C49333);
   background: linear-gradient(
     90deg,
     rgba(154, 123, 53, 0.05) 0%,
@@ -8087,7 +8108,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-decision-card__glyph {
-  color: var(--rubric, #A03030);
+  color: var(--rubric, #BC4538);
 }
 
 .astra-decision-card__label {
@@ -8098,11 +8119,11 @@ a.pretext-prose-frag:hover {
 .astra-decision-card__selected {
   flex: 1 1 auto;
   font-style: italic;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-decision-card--flipped .astra-decision-card__selected {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   font-style: normal;
 }
 
@@ -8111,7 +8132,7 @@ a.pretext-prose-frag:hover {
   font-size: 0.7em;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   padding: 0.1em 0.45em;
   border: 1px solid currentColor;
   border-radius: 9999px;
@@ -8121,7 +8142,7 @@ a.pretext-prose-frag:hover {
 
 .astra-decision-card__pinned {
   flex: 0 0 auto;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
 }
 
 .astra-decision-card__body {
@@ -8163,7 +8184,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-decision-option--selected {
-  border-left-color: var(--rubric, #A03030);
+  border-left-color: var(--rubric, #BC4538);
   background: rgba(160, 48, 48, 0.04);
 }
 
@@ -8197,18 +8218,18 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-decision-option__btn:focus-visible {
-  outline: 2px solid var(--gold, #9A7B35);
+  outline: 2px solid var(--gold, #C49333);
   outline-offset: -2px;
 }
 
 .astra-decision-option__glyph {
   flex: 0 0 auto;
-  color: var(--rubric, #A03030);
+  color: var(--rubric, #BC4538);
   font-size: 0.85em;
 }
 
 .astra-decision-option--selected .astra-decision-option__glyph {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
 }
 
 .astra-decision-option__label {
@@ -8220,7 +8241,7 @@ a.pretext-prose-frag:hover {
   font-size: 0.7em;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   padding: 0.05em 0.4em;
   border: 1px solid currentColor;
   border-radius: 9999px;
@@ -8228,7 +8249,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-decision-option__description {
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-size: 0.9em;
   flex-basis: 100%;
 }
@@ -8242,7 +8263,7 @@ a.pretext-prose-frag:hover {
   flex-wrap: wrap;
   font-size: 0.8em;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-decision-option__insight {
@@ -8255,9 +8276,9 @@ a.pretext-prose-frag:hover {
   margin-top: 0.5em;
   padding: 0.25em 0.7em;
   background: transparent;
-  border: 1px dashed var(--gold, #9A7B35);
+  border: 1px dashed var(--gold, #C49333);
   border-radius: 9999px;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   font: inherit;
   font-size: 0.85em;
   cursor: pointer;
@@ -8268,7 +8289,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-decision-card__reset:focus-visible {
-  outline: 2px solid var(--gold, #9A7B35);
+  outline: 2px solid var(--gold, #C49333);
   outline-offset: 2px;
 }
 
@@ -8300,13 +8321,13 @@ a.pretext-prose-frag:hover {
 .astra-input__type {
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-input__source {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-size: 0.85em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   /* Multi-segment provenance keys (`bao_fitting.final_distances`) shouldn't
    * push the input row past the column when the card narrows. */
   min-width: 0;
@@ -8318,7 +8339,7 @@ a.pretext-prose-frag:hover {
   flex: 1 1 100%;
   margin-left: 1em;
   font-style: italic;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 /* Outputs */
@@ -8359,12 +8380,12 @@ a.pretext-prose-frag:hover {
 .astra-output__type {
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-output__from {
   font-size: 0.85em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 /* Wiki-link variant — `output.from` resolves to another output (or input)
@@ -8374,19 +8395,19 @@ a.pretext-prose-frag:hover {
  * it doesn't compete with the artifact link below the description. */
 .astra-output__from--link {
   text-decoration: none;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   border-bottom: 1px dotted rgba(122, 115, 104, 0.5);
 }
 
 .astra-output__from--link:hover {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   border-bottom-color: rgba(154, 123, 53, 0.7);
   border-bottom-style: solid;
 }
 
 .astra-output__description {
   margin: 0.3em 0 0;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-size: 0.95em;
 }
 
@@ -8396,7 +8417,7 @@ a.pretext-prose-frag:hover {
   margin-top: 0.3em;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-size: 0.85em;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   text-decoration: none;
   border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
   /* Long monospace names break across lines instead of pushing the column
@@ -8426,7 +8447,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-output__figure-link:hover {
-  border-color: var(--gold, #9A7B35);
+  border-color: var(--gold, #C49333);
 }
 
 .astra-output__figure-thumb {
@@ -8477,7 +8498,7 @@ a.pretext-prose-frag:hover {
   margin: 0;
   padding: 0.3em 0.6em;
   font-size: 0.8em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-variant-caps: small-caps;
   letter-spacing: 0.05em;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
@@ -8495,7 +8516,7 @@ a.pretext-prose-frag:hover {
 
 .astra-sub-analysis {
   padding: 0.5em 0.75em;
-  border-left: 3px solid var(--ochre-ink, #9A7B35);
+  border-left: 3px solid var(--ochre-ink, #C49333);
   background: rgba(154, 123, 53, 0.04);
 }
 
@@ -8517,13 +8538,13 @@ a.pretext-prose-frag:hover {
 .astra-sub-analysis__description {
   margin: 0.3em 0 0;
   font-size: 0.95em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-sub-analysis__finding-count {
   margin: 0.3em 0 0;
   font-size: 0.85em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
 }
@@ -8551,7 +8572,7 @@ a.pretext-prose-frag:hover {
 
 .astra-sub-analysis__section-count {
   font-size: 0.8em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-variant-caps: normal;
   letter-spacing: 0;
 }
@@ -8593,7 +8614,7 @@ a.pretext-prose-frag:hover {
 .astra-paper-modal-shell {
   margin: 40px;
   flex: 1;
-  background: var(--page-bg, #EDE8E0);
+  background: var(--page-bg, #EDE2CE);
   color: var(--text, #2E2A26);
   border-radius: 6px;
   overflow: hidden;
@@ -8608,7 +8629,7 @@ a.pretext-prose-frag:hover {
   gap: 12px;
   padding: 14px 18px;
   border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.1));
-  background: var(--page-bg, #EDE8E0);
+  background: var(--page-bg, #EDE2CE);
 }
 
 .astra-paper-modal__title-block {
@@ -8631,7 +8652,7 @@ a.pretext-prose-frag:hover {
 .astra-paper-modal__authors {
   margin: 0;
   font-size: 0.9em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   line-height: 1.4;
   /* Big-author-list papers (DESI Collaboration ≈ 80 authors) wrap to ~7
      lines and eat ~25% of the modal height, squeezing the PDF pane to
@@ -8650,7 +8671,7 @@ a.pretext-prose-frag:hover {
 .astra-paper-modal__doi {
   margin: 0;
   font-size: 0.82em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
@@ -8662,7 +8683,7 @@ a.pretext-prose-frag:hover {
 
 .astra-paper-modal__doi-link:hover,
 .astra-paper-modal__doi-link:focus-visible {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   border-bottom-style: solid;
 }
 
@@ -8671,7 +8692,7 @@ a.pretext-prose-frag:hover {
   border: 0;
   background: transparent;
   cursor: pointer;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-size: 26px;
   line-height: 1;
   padding: 4px 10px;
@@ -8728,13 +8749,13 @@ a.pretext-prose-frag:hover {
 }
 
 .vellum-file-reader__pdf-page--highlight {
-  outline-color: var(--gold, #9A7B35);
+  outline-color: var(--gold, #C49333);
   box-shadow: 0 0 0 6px rgba(154, 123, 53, 0.22), 0 4px 14px rgba(0, 0, 0, 0.45);
   animation: vellum-pdf-page-pulse 1800ms ease-out forwards;
 }
 
 @keyframes vellum-pdf-page-pulse {
-  0%   { outline-color: var(--gold, #9A7B35); box-shadow: 0 0 0 0 rgba(154, 123, 53, 0.55), 0 4px 14px rgba(0, 0, 0, 0.45); }
+  0%   { outline-color: var(--gold, #C49333); box-shadow: 0 0 0 0 rgba(154, 123, 53, 0.55), 0 4px 14px rgba(0, 0, 0, 0.45); }
   35%  { box-shadow: 0 0 0 8px rgba(154, 123, 53, 0.32), 0 4px 14px rgba(0, 0, 0, 0.45); }
   100% { outline-color: transparent; box-shadow: 0 0 0 0 rgba(154, 123, 53, 0), 0 4px 14px rgba(0, 0, 0, 0.45); }
 }
@@ -8761,7 +8782,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-paper-modal__pdf-uncached-link {
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   text-decoration: none;
   border-bottom: 1px dashed rgba(154, 123, 53, 0.5);
 }
@@ -8775,7 +8796,7 @@ a.pretext-prose-frag:hover {
   flex: 0 0 360px;
   min-width: 0;
   border-left: 1px solid var(--border, rgba(0, 0, 0, 0.1));
-  background: var(--page-bg, #EDE8E0);
+  background: var(--page-bg, #EDE2CE);
   overflow: auto;
   padding: 14px 18px 24px;
   display: flex;
@@ -8795,13 +8816,13 @@ a.pretext-prose-frag:hover {
   font-size: 0.78em;
   font-variant-caps: small-caps;
   letter-spacing: 0.06em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-paper-modal__rail-empty {
   margin: 8px 0;
   font-size: 0.88em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   font-style: italic;
 }
 
@@ -8827,7 +8848,7 @@ a.pretext-prose-frag:hover {
 
 .astra-paper-modal__insight--focus {
   background: rgba(154, 123, 53, 0.18);
-  border-left-color: var(--gold, #9A7B35);
+  border-left-color: var(--gold, #C49333);
   animation: astra-paper-modal-flash 1.6s ease-out;
 }
 
@@ -8846,7 +8867,7 @@ a.pretext-prose-frag:hover {
 .astra-paper-modal__insight-id {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.78em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-paper-modal__insight-claim {
@@ -8869,7 +8890,7 @@ a.pretext-prose-frag:hover {
   font-size: 0.78em;
   font-variant-caps: small-caps;
   letter-spacing: 0.04em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 /* Page hint becomes a real button so the rail row can scroll the PDF
@@ -8882,7 +8903,7 @@ a.pretext-prose-frag:hover {
   font: inherit;
   letter-spacing: inherit;
   font-variant-caps: inherit;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   background: transparent;
   border: none;
   padding: 0;
@@ -8899,7 +8920,7 @@ a.pretext-prose-frag:hover {
 }
 
 .astra-paper-modal__insight-page-link:disabled {
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
   border-bottom-color: transparent;
   cursor: default;
 }
@@ -8915,7 +8936,7 @@ a.pretext-prose-frag:hover {
 .astra-paper-modal__insight-informs-label {
   font-variant-caps: small-caps;
   letter-spacing: 0.05em;
-  color: var(--text-muted, #7A7368);
+  color: var(--text-muted, #7A6F5C);
 }
 
 .astra-paper-modal__insight-informs-pills {
@@ -8932,7 +8953,7 @@ a.pretext-prose-frag:hover {
   font-size: inherit;
   border: 1px solid rgba(154, 123, 53, 0.35);
   background: transparent;
-  color: var(--gold, #9A7B35);
+  color: var(--gold, #C49333);
   padding: 1px 8px;
   border-radius: 999px;
   cursor: pointer;
@@ -8942,7 +8963,7 @@ a.pretext-prose-frag:hover {
 .astra-paper-modal__informs-pill:hover,
 .astra-paper-modal__informs-pill:focus-visible {
   background: rgba(154, 123, 53, 0.12);
-  border-color: var(--gold, #9A7B35);
+  border-color: var(--gold, #C49333);
   outline: none;
 }
 
@@ -9139,17 +9160,17 @@ a.pretext-prose-frag:hover {
 .history-card__event-summary > p { margin: 0; }
 .history-card__event-summary > p + p { margin-top: 0.5em; }
 .history-card__event-summary a {
-  color: var(--gold, #b8860b);
+  color: var(--gold, #C49333);
   text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--gold, #b8860b) 35%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--gold, #C49333) 35%, transparent);
 }
 .history-card__event-summary a:hover {
-  border-bottom-color: var(--gold, #b8860b);
+  border-bottom-color: var(--gold, #C49333);
 }
 .history-card__event-summary code {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 0.78em;
-  background: color-mix(in srgb, var(--gold, #b8860b) 12%, transparent);
+  background: color-mix(in srgb, var(--gold, #C49333) 12%, transparent);
   padding: 0 0.25em;
   border-radius: 2px;
 }
@@ -9167,7 +9188,7 @@ a.pretext-prose-frag:hover {
   color: var(--text-muted);
 }
 .history-card__event--editorial .history-card__event-kind-glyph {
-  color: var(--gold, #b8860b);
+  color: var(--gold, #C49333);
 }
 
 /* ── Dangling tail ────────────────────────────────────────────────────
@@ -9228,7 +9249,7 @@ a.pretext-prose-frag:hover {
   outline: none;
 }
 .history-card__event:focus-visible {
-  outline: 2px solid var(--gold, #b8860b);
+  outline: 2px solid var(--gold, #C49333);
   outline-offset: -2px;
   border-radius: 2px;
 }
@@ -9268,7 +9289,7 @@ a.pretext-prose-frag:hover {
   color: var(--text);
 }
 .history-card__load-more-btn:focus-visible {
-  outline: 2px solid var(--gold, #b8860b);
+  outline: 2px solid var(--gold, #C49333);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -9305,7 +9326,7 @@ a.pretext-prose-frag:hover {
   color: var(--text-muted);
   text-decoration: none;
   padding: 0 0.4em;
-  border: 1px solid color-mix(in srgb, var(--gold, #b8860b) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold, #C49333) 35%, transparent);
   border-radius: 2px;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
   white-space: nowrap;
@@ -9321,12 +9342,12 @@ a.pretext-prose-frag:hover {
 }
 .vellum-fiber-header__history-indicator:hover,
 .vellum-fiber-header__history-indicator:focus-visible {
-  color: var(--gold, #b8860b);
-  border-color: var(--gold, #b8860b);
-  background: color-mix(in srgb, var(--gold, #b8860b) 8%, transparent);
+  color: var(--gold, #C49333);
+  border-color: var(--gold, #C49333);
+  background: color-mix(in srgb, var(--gold, #C49333) 8%, transparent);
 }
 .vellum-fiber-header__history-glyph {
-  color: var(--gold, #b8860b);
+  color: var(--gold, #C49333);
   font-weight: 500;
 }
 .vellum-fiber-header__history-count {
