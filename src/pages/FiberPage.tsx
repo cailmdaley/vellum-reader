@@ -421,10 +421,13 @@ export function FiberPage() {
           save={fileChrome.save}
           annotations={fileChrome.annotations}
           annotationsRef={fileChrome.annotationsRef}
+          storedAnnotations={fileChrome.storedAnnotations}
+          storedAnnotationsRef={fileChrome.storedAnnotationsRef}
           onDirtyChange={fileChrome.setDirty}
           onSaveStateChange={fileChrome.setSaveState}
           onSaveReady={fileChrome.handleSaveReady}
           onAnnotationsChange={fileChrome.setAnnotations}
+          onStoredAnnotationsChange={fileChrome.setStoredAnnotations}
           onRefresh={fileChrome.handleRefresh}
           refreshAnnotations={fileChrome.refreshAnnotations}
         />
@@ -546,10 +549,13 @@ interface FileModeViewProps {
   save: (() => Promise<void>) | null;
   annotations: Annotation[];
   annotationsRef: { current: Annotation[] };
+  storedAnnotations: Annotation[];
+  storedAnnotationsRef: { current: Annotation[] };
   onDirtyChange: (dirty: boolean) => void;
   onSaveStateChange: (state: SaveState) => void;
   onSaveReady: (fn: (() => Promise<void>) | null) => void;
   onAnnotationsChange: (annotations: Annotation[]) => void;
+  onStoredAnnotationsChange: (annotations: Annotation[]) => void;
   onRefresh: () => void;
   refreshAnnotations: () => void;
 }
@@ -563,10 +569,13 @@ function FileModeView({
   save,
   annotations,
   annotationsRef,
+  storedAnnotations,
+  storedAnnotationsRef,
   onDirtyChange,
   onSaveStateChange,
   onSaveReady,
   onAnnotationsChange,
+  onStoredAnnotationsChange,
   onRefresh,
   refreshAnnotations,
 }: FileModeViewProps) {
@@ -579,6 +588,8 @@ function FileModeView({
         save={save}
         annotations={annotations}
         annotationsRef={annotationsRef}
+        storedAnnotations={storedAnnotations}
+        storedAnnotationsRef={storedAnnotationsRef}
         headerAnnotationActions={target.headerAnnotationActions}
         refreshAnnotations={refreshAnnotations}
         onRefresh={onRefresh}
@@ -601,6 +612,7 @@ function FileModeView({
           onSaveStateChange={onSaveStateChange}
           onSaveReady={onSaveReady}
           onAnnotationsChange={onAnnotationsChange}
+          onStoredAnnotationsChange={onStoredAnnotationsChange}
           annotationRefreshKey={annotationRefreshKey}
         />
       </div>

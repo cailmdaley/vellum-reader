@@ -781,6 +781,7 @@ export function NarrativeView({
               <NarrativeAnnotationActionsBar
                 currentSlug={content.slug}
                 annotations={visibleAnnotations ?? []}
+                storedAnnotations={annotations}
                 bulkActions={annotationBulkActions}
                 onRefreshAnnotations={refreshAnnotations}
               />

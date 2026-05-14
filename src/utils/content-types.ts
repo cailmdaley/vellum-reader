@@ -263,6 +263,22 @@ export interface AnnotationBulkAction {
    *  Recommended for any action that calls `confirm()` or otherwise
    *  cannot be undone. */
   destructive?: boolean;
+  /** Which annotation set this action operates on.
+   *
+   *  - `'visible'` (default): the anchor-resolved subset currently
+   *    rendered as marks. Right for Send / Save-as-fiber — they only
+   *    make sense for annotations whose quote still lives in the
+   *    document.
+   *  - `'stored'`: every annotation persisted under this file/slug,
+   *    including "zombies" whose anchors no longer resolve after edits.
+   *    Right for Clear — the user's intent is to clean out the store,
+   *    not to operate on what happens to render today. With this scope
+   *    the chrome surfaces the button whenever the store is non-empty,
+   *    even if zero anchors resolve right now.
+   *
+   *  When unset, the visible list drives both the button's count badge
+   *  and the annotation list handed to `onInvoke` (existing semantics). */
+  scope?: 'visible' | 'stored';
   applicableTo?: (annotation: Annotation) => boolean;
   onInvoke: (
     annotations: Annotation[],

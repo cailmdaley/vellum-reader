@@ -8,8 +8,17 @@ export interface FileViewerChromeProps {
   dirty: boolean;
   saveState: SaveState;
   save: (() => Promise<void>) | null;
+  /** The "visible" set — anchor-resolved annotations actually rendered
+   *  as marks in the prose. Drives `scope: 'visible'` actions (default
+   *  for Send / Save-as-fiber). */
   annotations: Annotation[];
   annotationsRef: RefObject<Annotation[]>;
+  /** The "stored" set — every annotation persisted on disk for this
+   *  path/slug, including zombies whose anchors no longer resolve.
+   *  Drives `scope: 'stored'` actions (Clear). Falls back to
+   *  `annotations` when omitted, preserving legacy callers. */
+  storedAnnotations?: Annotation[];
+  storedAnnotationsRef?: RefObject<Annotation[]>;
   headerAnnotationActions?: AnnotationBulkAction[];
   refreshAnnotations: () => void;
   onRefresh: () => void;
@@ -29,6 +38,9 @@ export function useFileViewerChromeState() {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const annotationsRef = useRef<Annotation[]>([]);
   annotationsRef.current = annotations;
+  const [storedAnnotations, setStoredAnnotations] = useState<Annotation[]>([]);
+  const storedAnnotationsRef = useRef<Annotation[]>([]);
+  storedAnnotationsRef.current = storedAnnotations;
 
   const handleRefresh = useCallback(() => {
     setCacheBustKey((n) => n + 1);
@@ -50,10 +62,13 @@ export function useFileViewerChromeState() {
     save,
     annotations,
     annotationsRef,
+    storedAnnotations,
+    storedAnnotationsRef,
     setDirty,
     setSaveState,
     handleSaveReady,
     setAnnotations,
+    setStoredAnnotations,
     handleRefresh,
     refreshAnnotations,
   };
@@ -74,6 +89,8 @@ export function FileViewerChrome({
   save,
   annotations,
   annotationsRef,
+  storedAnnotations,
+  storedAnnotationsRef,
   headerAnnotationActions,
   refreshAnnotations,
   onRefresh,
@@ -85,6 +102,10 @@ export function FileViewerChrome({
 }: FileViewerChromeProps) {
   const canSave = !!save && dirty && saveState !== 'saving';
   const statusText = saveStatusText(saveState);
+  // Stored set defaults to the visible set so legacy callers (chrome
+  // hosts that haven't started threading storedAnnotations) keep their
+  // existing single-list semantics.
+  const storedList = storedAnnotations ?? annotations;
 
   return (
     <header className={toolbarClassName}>
@@ -96,10 +117,19 @@ export function FileViewerChrome({
         <span className="vellum-file-viewer-page__status">{statusText}</span>
       )}
       <div className={actionsClassName}>
-        {annotations.length > 0 && headerAnnotationActions?.map((action: AnnotationBulkAction) => {
+        {headerAnnotationActions?.map((action: AnnotationBulkAction) => {
+          // 'stored' actions reach into the on-disk set (Clear nukes
+          // everything, including zombies whose anchors don't resolve);
+          // 'visible' actions only see anchor-resolved marks (Send /
+          // Fiber, where operating on an unrendered annotation is
+          // nonsense). Each action gates independently on its own
+          // applicable count — no outer length gate, so a 'stored'
+          // Clear stays reachable when zero anchors resolve but the
+          // store still has rows.
+          const source = action.scope === 'stored' ? storedList : annotations;
           const applicable = action.applicableTo
-            ? annotations.filter(action.applicableTo)
-            : annotations;
+            ? source.filter(action.applicableTo)
+            : source;
           if (applicable.length === 0) return null;
           return (
             <button
@@ -114,10 +144,13 @@ export function FileViewerChrome({
                 applicable.length === 1 ? 'annotation' : 'annotations'
               }`}
               onClick={(e) => {
-                const current = annotationsRef.current ?? [];
+                const sourceRef =
+                  action.scope === 'stored'
+                    ? (storedAnnotationsRef?.current ?? annotationsRef.current ?? [])
+                    : (annotationsRef.current ?? []);
                 const matched = action.applicableTo
-                  ? current.filter(action.applicableTo)
-                  : current;
+                  ? sourceRef.filter(action.applicableTo)
+                  : sourceRef;
                 void action.onInvoke(matched, {
                   anchor: e.currentTarget as HTMLElement,
                   refreshAnnotations,

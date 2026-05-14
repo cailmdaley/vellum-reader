@@ -56,8 +56,18 @@ export interface FileViewerPageProps {
    */
   onSaveReady?: (save: (() => Promise<void>) | null) => void;
   /** Fires whenever the annotation list for this file changes. Host uses this
-   * to show/hide bulk action buttons in its own chrome. */
+   * to show/hide bulk action buttons in its own chrome. Receives the
+   * "visible" set — anchor-resolved annotations actually rendered as
+   * marks — which drives `scope: 'visible'` bulk actions (Send,
+   * Save-as-fiber). */
   onAnnotationsChange?: (annotations: Annotation[]) => void;
+  /** Fires whenever the on-disk annotation list for this file changes.
+   * Drives `scope: 'stored'` bulk actions (Clear) in the host chrome —
+   * the visible set under-counts when the document has drifted past
+   * existing annotation anchors, and Clear should still be able to
+   * sweep those zombies. Falls back to `onAnnotationsChange`'s set
+   * downstream when this isn't wired. */
+  onStoredAnnotationsChange?: (annotations: Annotation[]) => void;
   /** Increment to force a re-fetch of annotations from the adapter without
    * remounting the file (cursor, scroll, editor state are preserved). Use
    * after a bulk mutation (mark-sent, bulk-delete). */
@@ -147,6 +157,7 @@ function FileViewerContent({
   onSaveStateChange,
   onSaveReady,
   onAnnotationsChange,
+  onStoredAnnotationsChange,
   annotationRefreshKey,
 }: FileViewerPageProps) {
   const adapter = useAdapter();
@@ -290,6 +301,14 @@ function FileViewerContent({
   useEffect(() => {
     onAnnotationsChange?.(chromeAnnotationsForFileViewer(fileKind, annotations, visibleAnnotations));
   }, [annotations, fileKind, visibleAnnotations, onAnnotationsChange]);
+  // The stored channel is the full adapter-returned set, irrespective
+  // of which anchors currently resolve. Drives `scope: 'stored'`
+  // actions (Clear). For non-text file kinds the chrome already
+  // operates on the full set, so the channels coincide — emitting
+  // both keeps the wiring uniform across kinds.
+  useEffect(() => {
+    onStoredAnnotationsChange?.(annotations);
+  }, [annotations, onStoredAnnotationsChange]);
 
   useEffect(() => {
     if (!onSaveReady) return;

@@ -40,6 +40,35 @@ function annotationHighlightClass(annotation: Annotation): string {
 }
 
 /**
+ * Lay out the margin-note waterfall. Each note anchors at its mark's
+ * `top` (the y of the highlighted passage in wrapper coordinates) and
+ * waterfalls downward to clear the card above it, using each card's
+ * *actual rendered height* (resolved via `heightFor`) plus a fixed
+ * `gap`. The first-fit collision logic the layer used previously gave
+ * every card the same 16px buffer regardless of height, so a tall
+ * multi-line note would have the next card overlap it by all but 16px
+ * of its body.
+ *
+ * Returns a Map<annotationId, displayTop>. Exported for unit testing;
+ * the layer calls this from a `useLayoutEffect` after measuring each
+ * mounted card via `offsetHeight`.
+ */
+export function computeMarginNoteLayout(
+  marks: ReadonlyArray<{ annotation: { id: string }; top: number }>,
+  heightFor: (id: string) => number,
+  gap: number,
+): Map<string, number> {
+  const next = new Map<string, number>();
+  let prevBottom = -Infinity;
+  for (const mark of marks) {
+    const top = Math.max(mark.top, prevBottom + gap);
+    next.set(mark.annotation.id, top);
+    prevBottom = top + heightFor(mark.annotation.id);
+  }
+  return next;
+}
+
+/**
  * Build the {selectedText, contextBefore, contextAfter} triple that anchors a
  * fresh annotation. `proseEl` is the prose root the layer is mounted over —
  * pass `proseRef.current`. The container bounds the context-slice so the
@@ -657,15 +686,66 @@ export function TextAnnotationLayer({
     [singleActions, selectionContext, slug, navigate],
   );
 
-  const positionedMarks = (() => {
-    const MIN_GAP = 16;
-    let lastTop = -999;
-    return marks.map((mark) => {
-      const displayTop = Math.max(mark.top, lastTop + MIN_GAP);
-      lastTop = displayTop;
-      return { ...mark, displayTop };
-    });
-  })();
+  // Margin-note waterfall. Each note anchors at its mark's `top` and
+  // is then pushed downward to clear the card above it — measuring the
+  // *actual rendered height* of the previous note, not just its anchor
+  // Y. The old single-pass formula (`max(top, prevTop + 16)`) gave
+  // every card the same 16px buffer regardless of height, so a tall
+  // multi-line note would have the next card overlapping it by all but
+  // 16px of its body.
+  //
+  // Two-pass layout:
+  //  1. Render at the anchor Y (first paint). Cards may overlap here
+  //     for a single frame; the alternative is to render off-screen
+  //     and FLIP into place, which costs more than it saves.
+  //  2. After commit, measure each card's `offsetHeight` and waterfall
+  //     down: `displayTop = max(anchorTop, prevBottom + GAP)`. Commit
+  //     the new positions via state so React re-renders with corrected
+  //     `top`s. The position cache (`noteLayout`) is keyed by
+  //     annotation id, so identity-stable across re-renders avoids
+  //     full layout thrash when one note resizes.
+  //
+  // We re-run on `marks` (anchor set changes) and `reanchorTick` (a
+  // prose reflow refreshed anchor Ys). Notes themselves don't change
+  // height after mount under the current CSS (line-clamp caps body at
+  // 4 lines), so no per-note ResizeObserver is needed; if line-clamp
+  // is ever loosened, add one here.
+  const NOTE_GAP = 12;
+  const noteRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const setNoteRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    if (el) noteRefs.current.set(id, el);
+    else noteRefs.current.delete(id);
+  }, []);
+  const [noteLayout, setNoteLayout] = useState<Map<string, number>>(new Map());
+  const positionedMarks = marks.map((mark) => ({
+    ...mark,
+    displayTop: noteLayout.get(mark.annotation.id) ?? mark.top,
+  }));
+  useLayoutEffect(() => {
+    if (marks.length === 0) {
+      if (noteLayout.size > 0) setNoteLayout(new Map());
+      return;
+    }
+    const next = computeMarginNoteLayout(
+      marks,
+      (id) => noteRefs.current.get(id)?.offsetHeight ?? 0,
+      NOTE_GAP,
+    );
+    // Skip the setState if nothing meaningful changed — re-rendering
+    // on every layout pass would loop, since the effect runs after
+    // every render the state update itself causes.
+    if (next.size !== noteLayout.size) {
+      setNoteLayout(next);
+      return;
+    }
+    for (const [id, top] of next) {
+      const prev = noteLayout.get(id);
+      if (prev === undefined || Math.abs(prev - top) > 0.5) {
+        setNoteLayout(next);
+        return;
+      }
+    }
+  }, [marks, noteLayout]);
 
   return (
     <>
@@ -815,6 +895,7 @@ export function TextAnnotationLayer({
         return (
           <div
             key={mark.annotation.id}
+            ref={setNoteRef(mark.annotation.id)}
             className={`ann-margin-note${mark.annotation.intent === 'delete' ? ' ann-margin-note--delete' : ''}`}
             style={{ top: mark.displayTop, left: railGeometry.left, width: railGeometry.width }}
             onClick={() => handleDotClick(mark.annotation, mark)}

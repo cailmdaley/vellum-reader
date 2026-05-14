@@ -44,10 +44,13 @@ export function FileViewerModal({
     save,
     annotations,
     annotationsRef,
+    storedAnnotations,
+    storedAnnotationsRef,
     setDirty,
     setSaveState,
     handleSaveReady,
     setAnnotations,
+    setStoredAnnotations,
     handleRefresh,
     refreshAnnotations,
   } = useFileViewerChromeState();
@@ -89,6 +92,8 @@ export function FileViewerModal({
           save={save}
           annotations={annotations}
           annotationsRef={annotationsRef}
+          storedAnnotations={storedAnnotations}
+          storedAnnotationsRef={storedAnnotationsRef}
           headerAnnotationActions={headerAnnotationActions}
           refreshAnnotations={refreshAnnotations}
           onRefresh={handleRefresh}
@@ -111,6 +116,7 @@ export function FileViewerModal({
             onSaveStateChange={setSaveState}
             onSaveReady={handleSaveReady}
             onAnnotationsChange={setAnnotations}
+            onStoredAnnotationsChange={setStoredAnnotations}
             annotationRefreshKey={annotationRefreshKey}
           />
         </div>

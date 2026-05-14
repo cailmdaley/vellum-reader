@@ -31,7 +31,14 @@ interface NarrativeAnnotationActionsBarProps {
    *  `currentSlug` so slug-bound actions (resolve to file path, send to
    *  worker, save-as-child-fiber) know which fiber they belong to. */
   currentSlug: string;
+  /** Visible (anchor-resolved) annotations — drives `scope: 'visible'`
+   *  actions (default for Send / Save-as-child-fiber). */
   annotations: Annotation[];
+  /** Full on-disk set for this fiber, including zombies whose anchors
+   *  no longer resolve after edits — drives `scope: 'stored'` actions
+   *  (Clear, which should nuke the store regardless of what currently
+   *  renders). Falls back to `annotations` when omitted. */
+  storedAnnotations?: Annotation[];
   bulkActions: AnnotationBulkAction[];
   /**
    * Called by an action's `onInvoke` `ctx.refreshAnnotations` so the bar's
@@ -45,6 +52,7 @@ interface NarrativeAnnotationActionsBarProps {
 export function NarrativeAnnotationActionsBar({
   currentSlug,
   annotations,
+  storedAnnotations,
   bulkActions,
   onRefreshAnnotations,
 }: NarrativeAnnotationActionsBarProps) {
@@ -57,29 +65,47 @@ export function NarrativeAnnotationActionsBar({
   const fiberAnnotations = annotations.filter(
     (a) => !a.filePath || a.filePath === currentSlug,
   );
+  const storedFiberAnnotations = (storedAnnotations ?? annotations).filter(
+    (a) => !a.filePath || a.filePath === currentSlug,
+  );
 
-  // Live ref on the latest filtered list. The button's onClick captures
-  // the array at mount time otherwise; long-running pickers (worker
-  // picker, etc.) would dispatch against a stale list.
+  // Live refs on the latest filtered lists. The button's onClick
+  // captures the array at mount time otherwise; long-running pickers
+  // (worker picker, etc.) would dispatch against a stale list.
   const annotationsRef = useRef<Annotation[]>(fiberAnnotations);
   annotationsRef.current = fiberAnnotations;
+  const storedAnnotationsRef = useRef<Annotation[]>(storedFiberAnnotations);
+  storedAnnotationsRef.current = storedFiberAnnotations;
 
   if (bulkActions.length === 0) return null;
-  if (fiberAnnotations.length === 0) return null;
+  // The bar still hides itself when both sets are empty — the chrome
+  // has nothing to act on. With stored-scope Clear in play it stays
+  // visible whenever the store has any row, even if no marks resolve.
+  if (fiberAnnotations.length === 0 && storedFiberAnnotations.length === 0) return null;
 
   // Pre-filter once for the visible-button decision; the click handler
-  // re-filters from `annotationsRef.current` so a refresh that lands
-  // between render and click sees the current set.
+  // re-filters from the matching ref so a refresh that lands between
+  // render and click sees the current set.
   const visibleActions = bulkActions
     .map((action) => {
+      const source = action.scope === 'stored' ? storedFiberAnnotations : fiberAnnotations;
       const applicable = action.applicableTo
-        ? fiberAnnotations.filter(action.applicableTo)
-        : fiberAnnotations;
+        ? source.filter(action.applicableTo)
+        : source;
       return { action, count: applicable.length };
     })
     .filter(({ count }) => count > 0);
 
   if (visibleActions.length === 0) return null;
+
+  // The caption tracks the broadest set the bar is acting on so the
+  // user sees "5 annotations" when storage has 5 even though 1 is
+  // visible — otherwise the count would lie about what Clear is
+  // actually about to delete.
+  const captionCount = Math.max(
+    fiberAnnotations.length,
+    storedFiberAnnotations.length,
+  );
 
   return (
     <div
@@ -88,7 +114,7 @@ export function NarrativeAnnotationActionsBar({
       aria-label="Annotation actions"
     >
       <span className="vellum-narrative-action-bar__caption">
-        {fiberAnnotations.length} annotation{fiberAnnotations.length === 1 ? '' : 's'}
+        {captionCount} annotation{captionCount === 1 ? '' : 's'}
       </span>
       <div className="vellum-narrative-action-bar__buttons">
         {visibleActions.map(({ action, count }) => (
@@ -104,9 +130,13 @@ export function NarrativeAnnotationActionsBar({
               count === 1 ? 'annotation' : 'annotations'
             }`}
             onClick={(e) => {
+              const sourceRef =
+                action.scope === 'stored'
+                  ? storedAnnotationsRef.current
+                  : annotationsRef.current;
               const matched = action.applicableTo
-                ? annotationsRef.current.filter(action.applicableTo)
-                : annotationsRef.current;
+                ? sourceRef.filter(action.applicableTo)
+                : sourceRef;
               void action.onInvoke(matched, {
                 anchor: e.currentTarget as HTMLElement,
                 refreshAnnotations: onRefreshAnnotations,
