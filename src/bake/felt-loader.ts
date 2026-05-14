@@ -72,7 +72,14 @@ function walkFeltDir(
 
   for (const entry of entries) {
     const fullPath = join(currentDir, entry);
-    if (!statSync(fullPath).isDirectory()) continue;
+    let stat;
+    try {
+      stat = statSync(fullPath);
+    } catch {
+      // Broken symlink or unreadable entry — skip silently.
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
     if (entry.startsWith('.') || entry === 'node_modules') continue;
 
     const mdFile = join(fullPath, `${entry}.md`);

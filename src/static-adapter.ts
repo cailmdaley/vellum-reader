@@ -62,8 +62,12 @@ function readStaticConfig(): Window['__VELLUM_STATIC__'] | undefined {
 }
 
 function inferredSiteBase(): string {
+  // The bundled script lives at <siteBase>/_vellum/assets/<file>.js. Up two
+  // directories from there is the site base. Three was a long-standing
+  // off-by-one that resolved to '/' on Pages and made the SPA fallback in
+  // 404.html lose its basename — slugs ended up including 'tapestries/'.
   const siteBase = trimTrailingSlash(
-    new URL(/* @vite-ignore */ '../../..', import.meta.url).pathname,
+    new URL(/* @vite-ignore */ '../..', import.meta.url).pathname,
   );
   return siteBase || '/';
 }

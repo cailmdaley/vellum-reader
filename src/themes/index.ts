@@ -10,9 +10,10 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
   'cail-personal': cailPersonalTheme,
 };
 
-// lightcone-linear is the staging-ground rung — the layout-faithful
-// reimplementation that vellum's structured renderer also defaults to.
-export const DEFAULT_THEME_ID: ThemeId = 'lightcone-linear';
+// cail-personal is the default for vellum-reader: the power-user reading
+// surface (persistent marginalia column, expressive divergence). Generic
+// consumers can opt into `lightcone-linear` via `?theme=lightcone-linear`.
+export const DEFAULT_THEME_ID: ThemeId = 'cail-personal';
 
 // Theme selection: URL query param (`?theme=lightcone-linear`), with a
 // sticky localStorage fallback so reloads don't lose the selection.
