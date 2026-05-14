@@ -34,6 +34,7 @@
     "dist",
     "dist-static",
     "public",
+    "README.assets",
     "index.html",
     "static.html",
     "README.md",

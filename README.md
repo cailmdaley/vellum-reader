@@ -2,7 +2,7 @@
 
 > Vellum — a static reader for felt fibers, rendered MyST, adapter-driven.
 
-<!-- TAPESTRIES_SCREENSHOT: vellum-on-vellum -->
+![Vellum on Vellum rendered through the tapestries publishing pipeline](README.assets/vellum-on-vellum.jpg)
 
 ## What it is
 
@@ -24,9 +24,17 @@ site rendered from a snapshot — without forking the component tree.
 
 ## Install
 
+For library work or local development:
+
 ```bash
 git clone https://github.com/cailmdaley/vellum-reader.git
 cd vellum-reader && npm install
+```
+
+To install the static bake CLI globally:
+
+```bash
+npm install -g github:cailmdaley/vellum-reader
 ```
 
 To consume vellum-reader from another project, install it as a sibling
@@ -41,7 +49,8 @@ checkout and reference it from `package.json`:
 ```
 
 `react` and `react-dom` are peer dependencies — install them in the host
-app.
+app. The global CLI install already bundles the reader; the peer deps only
+matter when embedding Vellum inside another React app.
 
 ## Quick usage
 
@@ -69,6 +78,19 @@ The full `Adapter` interface lives in [`src/adapter.ts`](src/adapter.ts) —
 return fibers, graphs, annotations, and search hits from whatever backend
 you have, and the rest of the reader keeps working.
 
+## Bake a static publication
+
+```bash
+# after `npm install -g github:cailmdaley/vellum-reader`
+vellum-reader bake constitution-tapestries-publish --root ~/loom --out ./out
+python -m http.server -d ./out 8000
+```
+
+`bake` walks a `.felt/` store, parses MyST, and emits a deployable directory
+with `content/*.json`, `fiber-graph.json`, `search-index.json`, and a tiny
+`index.html` shell. Use `--depth 0` to include all descendants under the
+selected root fiber; the default `--depth 1` publishes just the named fiber.
+
 ## Adapter architecture
 
 Vellum draws a tight line between **shape** (what a fiber, a graph, an
@@ -84,10 +106,10 @@ methods and components gate on capability before calling.
 
 ## Live demo
 
-A live, vellum-rendered tour of vellum itself will be hosted at
-`cailmdaley.github.io/tapestries/vellum-on-vellum/` once the tapestries
-publishing pipeline lands. See [`.felt/vellum-on-vellum/`](.felt/vellum-on-vellum/)
-for the source fiber.
+A live, vellum-rendered tour of vellum itself is published at
+[`cailmdaley.github.io/tapestries/vellum-on-vellum/`](https://cailmdaley.github.io/tapestries/vellum-on-vellum/).
+The screenshot above is captured from that publication. See
+[`.felt/vellum-on-vellum/`](.felt/vellum-on-vellum/) for the source fiber.
 
 ## License
 
