@@ -29,6 +29,7 @@ export {
   useAnnotationActions,
 } from './contexts/AnnotationActionsContext';
 export { createLightconeAdapter } from './api';
+export { createStaticAdapter, staticSiteBase } from './static-adapter';
 export { FileReader } from './components/FileReader';
 export type { FileReaderProps } from './components/FileReader';
 export { FileViewerPage } from './pages/FileViewerPage';

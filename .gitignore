@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-static/
 vendor/
 .vite/
 *.tsbuildinfo
