@@ -55,27 +55,45 @@ function resolveEmbedSrc(src: string): string {
 }
 
 /**
+ * Resolve a path relative to the site's `_vellum/` shared assets dir.
+ *
+ * Used for the embed runtime script and tokens stylesheet, which live
+ * at `_vellum/embed-runtime.js` and `_vellum/embed-tokens.css` — shared
+ * across every publication, so they hang off siteBase rather than the
+ * per-publication base. On tapestries that's `/tapestries/_vellum/...`;
+ * on a local serve from publication root it's `/_vellum/...`.
+ */
+function resolveSiteAsset(path: string): string {
+  if (!path) return path;
+  if (/^([a-z]+:|\/\/|\/)/i.test(path)) return path;
+  if (typeof window === 'undefined') return path;
+  const siteBase = window.__VELLUM_STATIC__?.siteBase;
+  if (!siteBase) return `/${path}`;
+  const trimmed = siteBase === '/' ? '' : siteBase.replace(/\/$/, '');
+  return `${trimmed}/${path}`;
+}
+
+/**
  * Render an HTML companion file in a sandboxed iframe inside a vellum
- * narrative view. The embedded page communicates its measured height
- * back via `postMessage({ type: 'vellum:height', value: <px> })` from
- * its content window; the iframe's height resizes to match so the
- * surrounding prose layout stays correct.
+ * narrative view. After the iframe loads this component injects two
+ * shared assets into its contentDocument:
  *
- * Embedded pages opt into the height handshake by adding:
+ *   - `_vellum/embed-tokens.css` — palette CSS vars, EB Garamond +
+ *     IBM Plex Mono fonts, base body styles. Embeds inherit
+ *     vellum-of-a-piece defaults by default; they can override any
+ *     of it (redefine tokens, swap fonts, ignore entirely).
  *
- *   <script>
- *     const post = () => parent.postMessage({
- *       type: 'vellum:height',
- *       value: document.documentElement.scrollHeight
- *     }, '*');
- *     window.addEventListener('load', post);
- *     new ResizeObserver(post).observe(document.documentElement);
- *   </script>
+ *   - `_vellum/embed-runtime.js` — protocol code that posts the
+ *     embed's measured height back to the parent via
+ *     `postMessage({ type: 'vellum:height', value })` and toggles an
+ *     `.in-iframe` class so embeds can opt into iframe-aware styling
+ *     (the runtime also installs an overflow:hidden rule under that
+ *     class to suppress redundant scrollbars inside the iframe).
  *
- * Without the handshake the iframe falls back to its `height` prop (or
- * 400px). The sandbox attribute permits scripts and same-origin so
- * postMessage and any client-side interactivity inside the embed work,
- * while keeping the iframe insulated from the parent page's styles.
+ * Embed authors don't reference either file directly — they just
+ * write content. The sandbox attribute permits scripts and same-origin
+ * so the runtime works and cross-frame access for injection is allowed,
+ * while keeping the iframe insulated from the parent's styles.
  */
 export function HtmlEmbed({ src, height: initialHeight, title }: HtmlEmbedProps) {
   const ref = useRef<HTMLIFrameElement>(null);
@@ -96,6 +114,46 @@ export function HtmlEmbed({ src, height: initialHeight, title }: HtmlEmbedProps)
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  // Inject the embed tokens stylesheet and protocol runtime into the
+  // iframe's contentDocument on load. The iframe is same-origin
+  // (the sandbox includes `allow-same-origin`) so cross-frame access
+  // is allowed. Embed authors don't need to <link>/<script> these
+  // themselves — they just write content, and the shared defaults +
+  // protocol come along for free. Embeds can still override tokens
+  // by setting their own CSS variables or properties afterwards.
+  useEffect(() => {
+    const iframe = ref.current;
+    if (!iframe) return;
+    function inject() {
+      try {
+        const doc = iframe?.contentDocument;
+        if (!doc || !doc.head) return;
+        if (!doc.querySelector('link[data-vellum-tokens]')) {
+          const link = doc.createElement('link');
+          link.rel = 'stylesheet';
+          link.setAttribute('data-vellum-tokens', '');
+          link.href = resolveSiteAsset('_vellum/embed-tokens.css');
+          // Insert as the first head child so embed-authored CSS that
+          // follows wins via the cascade.
+          doc.head.insertBefore(link, doc.head.firstChild);
+        }
+        if (!doc.querySelector('script[data-vellum-runtime]')) {
+          const script = doc.createElement('script');
+          script.setAttribute('data-vellum-runtime', '');
+          script.src = resolveSiteAsset('_vellum/embed-runtime.js');
+          doc.head.appendChild(script);
+        }
+      } catch {
+        // Cross-origin access denied or iframe torn down — embed is on its own.
+      }
+    }
+    iframe.addEventListener('load', inject);
+    // Handle the case where the iframe is already loaded by the time the
+    // effect runs (React StrictMode double-mount, hot reload, etc.).
+    if (iframe.contentDocument?.readyState === 'complete') inject();
+    return () => iframe.removeEventListener('load', inject);
   }, []);
 
   if (!resolved) {
