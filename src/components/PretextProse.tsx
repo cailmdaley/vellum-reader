@@ -36,6 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import { MyST } from 'myst-to-react';
 import katex from 'katex';
 import { FindingsStepper } from './FindingsStepper';
+import { HtmlEmbed } from './HtmlEmbed';
 import {
   layoutWithLines,
   prepareWithSegments,
@@ -2104,9 +2105,18 @@ function renderLine(
             {/* Vellum-native sentinels swapped in here instead of MyST.
                 The structuredFindingsStepper node is injected by NarrativeView
                 at the end of the findings narrative section; it carries no
-                payload — the stepper reads findings from FindingsContext. */}
+                payload — the stepper reads findings from FindingsContext.
+                The htmlEmbed node is emitted by the bake's `:::{embed}` MyST
+                directive and points at a sibling HTML file copied into the
+                publication bundle. */}
             {item.node?.type === 'structuredFindingsStepper' ? (
               <FindingsStepper />
+            ) : item.node?.type === 'htmlEmbed' ? (
+              <HtmlEmbed
+                src={item.node.src}
+                height={item.node.height}
+                title={item.node.title}
+              />
             ) : (
               <MyST ast={withKatexHtml(item.node)} />
             )}

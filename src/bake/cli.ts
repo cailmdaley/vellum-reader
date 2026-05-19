@@ -140,6 +140,15 @@ export async function runBake(options: { slug: string; root?: string; depth: num
     await writeFile(path, JSON.stringify(content, null, 2));
   }
 
+  // Copy HTML companion files referenced by `:::{embed}` directives.
+  // Each embed lives under `<outDir>/embeds/<bundle-slug>/<authored-path>` —
+  // mirroring the rewritten `src` the renderer reads from FiberContent.mdast.
+  for (const embed of bundle.embeds) {
+    const dest = join(outDir, embed.destRelative);
+    await mkdir(dirname(dest), { recursive: true });
+    await cp(embed.sourcePath, dest);
+  }
+
   return {
     rootFiber,
     outDir,

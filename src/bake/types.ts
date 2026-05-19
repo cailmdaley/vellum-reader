@@ -158,6 +158,13 @@ export interface SearchIndexPayload {
   index: Record<string, any>;
 }
 
+export interface EmbedAsset {
+  /** Absolute path to the source file in the fiber's directory. */
+  sourcePath: string;
+  /** Path under the publication's outDir where bake should write the copy. */
+  destRelative: string;
+}
+
 export interface PublicationBundle {
   graph: FiberGraph;
   contents: FiberContent[];
@@ -165,4 +172,5 @@ export interface PublicationBundle {
   search: SearchIndexPayload;
   rootFiber: FeltFiber;
   publicationSlug: string;
+  embeds: EmbedAsset[];
 }

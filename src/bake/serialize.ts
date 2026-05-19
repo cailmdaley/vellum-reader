@@ -1,6 +1,9 @@
+import { dirname, resolve as resolvePath } from 'node:path';
+
 import { astToPlainText, markdownToMystAST } from './markdown.js';
 import { buildSearchIndex } from './search-index.js';
 import type {
+  EmbedAsset,
   FeltFiber,
   FiberContent,
   FiberGraph,
@@ -45,6 +48,7 @@ export function buildPublicationBundle(
   const stubNodes = new Map<string, GraphNode>();
   const contents: FiberContent[] = [];
   const searchDocuments: SearchDocument[] = [];
+  const embeds: EmbedAsset[] = [];
 
   const resolveFiberRef = (ref: string): FeltFiber | null => {
     const exact = allById.get(ref);
@@ -102,7 +106,7 @@ export function buildPublicationBundle(
 
   for (const fiber of includedFibers) {
     const slug = relativeSlugBySourceId.get(fiber.id)!;
-    const mdast = rewriteLinks(markdownToMystAST(fiber.body));
+    const mdast = rewriteEmbeds(rewriteLinks(markdownToMystAST(fiber.body)), fiber, slug, embeds);
     const frontmatter = {
       ...fiber.frontmatter,
       name: fiber.frontmatter.name ?? fiber.title,
@@ -209,7 +213,49 @@ export function buildPublicationBundle(
     search: buildSearchIndex(searchDocuments),
     rootFiber,
     publicationSlug,
+    embeds,
   };
+}
+
+/**
+ * Walk `node` looking for `htmlEmbed` AST nodes (emitted by the `embed`
+ * MyST directive). For each one:
+ *   - Reject paths that escape the fiber directory (`..` or leading `/`).
+ *   - Resolve the authored relative path against the fiber's filesystem
+ *     directory and queue a source→dest copy into `outputs`.
+ *   - Rewrite the node's `src` to the publication-relative URL
+ *     (`embeds/<bundle-slug>/<authored-path>`) that the renderer will
+ *     resolve against `window.__VELLUM_STATIC__.publicationBase`.
+ * Returns a fresh copy of the AST with the rewritten nodes; the original
+ * tree is left intact so MyST parse caches stay clean.
+ */
+function rewriteEmbeds(
+  node: any,
+  fiber: FeltFiber,
+  bundleSlug: string,
+  outputs: EmbedAsset[],
+): any {
+  if (!node || typeof node !== 'object') return node;
+
+  if (node.type === 'htmlEmbed' && typeof node.src === 'string') {
+    const authored = node.src.trim();
+    if (!authored || authored.startsWith('/') || authored.split('/').some((segment: string) => segment === '..')) {
+      console.warn(
+        `[vellum-reader bake] rejected embed src "${authored}" in ${fiber.id} (must be a relative path within the fiber directory)`,
+      );
+      return { ...node, src: '', invalid: true };
+    }
+    const sourcePath = resolvePath(dirname(fiber.filePath), authored);
+    const destRelative = `embeds/${bundleSlug}/${authored}`;
+    outputs.push({ sourcePath, destRelative });
+    return { ...node, src: destRelative };
+  }
+
+  if (Array.isArray(node.children)) {
+    return { ...node, children: node.children.map((child: any) => rewriteEmbeds(child, fiber, bundleSlug, outputs)) };
+  }
+
+  return node;
 }
 
 function extractFiberRef(url: string): string | null {

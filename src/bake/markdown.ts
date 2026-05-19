@@ -3,6 +3,8 @@ import { tabDirectives } from 'myst-ext-tabs';
 import { proofDirective } from 'myst-ext-proof';
 import katex from 'katex';
 
+import { embedDirective } from './embed-directive.js';
+
 const WIKILINK_RE = /\[\[([^\]|]+?)(?:\|([^\]]*?))?\]\]/g;
 
 function renderMath(node: any, macros?: Record<string, string>): void {
@@ -171,7 +173,7 @@ export function markdownToMystAST(
 ): any {
   const tree = mystParse(content, {
     extensions: { strikethrough: true },
-    directives: [...tabDirectives, proofDirective],
+    directives: [...tabDirectives, proofDirective, embedDirective],
   }) as any;
   unwrapDirectiveWrappers(tree);
   transformToc(tree);
