@@ -16,7 +16,6 @@ import { WorkspaceAnatomy } from '~/components/WorkspaceAnatomy';
 import { HistoryCard } from '~/components/HistoryCard';
 import { readCanvasWidth } from '~/utils/canvas-geometry';
 import { useMode, type Mode } from '~/contexts/ModeContext';
-import { useTheme } from '~/contexts/ThemeContext';
 import { useDelta } from '~/utils/use-delta';
 import { FILE_TARGET_ROUTE, useFileTarget, type FileTarget } from '~/contexts/FileTargetContext';
 import { useWorkspaceSlot } from '~/contexts/WorkspaceSlotContext';
@@ -34,7 +33,6 @@ export function FiberPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, setMode } = useMode();
-  const { themeId } = useTheme();
   const { eyebrow, onIndexEscalate, onOpenSyntheticNode } = useCollection();
   const adapter = useAdapter();
   const { deltaEvents, changedIds, since, dismissFiber, refresh: refreshDelta } = useDelta();
@@ -90,7 +88,7 @@ export function FiberPage() {
       // Best-effort UI preference only.
     }
   }, [rightRailCollapsed]);
-  const showRightRail = themeId !== 'lightcone-linear' && !rightRailCollapsed;
+  const showRightRail = !rightRailCollapsed;
 
   const fileChrome = useFileViewerChromeState();
 
@@ -353,12 +351,7 @@ export function FiberPage() {
       aria-label={currentNode ? `Vellum — ${currentNode.label}` : 'Vellum'}
     >
       <HotReloadListener onReload={reloadCurrentFiber} />
-      {/* Canvas + drag rail are presentation chrome for the margin/personal
-          themes. Under lightcone-linear the whole right-side reservation
-          goes away — the theme centers a single prose column — so we don't
-          mount the components at all. Keeping them mounted was reserving
-          ~420px of viewport via --canvas-width and leaving the prose
-          stranded in the left half. */}
+      {/* Canvas + drag rail are the persistent right-side reading chrome. */}
       {showRightRail && (
         <>
           <CanvasDivider />
@@ -399,7 +392,7 @@ export function FiberPage() {
           onCollapseRightRail={() => setRightRailCollapsed(true)}
         />
       )}
-      {rightRailCollapsed && themeId !== 'lightcone-linear' && (
+      {rightRailCollapsed && (
         <button
           type="button"
           className="vellum-right-rail-restore"

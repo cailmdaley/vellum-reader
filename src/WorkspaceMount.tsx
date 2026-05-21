@@ -36,7 +36,6 @@ import {
   type FileTarget,
 } from './contexts/FileTargetContext';
 import { ModeProvider, useMode, type Mode } from './contexts/ModeContext';
-import { VellumThemeProvider } from './contexts/ThemeContext';
 import { WorkspaceSlotProvider } from './contexts/WorkspaceSlotContext';
 import type { AnnotationAction, AnnotationBulkAction } from './utils/content-types';
 
@@ -223,12 +222,6 @@ export function WorkspaceMount({
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <ThemeProvider theme={null} setTheme={() => {}} renderers={vellumRenderers}>
-        {/* VellumThemeProvider mirrors App.tsx: without it ThemePicker's
-            setThemeId is the default no-op, and embedded hosts (portolan's
-            workspace modal) get a theme picker that does nothing on click.
-            The provider also writes data-theme onto <html>, which is the
-            selector backing :root[data-theme=…] scoped CSS. */}
-        <VellumThemeProvider>
           <CollectionProvider eyebrow={eyebrow} onIndexEscalate={onIndexEscalate} onOpenSyntheticNode={onOpenSyntheticNode}>
             <DecisionFlipProvider>
               <ModeProvider initialMode={initialMode}>
@@ -258,7 +251,6 @@ export function WorkspaceMount({
               </ModeProvider>
             </DecisionFlipProvider>
           </CollectionProvider>
-        </VellumThemeProvider>
       </ThemeProvider>
     </MemoryRouter>
   );

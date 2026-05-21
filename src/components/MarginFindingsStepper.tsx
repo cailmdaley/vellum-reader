@@ -2,10 +2,8 @@
  * MarginFindingsStepper — wraps FindingsStepper as an absolute-positioned
  * margin card, anchored vertically to the findings H2 in the prose.
  *
- * Mounted by NarrativeView under `cail-personal` (the only surviving
- * theme with a persistent margin column after `lightcone-margin` retired
- * in vellum-reader/vellum-native-structured-renderer). The constitution wants
- * the stepper in the margin, next to the prose, so the reader doesn't
+ * Mounted by NarrativeView in the persistent margin column. The constitution
+ * wants the stepper in the margin, next to the prose, so the reader doesn't
  * lose narrative flow by scrolling past an inline block. Same
  * positioning vocabulary as MarginCitations:
  * compute a wrapper-relative top + a railLeft off --canvas-width, and

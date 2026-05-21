@@ -13,14 +13,6 @@
  *      link, not an inlined expansion.
  *   3. Appendix — the single full enumeration: every decision + output as
  *      a full Card, in structured order.
- *
- * Pass 9a: under `lightcone-linear` the findings / decisions / outputs
- * collapse into a single exclusive-open tray. At most one row is expanded
- * at a time; opening another closes the previous. Collapsed rows show
- * label + compact summary (selected-option for decisions). Expanded rows
- * render the full Card. Ref clicks in the prose can expand a row via the
- * `vellum:expand-appendix-row` CustomEvent.
- *
  * Prior insights (GraphFinding.kind === 'prior_insight') are intentionally
  * absent from the top level. In structured they are decision-level evidence; a
  * later iteration will surface them inside the decision cards themselves,
@@ -30,17 +22,10 @@
  * nothing.
  */
 
-import { useEffect, useId, useState } from 'react';
-import type {
-  GraphDecision,
-  GraphFinding,
-  GraphInput,
-  GraphNode,
-  GraphOutput,
-} from '~/utils/content-types';
+import { useEffect } from 'react';
+import type { GraphNode } from '~/utils/content-types';
 import { Card } from './Card';
 import { BibliographySection } from './BibliographySection';
-import { useTheme } from '~/contexts/ThemeContext';
 
 interface StructuredAppendixProps {
   node?: GraphNode;
@@ -62,17 +47,8 @@ interface StructuredAppendixProps {
   subAnalysisSlugs?: Map<string, string>;
 }
 
-/** Row identity in the exclusive-open tray. `kind:key` keeps findings /
- *  decisions / outputs disjoint even when an structured author reuses an id
- *  across sections. */
-type RowId =
-  | `finding:${string}`
-  | `decision:${string}`
-  | `output:${string}`
-  | `input:${string}`;
-
 /** CustomEvent payload for cross-component row expansion. Dispatched by
- *  NarrativeView's anchor-click handler under lightcone-linear. */
+ *  structured-ref navigators when a target card should scroll into view. */
 interface ExpandAppendixRowDetail {
   kind: 'finding' | 'decision' | 'output' | 'input';
   id: string;
@@ -86,27 +62,12 @@ export function StructuredAppendix({
   subAnalysisLabels,
   subAnalysisSlugs,
 }: StructuredAppendixProps) {
-  const { themeId } = useTheme();
-  const collapsedTray = themeId === 'lightcone-linear';
-  const [openRow, setOpenRow] = useState<RowId | null>(null);
-
-  // Cross-component: prose-link click → expand the matching tray row.
-  // Under lightcone-linear, inputs are promoted from the Methods bullet list
-  // into their own CollapsedRow tray within the Methods section, so ref
-  // clicks to `#inputs.id` expand a row rather than opening a float card.
-  //
-  // Under other themes (cail-personal), the appendix renders full cards
-  // inline rather than a collapsed tray, so the expand-row request degrades
-  // to a scroll-into-view on the target card — this keeps LeftRailToc child
-  // clicks navigable under cail-personal without changing the rail's event.
+  // Cross-component: structured-ref navigation scrolls the matching appendix
+  // card into view once the destination node has rendered.
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<ExpandAppendixRowDetail>).detail;
       if (!detail) return;
-      if (collapsedTray) {
-        const rowId = `${detail.kind}:${detail.id}` as RowId;
-        setOpenRow(rowId);
-      }
       // Defer scroll until React has rendered the expanded card; two RAFs
       // survive both the state commit and pretext's measure pass.
       requestAnimationFrame(() => {
@@ -129,7 +90,7 @@ export function StructuredAppendix({
     };
     document.addEventListener('vellum:expand-appendix-row', handler);
     return () => document.removeEventListener('vellum:expand-appendix-row', handler);
-  }, [collapsedTray]);
+  }, []);
 
   // Parent-escape refs (`../decisions.id`) navigate here with a hash like
   // `#decisions.id`; re-dispatch the expand event once per mount/node-change
@@ -137,7 +98,6 @@ export function StructuredAppendix({
   // a RAF to let the initial render mount the row DOM nodes the handler
   // above scrolls to.
   useEffect(() => {
-    if (!collapsedTray) return;
     if (!node) return;
     const hash = window.location.hash.replace(/^#/, '');
     if (!hash) return;
@@ -160,7 +120,7 @@ export function StructuredAppendix({
     });
     // Clear the hash so subsequent navigations don't re-trigger.
     history.replaceState(null, '', window.location.pathname + window.location.search);
-  }, [collapsedTray, node?.slug]);
+  }, [node?.slug]);
 
   if (!node) return null;
 
@@ -191,15 +151,10 @@ export function StructuredAppendix({
     decisions.length > 0 || inputs.length > 0 || subKeys.length > 0;
   const hasAppendix = decisions.length > 0 || outputs.length > 0;
 
-  const toggle = (rowId: RowId) =>
-    setOpenRow((prev) => (prev === rowId ? null : rowId));
-
   return (
     <aside
       id="structured-appendix"
-      className={
-        'structured-appendix' + (collapsedTray ? ' structured-appendix--collapsed-tray' : '')
-      }
+      className="structured-appendix"
       aria-label="structured appendix"
     >
       <div className="structured-appendix__divider">
@@ -220,42 +175,21 @@ export function StructuredAppendix({
           </h3>
           <div className="structured-appendix__stack">
             {findings.map((finding) => {
-              const rowId: RowId = `finding:${finding.key}`;
               return (
                 <div
                   key={finding.key}
                   id={`structured-finding-${finding.key}`}
                   className="structured-appendix__item"
                 >
-                  {collapsedTray ? (
-                    <CollapsedRow
-                      open={openRow === rowId}
-                      onToggle={() => toggle(rowId)}
-                      kind="finding"
-                      title={finding.label ?? finding.key}
-                      summary={compactFindingSummary(finding)}
-                    >
-                      <Card
-                        width={cardWidth}
-                        content={{
-                          type: 'finding',
-                          finding,
-                          hostSlug: node.slug,
-                          hostNode: node,
-                        }}
-                      />
-                    </CollapsedRow>
-                  ) : (
-                    <Card
-                      width={cardWidth}
-                      content={{
-                        type: 'finding',
-                        finding,
-                        hostSlug: node.slug,
-                        hostNode: node,
-                      }}
-                    />
-                  )}
+                  <Card
+                    width={cardWidth}
+                    content={{
+                      type: 'finding',
+                      finding,
+                      hostSlug: node.slug,
+                      hostNode: node,
+                    }}
+                  />
                 </div>
               );
             })}
@@ -293,46 +227,18 @@ export function StructuredAppendix({
             {inputs.length > 0 && (
               <div className="structured-appendix__methods-group">
                 <div className="structured-appendix__methods-label">Inputs</div>
-                {collapsedTray ? (
-                  <div className="structured-appendix__stack">
-                    {inputs.map((input) => {
-                      const rowId: RowId = `input:${input.id}`;
-                      return (
-                        <div
-                          key={input.id}
-                          id={`structured-input-${input.id}`}
-                          className="structured-appendix__item"
-                        >
-                          <CollapsedRow
-                            open={openRow === rowId}
-                            onToggle={() => toggle(rowId)}
-                            kind="input"
-                            title={input.label ?? input.id}
-                            summary={compactInputSummary(input)}
-                          >
-                            <Card
-                              width={cardWidth}
-                              content={{ type: 'input', input, hostNode: node }}
-                            />
-                          </CollapsedRow>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <ul className="structured-appendix__methods-list">
-                    {inputs.map((input) => (
-                      <li key={input.id}>
-                        <span className="structured-appendix__methods-id">{input.id}</span>
-                        {input.description && (
-                          <span className="structured-appendix__methods-desc">
-                            {' '}— {input.description}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <ul className="structured-appendix__methods-list">
+                  {inputs.map((input) => (
+                    <li key={input.id} id={`structured-input-${input.id}`}>
+                      <span className="structured-appendix__methods-id">{input.id}</span>
+                      {input.description && (
+                        <span className="structured-appendix__methods-desc">
+                          {' '}— {input.description}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -393,34 +299,17 @@ export function StructuredAppendix({
               </h4>
               <div className="structured-appendix__stack">
                 {decisions.map((decision) => {
-                  const rowId: RowId = `decision:${decision.key}`;
                   return (
                     <div
                       key={decision.key}
                       id={`structured-decision-${decision.key}`}
                       className="structured-appendix__item"
                     >
-                      {collapsedTray ? (
-                        <CollapsedRow
-                          open={openRow === rowId}
-                          onToggle={() => toggle(rowId)}
-                          kind="decision"
-                          title={decision.label}
-                          summary={compactDecisionSummary(decision)}
-                        >
-                          <Card
-                            width={cardWidth}
-                            content={{ type: 'decision', decision, hostSlug: node.slug }}
-                            onNavigate={onNavigate}
-                          />
-                        </CollapsedRow>
-                      ) : (
-                        <Card
-                          width={cardWidth}
-                          content={{ type: 'decision', decision, hostSlug: node.slug }}
-                          onNavigate={onNavigate}
-                        />
-                      )}
+                      <Card
+                        width={cardWidth}
+                        content={{ type: 'decision', decision, hostSlug: node.slug }}
+                        onNavigate={onNavigate}
+                      />
                     </div>
                   );
                 })}
@@ -440,32 +329,16 @@ export function StructuredAppendix({
               </h4>
               <div className="structured-appendix__stack">
                 {outputs.map((output) => {
-                  const rowId: RowId = `output:${output.id}`;
                   return (
                     <div
                       key={output.id}
                       id={`structured-output-${output.id}`}
                       className="structured-appendix__item"
                     >
-                      {collapsedTray ? (
-                        <CollapsedRow
-                          open={openRow === rowId}
-                          onToggle={() => toggle(rowId)}
-                          kind="output"
-                          title={output.label ?? output.id}
-                          summary={compactOutputSummary(output)}
-                        >
-                          <Card
-                            width={cardWidth}
-                            content={{ type: 'output', output, hostNode: node }}
-                          />
-                        </CollapsedRow>
-                      ) : (
-                        <Card
-                          width={cardWidth}
-                          content={{ type: 'output', output, hostNode: node }}
-                        />
-                      )}
+                      <Card
+                        width={cardWidth}
+                        content={{ type: 'output', output, hostNode: node }}
+                      />
                     </div>
                   );
                 })}
@@ -478,98 +351,4 @@ export function StructuredAppendix({
       <BibliographySection node={node} />
     </aside>
   );
-}
-
-/** CollapsedRow — exclusive-open wrapper for a single appendix entry.
- *
- *  Head is always visible (label + compact summary + caret). Body is the
- *  full Card, mounted only when `open` so pretext doesn't do layout work
- *  on the closed rows. Click head to toggle; parent enforces exclusivity. */
-interface CollapsedRowProps {
-  open: boolean;
-  onToggle: () => void;
-  kind: 'finding' | 'decision' | 'output' | 'input';
-  title: string;
-  summary?: string;
-  children: React.ReactNode;
-}
-
-function CollapsedRow({ open, onToggle, kind, title, summary, children }: CollapsedRowProps) {
-  // Stable per-row ids so screen readers can follow the disclosure
-  // relationship between head (aria-expanded) and body (the panel that
-  // appears). Without aria-controls + id, the button announces "expanded"
-  // but the panel below is just a generic <div> with no semantic tie-back.
-  const reactId = useId();
-  const bodyId = `structured-appendix-row-body-${reactId}`;
-  const headId = `structured-appendix-row-head-${reactId}`;
-  return (
-    <div
-      className={
-        'structured-appendix__row' +
-        ` structured-appendix__row--${kind}` +
-        (open ? ' structured-appendix__row--open' : '')
-      }
-    >
-      <button
-        type="button"
-        id={headId}
-        className="structured-appendix__row-head"
-        aria-expanded={open}
-        aria-controls={bodyId}
-        onClick={onToggle}
-      >
-        <span className="structured-appendix__row-caret" aria-hidden>
-          {open ? '▾' : '▸'}
-        </span>
-        <span className="structured-appendix__row-title">{title}</span>
-        {summary && (
-          <span className="structured-appendix__row-summary">{summary}</span>
-        )}
-      </button>
-      {open && (
-        <div
-          className="structured-appendix__row-body"
-          id={bodyId}
-          role="region"
-          aria-labelledby={headId}
-        >
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** For decisions, the constitution is explicit: the collapsed head shows
- *  the selected option, not the full tag stack. */
-function compactDecisionSummary(d: GraphDecision): string | undefined {
-  return d.selectedLabel ?? undefined;
-}
-
-/** For findings, a compact glance at the claim — truncated to ~80 chars
- *  so the row head stays one line. */
-function compactFindingSummary(f: GraphFinding): string | undefined {
-  const text = f.claim?.trim();
-  if (!text) return undefined;
-  return text.length > 80 ? text.slice(0, 77) + '…' : text;
-}
-
-/** For inputs, the first line of the description — or the `from:` pointer
- *  if no description, since inputs are often catalog references rather than
- *  prose. Truncated to keep the row head one line. */
-function compactInputSummary(i: GraphInput): string | undefined {
-  const text =
-    i.description?.trim().split('\n')[0] ??
-    (i.from ? `from: ${i.from}` : i.source ? `from: ${i.source}` : undefined);
-  if (!text) return undefined;
-  return text.length > 80 ? text.slice(0, 77) + '…' : text;
-}
-
-/** For outputs, the `kind` badge + short description. */
-function compactOutputSummary(o: GraphOutput): string | undefined {
-  const desc = o.description?.trim();
-  const head = o.kind ? `${o.kind}` : '';
-  if (!desc) return head || undefined;
-  const trimmed = desc.length > 60 ? desc.slice(0, 57) + '…' : desc;
-  return head ? `${head} · ${trimmed}` : trimmed;
 }

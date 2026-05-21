@@ -14,7 +14,6 @@ import { FiberPage } from './pages/FiberPage';
 import { PretextGate } from './pages/PretextGate';
 import { TweetEmbedRenderer } from './components/TweetEmbed';
 import { DecisionFlipProvider } from './contexts/DecisionFlipContext';
-import { VellumThemeProvider } from './contexts/ThemeContext';
 
 // Drop-in heading renderer without myst-to-react's default HashLink
 // permalink — we don't need `¶` hash links after every section heading,
@@ -47,7 +46,6 @@ const vellumRenderers = mergeRenderers(
 export default function App() {
   return (
     <ThemeProvider theme={null} setTheme={() => {}} renderers={vellumRenderers}>
-      <VellumThemeProvider>
       <DecisionFlipProvider>
       <Routes>
         {/* `/` renders the auto-generated index of all top-level fibers */}
@@ -58,7 +56,6 @@ export default function App() {
         <Route path="*" element={<FiberPage />} />
       </Routes>
       </DecisionFlipProvider>
-      </VellumThemeProvider>
     </ThemeProvider>
   );
 }

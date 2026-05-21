@@ -7,27 +7,23 @@
  * images, and tweet embeds still render correctly.
  *
  * The shell around the prose body: breadcrumb, header, margin citations,
- * annotations, ghost TOC, backlinks, editor, lightbox.
+ * annotations, left rail, backlinks, editor, lightbox.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArticleProvider } from '@myst-theme/providers';
 import { FiberHeader } from './FiberHeader';
-import { ThemePicker } from './ThemePicker';
 import { FindingsProvider } from '~/contexts/FindingsContext';
 import { MarginFindingsStepper } from './MarginFindingsStepper';
 import { AuthoringLintStrip } from './AuthoringLintStrip';
 import { StructuredAppendix } from './StructuredAppendix';
-import { FigureGallery } from './FigureGallery';
 import { MarginCitations } from './MarginCitations';
 import { NarrativeCounter } from './NarrativeCounter';
-import { GutterHoverCard } from './GutterHoverCard';
 import { PretextProse } from './PretextProse';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { NarrativeAnnotationActionsBar } from './NarrativeAnnotationActionsBar';
 import { Lightbox } from './Lightbox';
-import { GhostToc } from './GhostToc';
 import { LeftRailToc } from './LeftRailToc';
 import { BacklinkNodes } from './BacklinkNodes';
 import { FiberEditor } from './FiberEditor';
@@ -40,7 +36,6 @@ import type {
 } from '~/utils/content-types';
 import { useAdapter } from '~/contexts/AdapterContext';
 import { useAnnotationActions } from '~/contexts/AnnotationActionsContext';
-import { useTheme } from '~/contexts/ThemeContext';
 import { transformTweetEmbeds } from '~/utils/tweet-transform';
 import { parseStructuredAnchor } from '~/utils/structured-anchor';
 
@@ -194,37 +189,6 @@ function demoteHeadingsIfBodyHasH1(mdast: any): any {
   return { ...mdast, children: demoted };
 }
 
-/**
- * Inject a sentinel mdast node — `{ type: 'structuredFindingsStepper' }` —
- * at the end of the findings narrative section, so PretextProse renders
- * the stepper inline right after the findings prose. Safe to call with
- * no findings heading or no findings; returns the tree unchanged.
- *
- * The section ends at the next heading of depth ≤ 2 or the end of the
- * children list; the sentinel goes in just before that boundary so it
- * sits within the findings section, not under "Methods".
- */
-function injectFindingsStepper(mdast: any, findingsCount: number): any {
-  if (!mdast || findingsCount <= 0) return mdast;
-  const children: any[] = Array.isArray(mdast.children) ? [...mdast.children] : [];
-  const headingIdx = children.findIndex(
-    (c) =>
-      c?.type === 'heading' &&
-      (c.identifier === 'findings' || c.label === 'findings'),
-  );
-  if (headingIdx < 0) return mdast;
-  // Walk forward to the next depth-≤2 heading, or the end.
-  let end = headingIdx + 1;
-  while (end < children.length) {
-    const c = children[end];
-    if (c?.type === 'heading' && (c.depth ?? 99) <= 2) break;
-    end++;
-  }
-  const sentinel = { type: 'structuredFindingsStepper' };
-  children.splice(end, 0, sentinel);
-  return { ...mdast, children };
-}
-
 export function NarrativeView({
   content,
   graphNodes,
@@ -238,20 +202,6 @@ export function NarrativeView({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const adapter = useAdapter();
-  const { theme, themeId } = useTheme();
-  // Two-axis decision: (a) does the MarginCitations chip rail mount,
-  // (b) does the persistent Cail chrome (NarrativeCounter etc.) mount.
-  // `persistent` turns both on; Pass-9b `compact-chips` turns only the
-  // rail on (lightcone-margin doesn't want the power-user chrome on top).
-  const showMarginColumn =
-    theme.layout.marginColumn === 'persistent' ||
-    theme.layout.marginColumn === 'compact-chips';
-  const showNarrativeCounter = theme.layout.marginColumn === 'persistent';
-  const showLeftRailToc = theme.layout.leftRailToc === 'on';
-  // GhostToc and LeftRailToc are alternate takes on "left-margin section
-  // navigation"; mounting both doubles up. The rail is the strict superset
-  // (scroll-spy + nested appendix children), so when it's on we retire ghost.
-  const showGhostToc = !showLeftRailToc;
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [visibleAnnotations, setVisibleAnnotations] = useState<Annotation[] | null>(null);
   // Bumped by NarrativeAnnotationActionsBar after a bulk action mutates
@@ -476,24 +426,11 @@ export function NarrativeView({
     // the author wrote a legitimate body h1 that wasn't the title — keep
     // the FiberHeader as sole page h1 by demoting body headings.
     const demoted = demoteHeadingsIfBodyHasH1(stripped.mdast);
-    const firstClassFindings = (currentNode?.findings ?? []).filter(
-      (f) => f.kind !== 'prior_insight',
-    );
-    // Inline stepper only in themes without a margin column. Margin themes
-    // render the stepper as an absolute-positioned card anchored to the
-    // findings heading (MarginFindingsStepper, below in the render).
-    const shouldInjectInline =
-      !showMarginColumn && firstClassFindings.length > 0;
-    const withStepper = shouldInjectInline
-      ? injectFindingsStepper(demoted, firstClassFindings.length)
-      : demoted;
-    return { mdast: transformTweetEmbeds(withStepper), lede: stripped.lede };
+    return { mdast: transformTweetEmbeds(demoted), lede: stripped.lede };
   }, [
     content.mdast,
     content.frontmatter,
     currentNode?.verdict,
-    currentNode?.findings,
-    showMarginColumn,
   ]);
 
   // Outgoing cites from this fiber — counted for the marginalia counter
@@ -605,36 +542,6 @@ export function NarrativeView({
       if (!parsed) return; // plain heading anchor — let the default fire
       e.preventDefault();
       if (!currentNode) return;
-      // Under lightcone-linear the appendix collapses into an exclusive-open
-      // tray; prose ref clicks drive that tray rather than opening a float
-      // card. Dispatch first; StructuredAppendix expands the matching row and
-      // scrolls it into view. Inputs have no tray entry — fall through to
-      // the float-card path so the reader still has a surface.
-      if (themeId === 'lightcone-linear' && !parsed.parentEscapes) {
-        if (
-          parsed.kind === 'findings' ||
-          parsed.kind === 'decisions' ||
-          parsed.kind === 'outputs' ||
-          parsed.kind === 'inputs'
-        ) {
-          document.dispatchEvent(
-            new CustomEvent('vellum:expand-appendix-row', {
-              detail: {
-                kind:
-                  parsed.kind === 'findings'
-                    ? 'finding'
-                    : parsed.kind === 'decisions'
-                      ? 'decision'
-                      : parsed.kind === 'outputs'
-                        ? 'output'
-                        : 'input',
-                id: parsed.id,
-              },
-            }),
-          );
-          return;
-        }
-      }
       // Parent-escape refs (`../findings.id`, `../decisions.id`, `../outputs.id`,
       // `../inputs.id`) resolve against the parent node and navigate there,
       // carrying a hash so the parent's StructuredAppendix can auto-expand the
@@ -744,7 +651,7 @@ export function NarrativeView({
       return;
     }
     openCard({ type: 'fiber', node });
-  }, [graphNodes, navigate, currentNode, parentSubSlugs, parentNode, content.slug, themeId]);
+  }, [graphNodes, navigate, currentNode, parentSubSlugs, parentNode, content.slug]);
 
   return (
     <div className="vellum-prose-wrapper" ref={wrapperRef}>
@@ -768,16 +675,10 @@ export function NarrativeView({
       >
         {editorBuffer === null && (
           <>
-            {/* Above-masthead chrome row. ThemePicker sits left;
-                NarrativeAnnotationActionsBar floats right via
-                margin-left: auto when present. The wrapper flex-wraps,
-                so on narrow widths the bar drops to its own line — the
-                "if there's room" affordance is automatic. The bar
-                renders nothing when the host hasn't registered actions
-                or when no annotations exist on this fiber, so the row
-                degrades cleanly to just the picker. */}
+            {/* Above-masthead chrome row. The annotation bar renders nothing
+                when the host hasn't registered actions or when no annotations
+                exist on this fiber. */}
             <div className="vellum-narrative-chrome-row">
-              <ThemePicker />
               <NarrativeAnnotationActionsBar
                 currentSlug={content.slug}
                 annotations={visibleAnnotations ?? []}
@@ -816,10 +717,7 @@ export function NarrativeView({
                 mdast={cleanAst}
                 contentWidth={contentWidth}
               />
-              {/* Margin placement of the stepper, for themes whose layout
-                  carries a margin column. Sits beside the findings prose
-                  as a card rather than interrupting the narrative flow. */}
-              {showMarginColumn && (currentNode?.findings?.length ?? 0) > 0 && (
+              {(currentNode?.findings?.length ?? 0) > 0 && (
                 <MarginFindingsStepper
                   proseRef={proseRef}
                   wrapperRef={wrapperRef}
@@ -839,53 +737,26 @@ export function NarrativeView({
             subAnalysisSlugs={childSubSlugs}
           />
         )}
-
-        {editorBuffer === null && theme.layout.figureGallery === 'section-end' && (
-          <FigureGallery node={currentNode} />
-        )}
       </article>
 
-      {showNarrativeCounter && (
-        <NarrativeCounter
-          node={currentNode}
-          refCount={refCount}
-          analysisCount={analysisCount}
-        />
-      )}
-      {showMarginColumn && (
-        <>
-          <MarginCitations
-            nodes={graphNodes}
-            proseRef={proseRef}
-            wrapperRef={wrapperRef}
-            changedIds={changedIds}
-            currentNode={currentNode}
-            childSubKeys={childSubKeys}
-            subAnalysisLabels={subAnalysisLabels}
-            parentSubKeys={parentSubKeys}
-            parentSubLabels={parentSubLabels}
-            parentSubSlugs={parentSubSlugs}
-          />
-        </>
-      )}
-      {theme.layout.marginColumn === 'empty-gutter-hover' && (
-        <GutterHoverCard
-          proseRef={proseRef}
-          wrapperRef={wrapperRef}
-          currentNode={currentNode}
-          nodes={graphNodes}
-          childSubKeys={childSubKeys}
-          parentSubKeys={parentSubKeys}
-          parentSubSlugs={parentSubSlugs}
-        />
-      )}
-      {showLeftRailToc && <LeftRailToc proseRef={proseRef} node={currentNode} />}
-      {showGhostToc && (
-        <GhostToc
-          proseRef={proseRef}
-          wrapperRef={wrapperRef}
-        />
-      )}
+      <NarrativeCounter
+        node={currentNode}
+        refCount={refCount}
+        analysisCount={analysisCount}
+      />
+      <MarginCitations
+        nodes={graphNodes}
+        proseRef={proseRef}
+        wrapperRef={wrapperRef}
+        changedIds={changedIds}
+        currentNode={currentNode}
+        childSubKeys={childSubKeys}
+        subAnalysisLabels={subAnalysisLabels}
+        parentSubKeys={parentSubKeys}
+        parentSubLabels={parentSubLabels}
+        parentSubSlugs={parentSubSlugs}
+      />
+      <LeftRailToc proseRef={proseRef} node={currentNode} />
       <BacklinkNodes nodes={backlinkNodes} />
       <TextAnnotationLayer
         slug={content.slug}

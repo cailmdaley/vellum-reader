@@ -1020,7 +1020,7 @@ type InlineLineLayout = {
   /**
    * True for the first wrapped line of the source inline block. Headings
    * emit their semantic tag (h1…h4) only on this line so that the
-   * GhostToc scanner and anything else scanning for real heading elements
+   * section scanners and anything else reading heading elements
    * still finds exactly one element per source heading, even when the
    * heading wraps.
    */
@@ -1787,7 +1787,7 @@ function renderLine(
         item.variant === 'body' ? 'body' : `h${item.variant}`
       }`;
       // Pick a semantic tag for the first wrapped line of a heading block
-      // so downstream scanners (GhostToc, a11y, future anchor-link
+      // so downstream scanners (a11y, future anchor-link
       // generation) find exactly one real heading element per source
       // heading. Continuation lines stay divs to keep the tag count stable.
       const isHeading = item.variant !== 'body';

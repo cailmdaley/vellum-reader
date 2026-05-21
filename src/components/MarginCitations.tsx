@@ -20,9 +20,8 @@
  * with a MIN_GAP floor so overlapping Y values don't collide.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GraphNode } from '~/utils/content-types';
-import { collectFigures, indexFiguresByAnchor, type CollectedFigure } from '~/utils/collect-figures';
 import { useHoverGrace } from '~/hooks/useHoverGrace';
 import { HOVER_GRACE_MS, HOVER_OPEN_DELAY_MS } from '~/utils/hover';
 import { glyphForNode, statusClass } from '~/utils/fiber-status';
@@ -39,7 +38,6 @@ import { MarginCardPreview } from './MarginCardPreview';
 import type { CardContent } from './Card';
 import { marginaliaWidth, readCanvasWidth } from '~/utils/canvas-geometry';
 import { resolveStructuredCardContent as resolveStructuredCardContentFromParsed } from '~/utils/structured-card-content';
-import { useTheme } from '~/contexts/ThemeContext';
 
 type FiberGlyph = {
   kind: 'fiber';
@@ -123,23 +121,11 @@ interface MarginCitationsProps {
 const LINK_HOVER_DELAY_MS = 250;
 
 /**
- * Top-most legal Y for a glyph group, in canvas coordinates.
- *
- * Under `cail-personal` (and any theme that mounts NarrativeCounter), the
- * counter occupies the rail top; chips sit below it. The original value 172
- * was tuned against that layout — masthead height + counter block.
- *
- * For any theme that gates NarrativeCounter off (the retired
- * `lightcone-margin` did this via `marginColumn === 'compact-chips'`,
- * and any future no-counter theme would follow), the floor can sit
- * higher — just below the masthead — so the first chip anchors near
- * the first line of prose instead of leaving a visibly empty band
- * beneath the title block. The pair stays for that future variant
- * even though no surviving theme picks NO_COUNTER today.
- * Tuned alongside the chip rail promotion in Pass 9b step 1.
+ * Top-most legal Y for a glyph group, in canvas coordinates. The counter
+ * occupies the rail top; chips sit below it. Tuned against masthead height
+ * plus the counter block.
  */
 const CANVAS_RAIL_TOP_WITH_COUNTER = 172;
-const CANVAS_RAIL_TOP_NO_COUNTER = 92;
 /** Min vertical gap between distinct glyph groups. Glyphs inside a group share a Y. */
 const MIN_GROUP_GAP = 16;
 /** Max y-distance treated as "same line" when grouping glyphs horizontally. */
@@ -157,26 +143,7 @@ export function MarginCitations({
   parentSubLabels,
   parentSubSlugs,
 }: MarginCitationsProps) {
-  const { theme } = useTheme();
-  // Per-anchor figure lookup for the margin-chip thumbnail render branch.
-  // Cheap memo: only re-indexes when the page's GraphNode identity changes.
-  // When multiple figures share one anchor (e.g. a finding with several
-  // figure-kind evidence entries), the first one wins as the chip thumbnail
-  // — the section-end FigureGallery carries the rest.
-  const figureByAnchor = useMemo<Map<string, CollectedFigure>>(() => {
-    if (theme.layout.marginFigureThumbs !== 'on' || !currentNode) return new Map();
-    const grouped = indexFiguresByAnchor(collectFigures(currentNode));
-    const first = new Map<string, CollectedFigure>();
-    for (const [anchor, figs] of grouped) if (figs[0]) first.set(anchor, figs[0]);
-    return first;
-  }, [theme.layout.marginFigureThumbs, currentNode]);
-  // NarrativeCounter mounts only under `persistent`. Keep the rail-top
-  // branch keyed on that single condition so adding a new marginColumn
-  // value doesn't silently shift chip positioning.
-  const canvasRailTop =
-    theme.layout.marginColumn === 'persistent'
-      ? CANVAS_RAIL_TOP_WITH_COUNTER
-      : CANVAS_RAIL_TOP_NO_COUNTER;
+  const canvasRailTop = CANVAS_RAIL_TOP_WITH_COUNTER;
   const canvasRailTopRef = useRef(canvasRailTop);
   canvasRailTopRef.current = canvasRailTop;
   const [groups, setGroups] = useState<GlyphGroup[]>([]);
@@ -527,7 +494,6 @@ export function MarginCitations({
             scheduleClose,
             setActiveKey,
             groupTop: group.top,
-            figureByAnchor,
             pinItem: (it, gt) => {
               const content: CardContent | null = it.kind === 'fiber'
                 ? { type: 'fiber', node: it.node }
@@ -535,7 +501,7 @@ export function MarginCitations({
               if (!content) return;
               pinCardAtGroup({ content, groupTop: gt, railLeft });
             },
-          }, theme.layout.chipShape))}
+          }))}
         </div>
       ))}
 
@@ -629,20 +595,12 @@ interface GlyphRenderCtx {
   setActiveKey: React.Dispatch<React.SetStateAction<string | null>>;
   pinItem: (item: GlyphItem, groupTop: number) => void;
   groupTop: number;
-  /**
-   * Per-anchor figure lookup. Non-empty only when `theme.layout.marginFigureThumbs
-   * === 'on'` and the current page is an structured graph node. When an structured chip's
-   * href hits this map, the chip's leading dot slot renders as a <img> thumbnail
-   * instead of the kind symbol. Empty map is the no-op case.
-   */
-  figureByAnchor: Map<string, CollectedFigure>;
 }
 
 function renderGlyph(
   item: GlyphItem,
   key: string,
   ctx: GlyphRenderCtx,
-  chipShape: 'kind-name' | 'label-caret' = 'kind-name',
 ) {
   const active = ctx.activeKey === key;
   if (item.kind === 'fiber') {
@@ -679,19 +637,11 @@ function renderGlyph(
     );
   }
 
-  // structured anchor glyph. Broken anchors short-circuit the figure branch: the
-  // ⚠ marker is the load-bearing signal for the reader, and a thumbnail next
-  // to it would make the chip read as "this figure is broken" when the real
-  // failure is the anchor itself not resolving. Fall back to the kind glyph +
-  // ⚠ instead. (Defensive — `collectFigures` only walks the current fiber's
-  // resolved structured tree, so a broken anchor with a figure collected off its
-  // href shouldn't happen today; this keeps that assumption from leaking into
-  // visual state if `figureByAnchor` is ever sourced more widely.)
-  const figure = item.broken ? null : (ctx.figureByAnchor.get(item.href) ?? null);
+  // structured anchor glyph. Broken anchors render with the load-bearing
+  // warning marker and skip pinning.
   const cls =
     `margin-glyph margin-glyph--structured margin-glyph--structured-${item.anchorKind}` +
     (item.broken ? ' margin-glyph--structured-broken' : '') +
-    (figure ? ' margin-glyph--structured-figure' : '') +
     (active ? ' margin-glyph--active' : '');
   const symbol = KIND_SYMBOL[item.anchorKind];
   const kindName = KIND_LEGEND[item.anchorKind];
@@ -721,27 +671,8 @@ function renderGlyph(
           : `${kindName}: ${item.label}`
       }
     >
-      {figure ? (
-        <span className="margin-glyph__dot margin-glyph__dot--figure" aria-hidden="true">
-          <img
-            className="margin-glyph__thumb"
-            src={figure.src}
-            alt=""
-            loading="lazy"
-            decoding="async"
-          />
-        </span>
-      ) : (
-        <span className="margin-glyph__dot" aria-hidden="true">{symbol}</span>
-      )}
-      {chipShape === 'label-caret' ? (
-        <>
-          <span className="margin-glyph__structured-label">{item.label}</span>
-          <span className="margin-glyph__caret" aria-hidden="true">›</span>
-        </>
-      ) : (
-        <span className="margin-glyph__kind-name">{kindName}</span>
-      )}
+      <span className="margin-glyph__dot" aria-hidden="true">{symbol}</span>
+      <span className="margin-glyph__kind-name">{kindName}</span>
       {item.broken && (
         <span className="margin-glyph__broken" aria-hidden="true">⚠</span>
       )}

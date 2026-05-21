@@ -1333,67 +1333,6 @@ body {
 }
 .vellum-prose tr:last-child td { border-bottom: none; }
 
-/* ── Theme Picker ──────────────────────────────────────────
-   Small-caps row above the FiberHeader: "theme · linear · margin ·
-   personal". Sits in the prose column in every theme so the
-   linear-only readers can still flip to margin / personal. The label
-   is set in the same key as muted prose meta; the options ride a hair
-   lighter, rubricated in gold when active so they read as the page's
-   tiny piece of UI chrome rather than as headings. */
-.theme-picker {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.55em;
-  margin: 0 0 0.85rem;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.7rem;
-  line-height: 1;
-  letter-spacing: 0.12em;
-  text-transform: lowercase;
-  color: var(--text-muted);
-}
-
-.theme-picker__label {
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  opacity: 0.55;
-  margin-right: 0.3em;
-}
-
-.theme-picker__option {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  border-bottom: 1.5px solid transparent;
-  padding: 1px 0;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, opacity 120ms ease;
-  opacity: 0.78;
-}
-
-.theme-picker__option:hover {
-  color: var(--ink);
-  opacity: 1;
-}
-
-.theme-picker__option:focus-visible {
-  outline: none;
-  color: var(--ink);
-  border-bottom-color: var(--gold);
-}
-
-.theme-picker__option--active {
-  color: var(--ink);
-  border-bottom-color: var(--gold);
-  opacity: 1;
-}
-
 /* ── Fiber Header (title plate) ────────────────────────────
    Cartouche treatment: a hairline rule below the title with a centered
    rubric ornament punctuating the threshold into the body. The title
@@ -2054,13 +1993,7 @@ body {
   overflow: hidden;
 }
 /* Repeated dots wear a lighter weight — a column of "• • •" reads as a
-   portolan bearing line rather than a repeat of the first bright pin.
-   Scoped to kind-name chips (the only theme that mounts the persistent
-   margin column today is `cail-personal`; the retired `lightcone-margin`
-   theme used per-content `label + caret` chips and would have broken
-   margin-scan legibility under this rule). The original
-   `:not([data-theme="lightcone-margin"])` defense was dropped when the
-   theme retired — see [[vellum-reader/vellum-native-structured-renderer]]. */
+   portolan bearing line rather than a repeat of the first bright pin. */
 .margin-glyph-row:has(.margin-glyph--structured-findings)  ~ .margin-glyph-row:has(.margin-glyph--structured-findings)  .margin-glyph__dot,
 .margin-glyph-row:has(.margin-glyph--structured-decisions) ~ .margin-glyph-row:has(.margin-glyph--structured-decisions) .margin-glyph__dot,
 .margin-glyph-row:has(.margin-glyph--structured-outputs)   ~ .margin-glyph-row:has(.margin-glyph--structured-outputs)   .margin-glyph__dot,
@@ -5611,7 +5544,7 @@ h3.pretext-prose-line--h3::before {
 }
 
 /* The first wrapped line of each heading block is emitted as a semantic
-   <h1>/<h2>/<h3>/<h4> so GhostToc's scanner and a11y tooling find real
+   <h1>/<h2>/<h3>/<h4> so section scanners and a11y tooling find real
    heading elements. That also pulls in `.vellum-prose h2 { border-bottom,
    padding-bottom, font-size, margin }` which fights pretext's geometry.
    Neutralize all of it — visual rendering comes from the fragment spans
@@ -6313,117 +6246,6 @@ a.pretext-prose-frag:hover {
   padding-left: 1rem;
 }
 
-/* ------------------------------------------------------------------
-   FigureGallery (Pass 9b step 6)
-   Section-end trailing grid of every output + finding-evidence figure
-   in the fiber. Mounted under `lightcone-margin` only via
-   theme.layout.figureGallery === 'section-end'. Shares the cartouche
-   divider language with StructuredAppendix so the two read as sibling
-   plates below the narrative.
-   ------------------------------------------------------------------ */
-.structured-figure-gallery {
-  margin-top: 3.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.structured-figure-gallery__divider {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding-bottom: 0.45rem;
-  border-bottom: 1px solid var(--border);
-  opacity: 0.85;
-}
-
-.structured-figure-gallery__divider-label {
-  font-family: 'Spectral', 'EB Garamond', serif;
-  font-size: 0.82rem;
-  font-weight: 500;
-  font-style: normal;
-  text-transform: lowercase;
-  letter-spacing: 0.22em;
-  color: var(--text-muted);
-}
-
-.structured-figure-gallery__count {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  opacity: 0.7;
-}
-
-.structured-figure-gallery__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.25rem 1rem;
-}
-
-.structured-figure-gallery__tile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0;
-  background: transparent;
-  border: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: zoom-in;
-}
-
-.structured-figure-gallery__tile:focus-visible {
-  outline: 2px solid var(--rubric);
-  outline-offset: 4px;
-  border-radius: 2px;
-}
-
-.structured-figure-gallery__thumb {
-  display: block;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface, #FBF6E9);
-  aspect-ratio: 4 / 3;
-  transition: border-color 120ms ease, transform 120ms ease;
-}
-
-.structured-figure-gallery__thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
-.structured-figure-gallery__tile:hover .structured-figure-gallery__thumb {
-  border-color: var(--rubric);
-}
-
-.structured-figure-gallery__caption {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.structured-figure-gallery__label {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
-  word-break: break-word;
-}
-
-.structured-figure-gallery__desc {
-  font-family: 'Spectral', 'EB Garamond', serif;
-  font-size: 0.88rem;
-  line-height: 1.38;
-  color: var(--text);
-  opacity: 0.88;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
 
 /* File viewer page — read and edit surface */
 .vellum-file-viewer-page {
@@ -6613,23 +6435,13 @@ a.pretext-prose-frag:hover {
    .vellum-modal-btn--bulk but mounted above the FiberHeader masthead
    so it doesn't depend on theme chrome. Quiet by default; surfaces
    only when the host registered bulkActions and ≥1 annotation exists. */
-/* Wrapper row that hosts ThemePicker + NarrativeAnnotationActionsBar
-   side-by-side. flex-wrap drops the bar to its own line when the
-   prose column is too narrow; the picker keeps its baseline-aligned
-   gap so its visual rhythm matches whether the bar is present or not.
-   ThemePicker's existing `margin-bottom` carries the row's bottom
-   spacing — don't add another here or the gap doubles. */
+/* Wrapper row that hosts NarrativeAnnotationActionsBar above the masthead.
+   flex-wrap drops the bar to its own line when the prose column is too narrow. */
 .vellum-narrative-chrome-row {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 8px 16px;
-}
-.vellum-narrative-chrome-row .theme-picker {
-  /* Reset margin so the wrapper owns vertical spacing — picker had
-     its own margin-bottom that conflicted with the row's gap when
-     both children laid out in one line. */
-  margin-bottom: 0;
 }
 
 .vellum-narrative-action-bar {
@@ -6640,15 +6452,13 @@ a.pretext-prose-frag:hover {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 11px;
   color: var(--text-muted);
-  /* When inline with ThemePicker, push to the right edge of the row.
-     Falls through harmlessly when the bar wraps to its own line —
-     `margin-left: auto` is a no-op without sibling competition. */
+  /* Push to the right edge when the row has room. */
   margin-left: auto;
 }
 /* Restore the old standalone bottom-of-row chrome (gap + dotted rule)
    only when the bar is NOT inside the chrome row (i.e. it's standing
    on its own as it used to). The chrome-row variant is visually
-   absorbed into the picker rhythm and doesn't need its own border. */
+   absorbed into the masthead rhythm and doesn't need its own border. */
 :not(.vellum-narrative-chrome-row) > .vellum-narrative-action-bar {
   padding: 6px 0 10px;
   margin-bottom: 4px;
@@ -6723,121 +6533,10 @@ a.pretext-prose-frag:hover {
   min-height: 0;
 }
 
-/* `lightcone-margin` retired 2026-04-26 under the vellum-native structured
-   renderer (felt: vellum-reader/vellum-native-structured-renderer). The
-   two-rung ladder — `lightcone-linear` (staging) + `cail-personal`
-   (expressive) — replaces the middle "margin column on, layout still
-   paper-shape" slot. Legacy `?theme=lightcone-margin` URLs and stored
-   prefs remap to `lightcone-linear` via LEGACY_ALIASES in
-   src/themes/index.ts; the :root[data-theme="lightcone-margin"]
-   selector block formerly here (palette + anchor highlight colors +
-   chrome suppressions) is removed because no element ever carries
-   that data-theme value. */
-
-/* ──────────────────────────────────────────────────────────────────────
-   lightcone-linear — single centered prose column + left-rail ToC (Pass 9a).
-
-   Paper-shape, not viewer-shape. The prose column centers in the viewport
-   (no left-rail chrome beyond the ToC; no persistent right margin). structured
-   spec info lives in StructuredAppendix below the narrative (Findings / Methods
-   / Appendix), exactly as Pass 6 already renders it. Kind-colored inline
-   anchor highlights match the lightcone-margin palette so prose-level
-   affordances read identically across themes — the difference is container,
-   not signal.
-
-   Chrome gates: every persistent right-side inhabitant from the original
-   Lightcone viewer is hidden under this theme root. GutterHoverCard does
-   not mount (theme.layout.marginColumn === 'none' in the config, which
-   NarrativeView checks before mounting).
-
-   LeftRailToc is mounted in NarrativeView only for this theme (themeId
-   check). CSS below places it at the left edge; details in the
-   `.left-rail-toc` block near line ~6000.
-   ────────────────────────────────────────────────────────────────────── */
-:root[data-theme="lightcone-linear"] {
-  --structured-finding: var(--portolan-verdigris);
-  --structured-decision: var(--rubric);
-  --structured-output: var(--portolan-indigo);
-  --structured-input: #6A7280;
-  --structured-analysis: var(--ochre-ink);
-}
-
-/* Center the prose column. .vellum-page's default margin-left comes from
-   --page-margin-left (a JS-set var in NarrativeView for the drag handle);
-   override it here so linear pages sit symmetrical inside the viewport.
-   The prose column itself has `width: 100%` inside `.vellum-prose-wrapper`,
-   so the centering happens one level up on `.vellum-page`. */
-:root[data-theme="lightcone-linear"] .vellum-page {
-  margin-left: auto;
-  margin-right: auto;
-  max-width: var(--prose-shell-width, 720px);
-}
-
-/* Hide every persistent right-column inhabitant. Components still mount
-   for stability (event listeners, observers); only the visual surface is
-   suppressed. Mirrors the lightcone-margin gate. */
-:root[data-theme="lightcone-linear"] .floating-island,
-:root[data-theme="lightcone-linear"] .thumb-index,
-:root[data-theme="lightcone-linear"] .backlink-nodes,
-:root[data-theme="lightcone-linear"] .ghost-toc,
-:root[data-theme="lightcone-linear"] .margin-citations,
-:root[data-theme="lightcone-linear"] .narrative-counter {
-  display: none !important;
-}
-
-/* Kind-colored inline anchor highlights. Same tonal recipe as
-   lightcone-margin — the argument for rubricated anchors is about prose
-   affordance, not theme branding, and carries identically into linear. */
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor {
-  color: inherit;
-  border-bottom: none;
-  background: var(--structured-anchor-bg, rgba(181, 69, 58, 0.10));
-  padding: 0 2px;
-  border-radius: 2px;
-  transition: background 0.15s, box-shadow 0.15s;
-}
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--findings {
-  --structured-anchor-bg: rgba(74, 124, 111, 0.14);
-}
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--decisions {
-  --structured-anchor-bg: rgba(181, 69, 58, 0.12);
-}
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--outputs {
-  --structured-anchor-bg: rgba(74, 90, 124, 0.14);
-}
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--inputs {
-  --structured-anchor-bg: rgba(106, 114, 128, 0.14);
-}
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--analyses {
-  --structured-anchor-bg: rgba(154, 123, 53, 0.16);
-}
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor:hover,
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor.margin-active {
-  background: var(--structured-anchor-bg, rgba(181, 69, 58, 0.10));
-  box-shadow: inset 0 -2px 0 0 currentColor;
-}
-:root[data-theme="lightcone-linear"] .pretext-prose a.structured-anchor--broken {
-  background: transparent;
-  border-bottom: 1px dashed var(--text-muted);
-  color: var(--text-muted);
-}
-
-/* Scroll target offset: the ToC click uses scrollIntoView(block: 'start'),
-   which puts the heading flush at the viewport top. A little headroom
-   reads better, and the constitution wants room for a future sticky
-   chapter-head. */
-:root[data-theme="lightcone-linear"] h2.pretext-prose-line--h2,
-:root[data-theme="lightcone-linear"] .structured-appendix__section {
-  scroll-margin-top: 2rem;
-}
-
 /* ── LeftRailToc (Pass 9a) ─────────────────────────────────────────────
    Collapsed 32px chevron at the left edge; expanded 272px panel with a
    hierarchical section list. Fixed-position so scrolling leaves it in
-   place. Mounted under any theme whose `layout.leftRailToc === 'on'`
-   (currently lightcone-linear + cail-personal). GhostToc is suppressed
-   wherever the rail is on. Styling stays unscoped to the theme selector
-   so appearance is consistent across themes. */
+   place. */
 .left-rail-toc {
   position: fixed;
   top: 4rem;

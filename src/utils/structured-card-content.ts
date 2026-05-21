@@ -1,10 +1,8 @@
 /**
  * structured-card-content — map a parsed structured anchor to the unified Card primitive.
  *
- * Shared between MarginCitations (the Cail-theme margin rail) and
- * GutterHoverCard (the Lightcone-theme empty-gutter hover card) so both
- * surfaces render the same card for the same anchor — hover and click
- * stay visually identical across themes.
+ * Shared by margin hover and click surfaces so both render the same card for
+ * the same anchor.
  */
 
 import type { ParsedStructuredAnchor } from './structured-anchor';

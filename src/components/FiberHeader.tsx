@@ -13,10 +13,6 @@
  * masthead reads them through the same permissive `frontmatter` bag and
  * renders them without further wiring. Missing fields degrade to absence,
  * not "Untitled"-style placeholders — the masthead shows only what's real.
- *
- * Theme-agnostic. Same masthead renders under lightcone-linear,
- * lightcone-margin, and cail-personal. Per-theme typographic variation
- * happens through the shared CSS custom properties (`--ink`, fonts, etc).
  */
 
 import { Fragment, type ReactNode } from 'react';

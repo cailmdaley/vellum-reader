@@ -1,5 +1,5 @@
 /**
- * LeftRailToc — hierarchical table of contents for the lightcone-linear theme.
+ * LeftRailToc — hierarchical table of contents for the reading surface.
  *
  * Collapsed (32px): just a chevron at the left edge.
  * Expanded (272px): the five canonical narrative sections as top-level

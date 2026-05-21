@@ -183,8 +183,7 @@ export const KIND_LEGEND: Record<StructuredAnchorKind, string> = {
  * current node may still resolve via the `NarrativeView` click handler's
  * graph walk (see `findHostForStructuredRef`), in which case it should render
  * live, not broken. Without this, cross-analysis refs get false-positive
- * broken dashes in MarginCitations and no-hover in GutterHoverCard even
- * though clicking them navigates fine.
+ * broken dashes in MarginCitations even though clicking them navigates fine.
  *
  * Decisions/findings key by `.key`; inputs/outputs by `.id` — mirrors the
  * click-path resolver in `NarrativeView.tsx`.

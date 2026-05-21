@@ -65,7 +65,6 @@ import { useAdapter } from '../contexts/AdapterContext';
 import type { Annotation, AnnotationAction, FileContent } from '../utils/content-types';
 import { assignMdastKeys } from '../utils/mdast-keys';
 import { PretextProse } from './PretextProse';
-import { ThemePicker } from './ThemePicker';
 import { FiberHeader } from './FiberHeader';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { AnnotationPopover } from './AnnotationPopover';
@@ -795,9 +794,8 @@ function MarkdownReader({
   const wrapperRef = useRef<HTMLDivElement>(null);
   // proseRef is what TextAnnotationLayer scopes selection-tracking and highlight
   // hit-testing to; we mount it on an <article> sibling of the layer so the
-  // ThemePicker / FiberHeader chrome at the top of the wrapper stays out of the
-  // selection range. Same shape as NarrativeView's vellum-prose-wrapper /
-  // vellum-prose pair.
+  // FiberHeader chrome at the top of the wrapper stays out of the selection
+  // range. Same shape as NarrativeView's vellum-prose-wrapper / vellum-prose pair.
   const proseRef = useRef<HTMLElement | null>(null);
   const [proseEl, setProseEl] = useState<HTMLElement | null>(null);
   const [contentWidth, setContentWidth] = useState<number>(MARKDOWN_INITIAL_CONTENT_WIDTH);
@@ -877,12 +875,6 @@ function MarkdownReader({
           ref={wrapperRef}
           className="vellum-file-reader vellum-file-reader--markdown vellum-file-reader--markdown-canvas"
         >
-          {/* ThemePicker mirrors the fiber-side narrative: lightcone-linear
-              hides the FloatingIsland on the right, so any chrome that should
-              be visible in every theme has to live inside the prose column.
-              Without this the picker disappeared when files moved out of the
-              FileViewerModal. */}
-          <ThemePicker />
           {/* FiberHeader for fiber-shaped frontmatter (name or title present).
               Permissive detection: any markdown file with a name/title in its
               frontmatter renders the masthead lockup, so a fiber opened by
