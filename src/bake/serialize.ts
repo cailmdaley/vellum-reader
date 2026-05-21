@@ -1,4 +1,5 @@
-import { dirname, resolve as resolvePath } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve as resolvePath } from 'node:path';
 
 import { astToPlainText, markdownToMystAST } from './markdown.js';
 import { buildSearchIndex } from './search-index.js';
@@ -106,7 +107,9 @@ export function buildPublicationBundle(
 
   for (const fiber of includedFibers) {
     const slug = relativeSlugBySourceId.get(fiber.id)!;
-    const mdast = rewriteEmbeds(rewriteLinks(markdownToMystAST(fiber.body)), fiber, slug, embeds);
+    const baseMdast = rewriteLinks(markdownToMystAST(fiber.body));
+    const withAutoReport = autoInjectReport(baseMdast, fiber);
+    const mdast = rewriteEmbeds(withAutoReport, fiber, slug, embeds);
     const frontmatter = {
       ...fiber.frontmatter,
       name: fiber.frontmatter.name ?? fiber.title,
@@ -215,6 +218,52 @@ export function buildPublicationBundle(
     publicationSlug,
     embeds,
   };
+}
+
+/**
+ * Convention: if a fiber's directory carries a sibling `report.html`,
+ * prepend a synthetic `htmlEmbed` node to the AST so vellum renders
+ * the report above the markdown body without the author needing to
+ * write `:::{embed-html} report.html` explicitly.
+ *
+ * The split that motivates this: `outcome:` and `felt history` stay
+ * plain text — they're the surfaces agents read when chaining sessions
+ * (kanban skim, warm-up reads). `report.html` is the surface humans
+ * read — rich layout, designed per-fiber, full visual freedom. The
+ * body markdown narrows to spec sections (Desired State, Context)
+ * that genuinely want correction-edited prose.
+ *
+ * If the author already references `report.html` explicitly (via the
+ * embed directive or otherwise), no second injection happens.
+ */
+function autoInjectReport(mdast: any, fiber: FeltFiber): any {
+  if (!mdast || typeof mdast !== 'object' || !Array.isArray(mdast.children)) {
+    return mdast;
+  }
+  const reportPath = join(dirname(fiber.filePath), 'report.html');
+  if (!existsSync(reportPath)) return mdast;
+  if (alreadyReferencesReport(mdast)) return mdast;
+  const synthetic = {
+    type: 'htmlEmbed',
+    src: 'report.html',
+    autoInjected: true,
+  };
+  return { ...mdast, children: [synthetic, ...mdast.children] };
+}
+
+function alreadyReferencesReport(node: any): boolean {
+  if (!node || typeof node !== 'object') return false;
+  if (
+    node.type === 'htmlEmbed' &&
+    typeof node.src === 'string' &&
+    node.src.trim() === 'report.html'
+  ) {
+    return true;
+  }
+  if (Array.isArray(node.children)) {
+    return node.children.some(alreadyReferencesReport);
+  }
+  return false;
 }
 
 /**
