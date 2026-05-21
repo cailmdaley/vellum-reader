@@ -99,7 +99,16 @@ function getContext(
   postRange.setEnd(container, container.childNodes.length);
   const contextAfter = normalizeWhitespace(postRange.toString()).slice(0, charsAfter);
 
-  return { selectedText, contextBefore, contextAfter };
+  // Markdown source line for the selection's start/end. PretextProse
+  // stamps every rendered line with `data-source-line-start` so this is
+  // a cheap walk-up. Carried through to the persisted annotation so
+  // re-anchor can pin to the source line rather than fuzzy text-match,
+  // and so AnnotationPopover renders the `L<n>` ref next to the quote
+  // for prose just like it already does for code-file annotations.
+  const line = sourceLineForNode(range.startContainer);
+  const endLine = sourceLineForNode(range.endContainer);
+
+  return { selectedText, contextBefore, contextAfter, line, endLine };
 }
 
 /**
@@ -154,6 +163,68 @@ function buildTextIndex(prose: HTMLElement) {
   return { raw, normalized, normToRaw, textNodes };
 }
 
+/**
+ * Length of the longest common suffix of `a` and `b`. Used to score how
+ * well a candidate match's text-before lines up with the annotation's
+ * stored `contextBefore` — a continuous metric that picks the right
+ * instance of a short, non-unique selection like "Gémenos" or "both"
+ * by measuring how *far back* the surrounding text agrees, rather than
+ * the previous binary "last 15 chars match exactly or they don't".
+ */
+function commonSuffixLength(a: string, b: string): number {
+  const max = Math.min(a.length, b.length);
+  let n = 0;
+  while (n < max && a.charCodeAt(a.length - 1 - n) === b.charCodeAt(b.length - 1 - n)) n++;
+  return n;
+}
+
+/** Symmetric counterpart to commonSuffixLength for `contextAfter`. */
+function commonPrefixLength(a: string, b: string): number {
+  const max = Math.min(a.length, b.length);
+  let n = 0;
+  while (n < max && a.charCodeAt(n) === b.charCodeAt(n)) n++;
+  return n;
+}
+
+/**
+ * Walk up from a DOM node to the nearest ancestor with
+ * `data-source-line-start` and return its 1-indexed markdown source line.
+ * PretextProse stamps every rendered line with this attribute
+ * (see `src/components/PretextProse.tsx`), so a selection inside the
+ * prose tree always lives on a known source line. Returns `undefined`
+ * when the node isn't inside a stamped line — caller falls back to
+ * text-based matching.
+ */
+function sourceLineForNode(node: Node | null | undefined): number | undefined {
+  let el: Element | null =
+    node && node.nodeType === Node.ELEMENT_NODE
+      ? (node as Element)
+      : (node?.parentElement ?? null);
+  while (el) {
+    const v = el.getAttribute?.('data-source-line-start');
+    if (v) {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    }
+    el = el.parentElement;
+  }
+  return undefined;
+}
+
+/** Source line for the text node that contains a given raw text offset. */
+function sourceLineForRawOffset(
+  textNodes: ReadonlyArray<{ node: Text; start: number }>,
+  rawOffset: number,
+): number | undefined {
+  for (const tn of textNodes) {
+    const end = tn.start + (tn.node.textContent?.length ?? 0);
+    if (rawOffset >= tn.start && rawOffset < end) {
+      return sourceLineForNode(tn.node);
+    }
+  }
+  return undefined;
+}
+
 function findAnnotationInDom(prose: HTMLElement, ann: Annotation): Range | null {
   const { raw, normalized, normToRaw, textNodes } = buildTextIndex(prose);
   if (textNodes.length === 0) return null;
@@ -161,37 +232,89 @@ function findAnnotationInDom(prose: HTMLElement, ann: Annotation): Range | null 
   const needle = normalizeWhitespace(ann.selectedText);
   if (needle.length === 0) return null;
 
+  // Collect every occurrence of `needle` in the normalized stream. The
+  // previous implementation broke on the first occurrence whose context
+  // matched at all and fell back to the first occurrence otherwise —
+  // both failure modes anchor short selections (a common word, a single
+  // token) to the earliest occurrence in the document even when a later
+  // one is demonstrably the right home. Score all candidates and pick.
+  const candidates: number[] = [];
   let searchFrom = 0;
-  let bestIdx = -1;
-
-  const normContext = (s: string | undefined) => s ? normalizeWhitespace(s) : '';
-
   while (true) {
     const idx = normalized.indexOf(needle, searchFrom);
     if (idx === -1) break;
-
-    if (ann.contextBefore || ann.contextAfter) {
-      const before = normalized.slice(Math.max(0, idx - 30), idx);
-      const after = normalized.slice(idx + needle.length, idx + needle.length + 30);
-      const normBefore = normContext(ann.contextBefore);
-      const normAfter = normContext(ann.contextAfter);
-      const matchScore =
-        (normBefore && before.endsWith(normBefore.slice(-15)) ? 1 : 0) +
-        (normAfter && after.startsWith(normAfter.slice(0, 15)) ? 1 : 0);
-
-      if (matchScore > 0 || bestIdx === -1) {
-        bestIdx = idx;
-        if (matchScore > 0) break;
-      }
-    } else {
-      bestIdx = idx;
-      break;
-    }
-
+    candidates.push(idx);
     searchFrom = idx + 1;
   }
+  if (candidates.length === 0) return null;
 
-  if (bestIdx === -1) return null;
+  let bestIdx = candidates[0]!;
+  if (candidates.length > 1) {
+    // Primary anchor: the markdown source line the annotation was
+    // created on, captured via PretextProse's `data-source-line-start`
+    // and stored as `ann.line`. This is bulletproof for prose because
+    // PretextProse is a deterministic render of the source — a candidate
+    // either lives on the same line or it doesn't, no whitespace
+    // normalization or context-window fragility to worry about. Falls
+    // back gracefully (skipped) for legacy annotations that pre-date
+    // line capture.
+    const targetLine = ann.line;
+    const candidateLines = candidates.map((idx) => {
+      const rawStart = normToRaw[idx];
+      return typeof rawStart === 'number' ? sourceLineForRawOffset(textNodes, rawStart) : undefined;
+    });
+
+    // If we have a target line and any candidate is on it, restrict the
+    // pool to those. Otherwise, when the source has drifted (the line
+    // moved due to a file edit), prefer candidates whose line is
+    // closest to the target — minimum |candidate.line − ann.line|.
+    let pool: number[] = candidates;
+    if (typeof targetLine === 'number') {
+      const exact = candidates.filter((_, i) => candidateLines[i] === targetLine);
+      if (exact.length > 0) {
+        pool = exact;
+      } else {
+        const withDistance = candidates
+          .map((idx, i) => ({
+            idx,
+            distance:
+              typeof candidateLines[i] === 'number'
+                ? Math.abs((candidateLines[i] as number) - targetLine)
+                : Number.POSITIVE_INFINITY,
+          }))
+          .filter((c) => Number.isFinite(c.distance));
+        if (withDistance.length > 0) {
+          const minDistance = Math.min(...withDistance.map((c) => c.distance));
+          pool = withDistance.filter((c) => c.distance === minDistance).map((c) => c.idx);
+        }
+      }
+    }
+
+    // Tiebreak (or full ranking when no line signal): context-string
+    // overlap. Use full stored windows and longest-common-{suffix,prefix}
+    // so a longer agreement wins over a shorter one rather than the
+    // previous binary "last 15 chars match exactly or they don't".
+    bestIdx = pool[0]!;
+    if (pool.length > 1) {
+      const normBefore = ann.contextBefore ? normalizeWhitespace(ann.contextBefore) : '';
+      const normAfter = ann.contextAfter ? normalizeWhitespace(ann.contextAfter) : '';
+      let bestScore = -1;
+      for (const idx of pool) {
+        const beforeWindow = normalized.slice(Math.max(0, idx - normBefore.length), idx);
+        const afterWindow = normalized.slice(idx + needle.length, idx + needle.length + normAfter.length);
+        const score =
+          commonSuffixLength(beforeWindow, normBefore) +
+          commonPrefixLength(afterWindow, normAfter);
+        // Strictly-greater so the first candidate wins ties — matches
+        // the previous "first occurrence" fallback when no context is
+        // stored (both windows empty → every score is 0).
+        if (score > bestScore) {
+          bestScore = score;
+          bestIdx = idx;
+        }
+      }
+    }
+  }
 
   // Map normalized offsets back to raw offsets.
   const rawStart = normToRaw[bestIdx];
@@ -292,6 +415,8 @@ export function TextAnnotationLayer({
     selectedText: string;
     contextBefore: string;
     contextAfter: string;
+    line?: number;
+    endLine?: number;
   } | null>(null);
   const [marks, setMarks] = useState<AnnotationMark[]>([]);
   const [railGeometry, setRailGeometry] = useState({ left: 0, width: 336 });
@@ -316,6 +441,8 @@ export function TextAnnotationLayer({
         selectedText: selectionContext.selectedText,
         contextBefore: selectionContext.contextBefore,
         contextAfter: selectionContext.contextAfter,
+        line: selectionContext.line,
+        endLine: selectionContext.endLine,
         comment: text,
       });
       if (!ann) return null;
@@ -336,6 +463,8 @@ export function TextAnnotationLayer({
       selectedText: selectionContext.selectedText,
       contextBefore: selectionContext.contextBefore,
       contextAfter: selectionContext.contextAfter,
+      line: selectionContext.line,
+      endLine: selectionContext.endLine,
       comment: 'delete',
     });
     if (!ann) return;

@@ -3450,6 +3450,16 @@ body {
   padding-left: 8px;
 }
 
+.ann-popover__lineref {
+  display: inline-block;
+  margin-right: 6px;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-style: normal;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: var(--gold);
+}
+
 .ann-popover__comment {
   font-size: 0.88rem;
   color: var(--text);

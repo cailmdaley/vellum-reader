@@ -87,6 +87,15 @@ export function AnnotationPopover({
       style={{ position: positionStrategy, top, left }}
     >
       <div className="ann-popover__selected">
+        {typeof annotation.line === 'number' ? (
+          <span className="ann-popover__lineref">
+            L{annotation.line}
+            {typeof annotation.endLine === 'number' &&
+            annotation.endLine !== annotation.line
+              ? `–${annotation.endLine}`
+              : ''}
+          </span>
+        ) : null}
         "{annotation.selectedText.length > 60
           ? `${annotation.selectedText.slice(0, 60)}…`
           : annotation.selectedText}"
