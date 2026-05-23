@@ -6316,6 +6316,93 @@ a.pretext-prose-frag:hover {
   min-height: 0;
 }
 
+/* Inline discard-confirm dialog. Replaces `window.confirm`, which silently
+ * no-ops in Tauri's macOS WKWebView. Lives inside the file viewer page so
+ * it inherits the modal/page stacking context and doesn't fight any host
+ * shell. See gotcha-tauri-webview-sync-dialogs. */
+.vellum-file-viewer-page__discard-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 16, 12, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  padding: 1.5rem;
+}
+
+.vellum-file-viewer-page__discard-dialog {
+  background: var(--panel, #EDE8E0);
+  color: var(--text, #2E2A26);
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+  padding: 1rem 1.125rem 0.875rem;
+  width: min(420px, 100%);
+  box-shadow: 0 12px 32px rgba(20, 16, 12, 0.28);
+  font-family: var(--font-body, "EB Garamond", Georgia, serif);
+}
+
+.vellum-file-viewer-page__discard-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.vellum-file-viewer-page__discard-body {
+  margin: 0 0 0.875rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text-muted, #7A6F5C);
+}
+
+.vellum-file-viewer-page__discard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.vellum-file-viewer-page__discard-cancel,
+.vellum-file-viewer-page__discard-confirm {
+  font: inherit;
+  padding: 4px 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.vellum-file-viewer-page__discard-cancel {
+  background: transparent;
+  color: inherit;
+}
+
+.vellum-file-viewer-page__discard-confirm {
+  background: var(--gold, #C49333);
+  color: #1B140C;
+  border-color: rgba(0, 0, 0, 0.28);
+  font-weight: 600;
+}
+
+.vellum-file-viewer-page__discard-cancel:hover,
+.vellum-file-viewer-page__discard-confirm:hover {
+  filter: brightness(0.97);
+}
+
+.vellum-file-viewer-page__discard-confirm:focus-visible,
+.vellum-file-viewer-page__discard-cancel:focus-visible {
+  outline: 2px solid var(--gold, #C49333);
+  outline-offset: 1px;
+}
+
+/* The overlay covers the file viewer page, which uses flex column. The
+ * overlay needs an absolute positioning context, so the page must be
+ * `position: relative`. The base rule didn't set this — without it, the
+ * overlay anchors to the nearest positioned ancestor (typically the
+ * vellum modal scrim), which can sit off the file viewer. */
+.vellum-file-viewer-page {
+  position: relative;
+}
+
 /* Parsed markdown files host PretextProse plus TextAnnotationLayer directly.
  * Anchor the absolute margin notes to this reader so wrapper-relative Pretext
  * line positions land beside the highlighted text after save/refresh. */

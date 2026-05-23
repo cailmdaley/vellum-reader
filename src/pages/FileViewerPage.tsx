@@ -82,6 +82,23 @@ type FetchState =
 
 export type SaveState = 'idle' | 'saving' | 'saved' | { error: string };
 
+/**
+ * What should pressing "Done" do given the current dirty state?
+ *
+ * `'flip-readonly'` flips the editor back to read view immediately;
+ * `'ask-discard'` means the local buffer would lose work, so the host
+ * needs to confirm before discarding. The branch used to live inline as
+ * `!window.confirm(...)` — but Tauri's macOS WKWebView silently no-ops
+ * `window.confirm`, so the button looked dead in the native shell. Now
+ * the dialog is rendered as an in-component overlay; this helper keeps
+ * the decision shape testable.
+ */
+export type DoneIntent = 'flip-readonly' | 'ask-discard';
+
+export function resolveDoneIntent(dirty: boolean): DoneIntent {
+  return dirty ? 'ask-discard' : 'flip-readonly';
+}
+
 export function chromeAnnotationsForFileViewer(
   fileKind: FileContent['kind'] | null,
   annotations: Annotation[],
@@ -178,6 +195,18 @@ function FileViewerContent({
   // An explicit host value (or the toolbar Edit/Done button) takes
   // precedence after each file load.
   const [editable, setEditable] = useState<boolean>(false);
+  // Tauri's macOS WKWebView silently no-ops `window.confirm`, so a
+  // sync-dialog flow can't gate "Done while dirty". Track the confirm
+  // step in React state and render an inline modal instead. See
+  // constitution-native-desktop-portolan/gotcha-tauri-webview-sync-dialogs.
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  useEffect(() => {
+    // Close any pending confirm dialog when the document state itself
+    // resolves the question (file reloaded, dirty cleared via save, host
+    // forces read mode). Keeping it open across those transitions would
+    // strand the user behind a no-longer-meaningful prompt.
+    if (!dirty || !editable) setDiscardConfirmOpen(false);
+  }, [dirty, editable]);
   useEffect(() => {
     if (state.status !== 'ready') return;
     if (editableProp === undefined) {
@@ -376,17 +405,14 @@ function FileViewerContent({
                   // Done flips back to read view. If the buffer is dirty the
                   // canvas would otherwise show stale prose (mdast is parsed
                   // from `file.content` server-side, not the local draft) —
-                  // confirm with the user so they don't silently lose work.
-                  // No prompt when clean; the toggle is friction-free.
-                  if (
-                    dirty &&
-                    !window.confirm('Discard unsaved edits and return to read view?')
-                  ) {
+                  // route through an inline confirm so the user doesn't
+                  // silently lose work. The previous `window.confirm` call
+                  // here silently no-oped in Tauri's WKWebView and the
+                  // button looked dead; see resolveDoneIntent + the inline
+                  // overlay below.
+                  if (resolveDoneIntent(dirty) === 'ask-discard') {
+                    setDiscardConfirmOpen(true);
                     return;
-                  }
-                  if (dirty && state.status === 'ready') {
-                    draftRef.current = state.file.content;
-                    setDirty(false);
                   }
                   setEditable(false);
                 }}
@@ -427,6 +453,105 @@ function FileViewerContent({
         }}
         onSave={doSave}
       />
+      {discardConfirmOpen && (
+        <DiscardConfirmOverlay
+          onCancel={() => setDiscardConfirmOpen(false)}
+          onDiscard={() => {
+            if (state.status === 'ready') {
+              draftRef.current = state.file.content;
+              setDirty(false);
+            }
+            setDiscardConfirmOpen(false);
+            setEditable(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * In-component confirm rendered when the user clicks "Done" with an
+ * unsaved buffer. The native shell can't show `window.confirm` so the
+ * dialog lives in the document; Esc / click-outside cancel, Discard
+ * commits.
+ */
+function DiscardConfirmOverlay({
+  onCancel,
+  onDiscard,
+}: {
+  onCancel: () => void;
+  onDiscard: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        onDiscard();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    // Focus the destructive action so keyboard-only users can confirm
+    // with Enter; Esc still cancels. The cancel-side button is the
+    // safe default — Tab can move there in one step.
+    dialogRef.current?.querySelector<HTMLButtonElement>('[data-discard-confirm-action="discard"]')?.focus();
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onCancel, onDiscard]);
+
+  return (
+    <div
+      className="vellum-file-viewer-page__discard-overlay"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        className="vellum-file-viewer-page__discard-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="vellum-discard-dialog-title"
+        aria-describedby="vellum-discard-dialog-body"
+      >
+        <h3
+          id="vellum-discard-dialog-title"
+          className="vellum-file-viewer-page__discard-title"
+        >
+          Discard unsaved edits?
+        </h3>
+        <p
+          id="vellum-discard-dialog-body"
+          className="vellum-file-viewer-page__discard-body"
+        >
+          Returning to read view will replace your local buffer with the
+          file on disk. This can&apos;t be undone.
+        </p>
+        <div className="vellum-file-viewer-page__discard-actions">
+          <button
+            type="button"
+            className="vellum-file-viewer-page__discard-cancel"
+            data-discard-confirm-action="cancel"
+            onClick={onCancel}
+          >
+            Keep editing
+          </button>
+          <button
+            type="button"
+            className="vellum-file-viewer-page__discard-confirm"
+            data-discard-confirm-action="discard"
+            onClick={onDiscard}
+          >
+            Discard
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
