@@ -1,4 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+// Vellum-of-a-piece tokens + the height-reporting runtime live alongside
+// the bake output as standalone publication assets, but we also inline
+// them here so the iframe gets the same defaults in *any* mount — live
+// Portolan, canvas dev, anywhere __VELLUM_STATIC__ isn't populated. The
+// previous approach (`<link>`/`<script>` against `/_vellum/...`) only
+// resolved inside a baked publication; in live Portolan the iframe got
+// a 404 for the runtime, so it never posted its measured height and
+// stayed stuck at the initial 400px with its own scrollbar.
+import embedTokensCss from '../../public/embed-tokens.css?raw';
+import embedRuntimeJs from '../../public/embed-runtime.js?raw';
 
 interface HtmlEmbedProps {
   /**
@@ -55,36 +65,19 @@ function resolveEmbedSrc(src: string): string {
 }
 
 /**
- * Resolve a path relative to the site's `_vellum/` shared assets dir.
- *
- * Used for the embed runtime script and tokens stylesheet, which live
- * at `_vellum/embed-runtime.js` and `_vellum/embed-tokens.css` — shared
- * across every publication, so they hang off siteBase rather than the
- * per-publication base. On tapestries that's `/tapestries/_vellum/...`;
- * on a local serve from publication root it's `/_vellum/...`.
- */
-function resolveSiteAsset(path: string): string {
-  if (!path) return path;
-  if (/^([a-z]+:|\/\/|\/)/i.test(path)) return path;
-  if (typeof window === 'undefined') return path;
-  const siteBase = window.__VELLUM_STATIC__?.siteBase;
-  if (!siteBase) return `/${path}`;
-  const trimmed = siteBase === '/' ? '' : siteBase.replace(/\/$/, '');
-  return `${trimmed}/${path}`;
-}
-
-/**
  * Render an HTML companion file in a sandboxed iframe inside a vellum
  * narrative view. After the iframe loads this component injects two
- * shared assets into its contentDocument:
+ * shared assets into its contentDocument, sourced from
+ * `public/embed-tokens.css` and `public/embed-runtime.js` via
+ * Vite `?raw` imports so they ship inline in every consuming bundle:
  *
- *   - `_vellum/embed-tokens.css` — palette CSS vars, EB Garamond +
+ *   - **embed-tokens.css** — palette CSS vars, EB Garamond +
  *     IBM Plex Mono fonts, base body styles. Embeds inherit
  *     vellum-of-a-piece defaults by default; they can override any
  *     of it (redefine tokens, swap fonts, ignore entirely).
  *
- *   - `_vellum/embed-runtime.js` — protocol code that posts the
- *     embed's measured height back to the parent via
+ *   - **embed-runtime.js** — protocol code that posts the embed's
+ *     measured height back to the parent via
  *     `postMessage({ type: 'vellum:height', value })` and toggles an
  *     `.in-iframe` class so embeds can opt into iframe-aware styling
  *     (the runtime also installs an overflow:hidden rule under that
@@ -94,6 +87,11 @@ function resolveSiteAsset(path: string): string {
  * write content. The sandbox attribute permits scripts and same-origin
  * so the runtime works and cross-frame access for injection is allowed,
  * while keeping the iframe insulated from the parent's styles.
+ *
+ * Inlining the assets (vs. a `<link>`/`<script>` reference to
+ * `/_vellum/...`) means the iframe gets correct defaults in any host
+ * — live Portolan, canvas dev, or a baked publication — without that
+ * host needing to serve the standalone runtime files at a specific URL.
  */
 export function HtmlEmbed({ src, height: initialHeight, title }: HtmlEmbedProps) {
   const ref = useRef<HTMLIFrameElement>(null);
@@ -130,19 +128,18 @@ export function HtmlEmbed({ src, height: initialHeight, title }: HtmlEmbedProps)
       try {
         const doc = iframe?.contentDocument;
         if (!doc || !doc.head) return;
-        if (!doc.querySelector('link[data-vellum-tokens]')) {
-          const link = doc.createElement('link');
-          link.rel = 'stylesheet';
-          link.setAttribute('data-vellum-tokens', '');
-          link.href = resolveSiteAsset('_vellum/embed-tokens.css');
+        if (!doc.querySelector('style[data-vellum-tokens]')) {
+          const style = doc.createElement('style');
+          style.setAttribute('data-vellum-tokens', '');
+          style.textContent = embedTokensCss;
           // Insert as the first head child so embed-authored CSS that
           // follows wins via the cascade.
-          doc.head.insertBefore(link, doc.head.firstChild);
+          doc.head.insertBefore(style, doc.head.firstChild);
         }
         if (!doc.querySelector('script[data-vellum-runtime]')) {
           const script = doc.createElement('script');
           script.setAttribute('data-vellum-runtime', '');
-          script.src = resolveSiteAsset('_vellum/embed-runtime.js');
+          script.textContent = embedRuntimeJs;
           doc.head.appendChild(script);
         }
       } catch {
