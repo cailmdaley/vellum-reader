@@ -919,6 +919,23 @@ function ImageReader({ file }: FileReaderProps) {
   );
 }
 
+function AudioReader({ file }: FileReaderProps) {
+  // Native <audio> player for sent recordings (.wav/.mp3/…). The host serves
+  // the bytes at file.url via /project-file with an audio/* Content-Type;
+  // the browser handles transport controls, scrubbing, and decoding. The
+  // filename is shown above so a trail of identically-chromed players stays
+  // distinguishable.
+  const filename = file.path.split('/').pop() || file.path;
+  return (
+    <div className="vellum-file-reader vellum-file-reader--audio">
+      <div className="vellum-file-reader__audio-name">{filename}</div>
+      <audio controls preload="metadata" src={file.url}>
+        Your browser does not support audio playback.
+      </audio>
+    </div>
+  );
+}
+
 function HtmlReader({ file }: FileReaderProps) {
   return (
     <iframe
@@ -1193,6 +1210,8 @@ export function FileReader(props: FileReaderProps) {
   switch (file.kind) {
     case 'image':
       return <ImageReader file={file} />;
+    case 'audio':
+      return <AudioReader file={file} />;
     case 'html':
       return <HtmlReader file={file} />;
     case 'pdf':
