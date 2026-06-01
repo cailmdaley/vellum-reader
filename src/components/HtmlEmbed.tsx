@@ -99,6 +99,10 @@ export function HtmlEmbed({ src, height: initialHeight, title }: HtmlEmbedProps)
   const resolved = resolveEmbedSrc(src);
 
   useEffect(() => {
+    setHeight(initialHeight ?? 400);
+  }, [initialHeight, resolved]);
+
+  useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (!ref.current || event.source !== ref.current.contentWindow) return;
       const payload = event.data;
@@ -163,6 +167,7 @@ export function HtmlEmbed({ src, height: initialHeight, title }: HtmlEmbedProps)
 
   return (
     <iframe
+      key={resolved}
       ref={ref}
       src={resolved}
       title={title ?? 'Embedded HTML companion'}
