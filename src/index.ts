@@ -38,6 +38,15 @@ export { FileViewerModal } from './components/FileViewerModal';
 export type { FileViewerModalProps } from './components/FileViewerModal';
 export { WorkspaceMount } from './WorkspaceMount';
 export type { WorkspaceMountProps, WorkspaceMountApi } from './WorkspaceMount';
+// NarrativeView is the single-fiber prose rendering (masthead → outcome →
+// report embed → body) without the workspace shell. Exported for hosts that
+// mount one fiber as a standalone page — portolan's kanban card-detail
+// panel is the canonical consumer (kanban-card-vellum-page constitution).
+export { NarrativeView } from './components/NarrativeView';
+// TweetEmbedRenderer pairs with NarrativeView for hosts that build their
+// own renderer set (NarrativeView's transformTweetEmbeds emits `tweetEmbed`
+// nodes that need this renderer registered to display).
+export { TweetEmbedRenderer } from './components/TweetEmbed';
 export { FiberCard } from './components/FiberCard';
 export type { FiberCardProps } from './components/FiberCard';
 export { Card } from './components/Card';
