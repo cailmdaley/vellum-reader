@@ -37,6 +37,7 @@ import { MyST } from 'myst-to-react';
 import katex from 'katex';
 import { FindingsStepper } from './FindingsStepper';
 import { HtmlEmbed } from './HtmlEmbed';
+import { ArtifactEmbed } from './ArtifactEmbed';
 import {
   layoutWithLines,
   prepareWithSegments,
@@ -2114,6 +2115,13 @@ function renderLine(
             ) : item.node?.type === 'htmlEmbed' ? (
               <HtmlEmbed
                 src={item.node.src}
+                height={item.node.height}
+                title={item.node.title}
+              />
+            ) : item.node?.type === 'artifactEmbed' ? (
+              <ArtifactEmbed
+                src={item.node.src}
+                kind={item.node.kind}
                 height={item.node.height}
                 title={item.node.title}
               />
