@@ -42,11 +42,17 @@ export type { WorkspaceMountProps, WorkspaceMountApi } from './WorkspaceMount';
 // report embed → body) without the workspace shell. Exported for hosts that
 // mount one fiber as a standalone page — portolan's kanban card-detail
 // panel is the canonical consumer (kanban-card-vellum-page constitution).
+// vellumRenderers / ThemeProvider / MemoryRouter complete the provider
+// stack such a host needs — re-exported (like useNavigate below) because
+// myst + react-router live in vellum's node_modules, not the consumer's.
 export { NarrativeView } from './components/NarrativeView';
 // TweetEmbedRenderer pairs with NarrativeView for hosts that build their
 // own renderer set (NarrativeView's transformTweetEmbeds emits `tweetEmbed`
 // nodes that need this renderer registered to display).
 export { TweetEmbedRenderer } from './components/TweetEmbed';
+export { vellumRenderers } from './WorkspaceMount';
+export { ThemeProvider } from '@myst-theme/providers';
+export { MemoryRouter } from 'react-router-dom';
 export { FiberCard } from './components/FiberCard';
 export type { FiberCardProps } from './components/FiberCard';
 export { Card } from './components/Card';

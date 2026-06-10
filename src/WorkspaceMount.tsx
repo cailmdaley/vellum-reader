@@ -39,7 +39,10 @@ import { ModeProvider, useMode, type Mode } from './contexts/ModeContext';
 import { WorkspaceSlotProvider } from './contexts/WorkspaceSlotContext';
 import type { AnnotationAction, AnnotationBulkAction } from './utils/content-types';
 
-const vellumRenderers = mergeRenderers(
+// Exported (via index.ts) for hosts that mount vellum components without
+// the workspace shell (e.g. portolan's fiber-page panel) — the same
+// renderer set the shell uses, so embeds behave identically everywhere.
+export const vellumRenderers = mergeRenderers(
   [
     DEFAULT_RENDERERS,
     {
