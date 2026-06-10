@@ -360,7 +360,7 @@ export function FloatingIsland({
 
   return (
     <div
-      className={`thumb-index thumb-index--${tier}${mode === 'delta' ? ' thumb-index--compact' : ''}`}
+      className={`thumb-index thumb-index--${tier}${mode === 'delta' ? ' thumb-index--compact' : ''}${mode === 'workspace' ? ' thumb-index--banded' : ''}`}
       ref={rootRef}
       role="navigation"
       aria-label="Vellum navigation"

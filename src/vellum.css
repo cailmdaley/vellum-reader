@@ -577,6 +577,18 @@ body {
   scrollbar-color: var(--border-faint) transparent;
 }
 
+/* Banded form for workspace mode: hosted surfaces (portolan's kanban)
+   align their header chrome and the divider fleuron to
+   --thumb-index-bottom, so the island must publish a CONSTANT height —
+   its natural content height varies with fiber-tree depth (sibling
+   lists wrap differently), which made the fleuron and the kanban
+   header band shift as you navigate. Fixed band; nav overflows scroll
+   within it. */
+.thumb-index--banded {
+  height: var(--thumb-index-band-height, 128px);
+  overflow-y: auto;
+}
+
 /* Compact form for delta mode: the thumb-index shrinks to its natural
    content height so the delta grid can form an L around it. Border-left
    drops too — there's no canvas column to delimit from. */
